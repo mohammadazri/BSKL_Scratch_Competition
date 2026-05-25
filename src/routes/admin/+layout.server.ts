@@ -1,11 +1,9 @@
 // Guard for everything under /admin — super_admin only.
-//
-// Track 2 owns most admin routes; we install a tiny top-level guard here so
-// the /admin/audit subroute is protected even if Track 2 doesn't add anything
-// stricter. If Track 2 needs to add per-page guards, it can layer them inside
-// the relevant subdirectory.
+// Loads the current user's profile row (camelCase-mapped) so the layout can
+// render <AppShell> with the user chip and the role-aware sidebar nav.
 
 import type { LayoutServerLoad } from './$types';
+import { redirect } from '@sveltejs/kit';
 import { requireRole } from '$lib/server/guards';
 
 export const load: LayoutServerLoad = async ({ locals, url }) => {
@@ -16,5 +14,25 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		url.pathname
 	);
 
-	return { session };
+	const { data: profile, error } = await locals.supabase
+		.from('profiles')
+		.select('id, email, full_name, role, categories, is_active')
+		.eq('id', locals.user!.id)
+		.single();
+
+	if (error || !profile) {
+		throw redirect(303, '/login?error=profile-not-found');
+	}
+
+	return {
+		session,
+		profile: {
+			id: profile.id,
+			email: profile.email,
+			fullName: profile.full_name,
+			role: profile.role,
+			categories: profile.categories,
+			isActive: profile.is_active
+		}
+	};
 };

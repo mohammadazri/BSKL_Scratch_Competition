@@ -18,7 +18,7 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import { parseCsv } from '$lib/utils/csv';
 	import { toasts } from '$lib/stores/toast';
-	import { Plus, Pencil, Trash2, Upload, Ban, CheckCircle2, FileText } from 'lucide-svelte';
+	import { Plus, Pencil, Trash2, Upload, Ban, CheckCircle2, FileText } from '@lucide/svelte';
 	import type { ActionData, PageData } from './$types';
 	import type { ParticipantRow } from './+page.server';
 	import type { Category, DqReason, Theme } from '$lib/types';

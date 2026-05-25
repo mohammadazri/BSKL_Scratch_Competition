@@ -6,7 +6,7 @@
 <script lang="ts">
 	import { parseCsv } from '$lib/utils/csv';
 	import Button from './Button.svelte';
-	import { Upload, FileText, AlertTriangle } from 'lucide-svelte';
+	import { Upload, FileText, AlertTriangle } from '@lucide/svelte';
 
 	interface Props {
 		headersExpected: string[];

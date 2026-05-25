@@ -9,7 +9,7 @@
 	import UserAvatar from './UserAvatar.svelte';
 	import RolePill from './RolePill.svelte';
 	import Toast from './Toast.svelte';
-	import { Menu, LogOut, ChevronDown } from 'lucide-svelte';
+	import { Menu, LogOut, ChevronDown } from '@lucide/svelte';
 	import type { Role } from '$lib/types';
 	import { enhance } from '$app/forms';
 

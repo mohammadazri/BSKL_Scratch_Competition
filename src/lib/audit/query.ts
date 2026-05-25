@@ -146,12 +146,19 @@ export async function fetchAuditPage(
 // 10k-row export doesn't try to allocate one giant array in JS memory upfront.
 //
 // Yields one row at a time via an async generator.
+//
+// Keyset pagination on (at DESC, id DESC) — every page asks for rows strictly
+// "older" than the last row of the previous page in lexicographic (at, id)
+// order. This avoids both re-yielding rows that share an exact `at` value
+// (multiple audit rows from one transaction) and the classic OFFSET drift
+// when new rows arrive mid-export.
 export async function* streamAuditRows(
 	supabase: SupabaseClient,
 	f: AuditFilters,
 	pageSize = 500
 ): AsyncGenerator<AuditRowWithActor> {
-	let cursorIso: string | null = f.toIso;
+	let cursorAt: string | null = f.toIso;
+	let cursorId: string | null = null; // bigserial returned as string
 
 	while (true) {
 		const base = supabase
@@ -160,8 +167,15 @@ export async function* streamAuditRows(
 				'id, at, actor_id, actor_role, actor_ip, actor_ua, action, target_type, target_id, before_json, after_json, reason, actor:profiles!audit_log_actor_id_fkey(full_name, role, email)'
 			);
 
-		const filtered = applyFilters(base, { ...f, toIso: cursorIso });
-		const { data, error } = await filtered
+		let q: any = applyFilters(base, { ...f, toIso: cursorAt });
+		if (cursorId !== null) {
+			// Within the same `at` we step strictly past the last id we yielded.
+			// Outside that tied bucket, the existing `lte('at', cursorAt)` already
+			// covers older timestamps.
+			q = q.or(`at.lt.${cursorAt},and(at.eq.${cursorAt},id.lt.${cursorId})`);
+		}
+
+		const { data, error } = await q
 			.order('at', { ascending: false })
 			.order('id', { ascending: false })
 			.limit(pageSize);
@@ -171,17 +185,16 @@ export async function* streamAuditRows(
 
 		for (const r of data) {
 			yield {
-				...(r as any),
-				id: String((r as any).id),
-				actor: Array.isArray((r as any).actor)
-					? ((r as any).actor[0] ?? null)
-					: ((r as any).actor ?? null)
+				...r,
+				id: String(r.id),
+				actor: Array.isArray(r.actor) ? (r.actor[0] ?? null) : (r.actor ?? null)
 			};
 		}
 
 		if (data.length < pageSize) return;
-		// Cursor to one tick before the last row's `at` to avoid re-yielding it.
-		cursorIso = (data[data.length - 1] as any).at;
+		const last = data[data.length - 1];
+		cursorAt = last.at;
+		cursorId = String(last.id);
 	}
 }
 

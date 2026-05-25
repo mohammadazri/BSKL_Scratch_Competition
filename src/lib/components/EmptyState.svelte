@@ -3,7 +3,7 @@
 -->
 <script lang="ts">
 	import type { Component, Snippet } from 'svelte';
-	import { Inbox } from 'lucide-svelte';
+	import { Inbox } from '@lucide/svelte';
 
 	interface Props {
 		icon?: Component;

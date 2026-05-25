@@ -16,7 +16,7 @@
 		ListChecks,
 		ScrollText,
 		Trophy
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 
 	let { data, children } = $props();
 

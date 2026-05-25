@@ -5,7 +5,7 @@
 -->
 <script lang="ts" generics="T extends Record<string, unknown>">
 	import type { Snippet } from 'svelte';
-	import { ChevronDown, ChevronUp } from 'lucide-svelte';
+	import { ChevronDown, ChevronUp } from '@lucide/svelte';
 
 	export interface Column<R> {
 		key: string;

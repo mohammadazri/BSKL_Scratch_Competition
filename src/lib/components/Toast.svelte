@@ -4,7 +4,7 @@
 -->
 <script lang="ts">
 	import { toasts } from '$lib/stores/toast';
-	import { CheckCircle2, AlertTriangle, CircleAlert, X } from 'lucide-svelte';
+	import { CheckCircle2, AlertTriangle, CircleAlert, X } from '@lucide/svelte';
 </script>
 
 <div class="pointer-events-none fixed top-4 right-4 z-[100] flex w-80 flex-col gap-2">

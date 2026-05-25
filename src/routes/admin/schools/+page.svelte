@@ -13,7 +13,7 @@
 	import Input from '$lib/components/Input.svelte';
 	import CsvUpload from '$lib/components/CsvUpload.svelte';
 	import { toasts } from '$lib/stores/toast';
-	import { Plus, Pencil, Trash2, Upload } from 'lucide-svelte';
+	import { Plus, Pencil, Trash2, Upload } from '@lucide/svelte';
 	import type { ActionData, PageData } from './$types';
 	import type { SchoolRow } from './+page.server';
 

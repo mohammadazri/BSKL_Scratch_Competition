@@ -14,7 +14,7 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import CategoryChip from '$lib/components/CategoryChip.svelte';
 	import { toasts } from '$lib/stores/toast';
-	import { Shuffle } from 'lucide-svelte';
+	import { Shuffle } from '@lucide/svelte';
 	import type { PageData } from './$types';
 	import type { Category } from '$lib/types';
 

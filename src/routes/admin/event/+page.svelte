@@ -10,7 +10,7 @@
 	import Card from '$lib/components/Card.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import ConfirmModal from '$lib/components/ConfirmModal.svelte';
-	import { Lock, Unlock } from 'lucide-svelte';
+	import { Lock, Unlock } from '@lucide/svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();

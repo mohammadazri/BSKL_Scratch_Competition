@@ -11,7 +11,7 @@
 	import PrintableSlips, { type Slip } from '$lib/components/PrintableSlips.svelte';
 	import RolePill from '$lib/components/RolePill.svelte';
 	import { enhance } from '$app/forms';
-	import { Printer, RefreshCw, CheckSquare, Square } from 'lucide-svelte';
+	import { Printer, RefreshCw, CheckSquare, Square } from '@lucide/svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();

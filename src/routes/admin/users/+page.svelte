@@ -17,7 +17,7 @@
 	import RolePill from '$lib/components/RolePill.svelte';
 	import CategoryChip from '$lib/components/CategoryChip.svelte';
 	import { toasts } from '$lib/stores/toast';
-	import { Plus, Pencil, Power, KeyRound, Printer } from 'lucide-svelte';
+	import { Plus, Pencil, Power, KeyRound, Printer } from '@lucide/svelte';
 	import type { ActionData, PageData } from './$types';
 	import type { UserRow } from './+page.server';
 	import type { Category, Role } from '$lib/types';

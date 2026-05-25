@@ -8,7 +8,7 @@
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import Card from '$lib/components/Card.svelte';
 	import Button from '$lib/components/Button.svelte';
-	import { Sparkles, Lock, FileDown, History, CalendarClock } from 'lucide-svelte';
+	import { Sparkles, Lock, FileDown, History, CalendarClock } from '@lucide/svelte';
 	import type { PageData } from './$types';
 	import type { ActivityRow } from './+page.server';
 
