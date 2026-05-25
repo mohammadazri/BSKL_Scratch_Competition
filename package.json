@@ -56,5 +56,8 @@
 		"drizzle-orm": "^0.45.2",
 		"lucide-svelte": "^1.0.1",
 		"postgres": "^3.4.9"
+	},
+	"pnpm": {
+		"onlyBuiltDependencies": ["esbuild"]
 	}
 }
