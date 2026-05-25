@@ -417,7 +417,7 @@
 					style="background: var(--color-bg-3); border-color: var(--border); color: var(--color-text-1); min-height: 44px;"
 					disabled={data.readOnly}
 				>
-					Save &amp; exit
+					Save draft
 				</button>
 				<button
 					type="button"
