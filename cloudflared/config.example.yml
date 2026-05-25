@@ -1,0 +1,64 @@
+# /etc/cloudflared/config.yml — example
+#
+# One-time setup on the Pi (or any machine with a browser if the Pi is headless):
+#
+#   1. cloudflared tunnel login
+#        Opens a browser. Pick the zone (your Cloudflare-managed domain).
+#        Writes ~/.cloudflared/cert.pem.
+#
+#   2. cloudflared tunnel create p3-judging
+#        Prints the tunnel UUID and writes ~/.cloudflared/<UUID>.json (the
+#        credentials file). Note the UUID — you paste it below.
+#
+#   3. Copy this file into place and edit the two placeholders:
+#        sudo mkdir -p /etc/cloudflared
+#        sudo cp cloudflared/config.example.yml /etc/cloudflared/config.yml
+#        sudo cp ~/.cloudflared/<UUID>.json /etc/cloudflared/
+#        sudo $EDITOR /etc/cloudflared/config.yml
+#
+#   4. Add a DNS record in the Cloudflare dashboard:
+#        Type:   CNAME
+#        Name:   judging                 (or whatever subdomain you chose)
+#        Target: <YOUR-TUNNEL-UUID>.cfargotunnel.com
+#        Proxy:  Proxied (orange cloud)
+#
+#      Or from the CLI:
+#        cloudflared tunnel route dns p3-judging judging.<your-domain>.com
+#
+#   5. Install cloudflared as a system service and start it:
+#        sudo cloudflared service install
+#        sudo systemctl enable --now cloudflared
+#        cloudflared tunnel info p3-judging
+#
+# Optional — Cloudflare Access (email-allowlist before the app loads):
+#
+#   Zero Trust dashboard → Access → Applications → Add an application
+#     Type:        Self-hosted
+#     Domain:      judging.<your-domain>.com
+#     Session:     24 hours
+#   Policy:
+#     Action:      Allow
+#     Include:     Emails → aiman0608@gmail.com, <judge1>, <judge2>, ...
+#
+#   Note: judges will see a Cloudflare email-OTP page BEFORE the Supabase
+#   login. Document this in the judges' onboarding email so they don't get
+#   confused by the double login.
+
+tunnel: <YOUR-TUNNEL-UUID>
+credentials-file: /etc/cloudflared/<YOUR-TUNNEL-UUID>.json
+
+# Optional logging — uncomment to tee cloudflared output to a file in addition
+# to journald.
+# loglevel: info
+# logfile: /var/log/cloudflared.log
+
+ingress:
+  # Public hostname → local SvelteKit/Node server (systemd unit p3-judging).
+  - hostname: judging.<your-domain>.com
+    service: http://localhost:3000
+    originRequest:
+      connectTimeout: 30s
+      noTLSVerify: false
+
+  # Catch-all — required as the last rule.
+  - service: http_status:404
