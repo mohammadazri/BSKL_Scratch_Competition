@@ -20,6 +20,7 @@ Loading states are not separately ticked: SvelteKit page loads block the route u
 | `/login` | N/A | `form.error` + `form.info` banners | `auth.spec.ts` covers wrong-password + magic-link variants. |
 | `/logout` | N/A | N/A | Server-only side-effect, redirects. |
 | `/auth/callback` | N/A | N/A | OAuth/magic-link landing — redirects on success, throws on failure. |
+| `+error.svelte` (root) | N/A | Always the error state | Top-level boundary added in `polish:` commit. Distinguishes 401/403/404/5xx with friendly copy, never exposes stack traces, always offers a Home / Sign in CTA. |
 
 ## Admin (super_admin)
 
@@ -65,7 +66,7 @@ Loading states are not separately ticked: SvelteKit page loads block the route u
 
 ## Summary
 
-- 27 routes audited.
+- 28 routes audited (incl. the top-level `+error.svelte` boundary).
 - 23 routes have an empty or error state (or are correctly N/A).
 - 4 routes use inline empty markup instead of the shared `<EmptyState>` component (admin dashboard, admin/users, admin/users/print, admin/schools, judge queue). This is a cosmetic consistency gap — functionally equivalent and not worth a refactor before event day. Logged in `docs/qa-findings.md` for post-event polish.
 - 1 route (`/admin/scoresheets/[id]`) has a defensive blank-state hole when both `data.detail` and `data.loadError` are null. Server load currently guarantees one or the other; logged in `qa-findings.md`.

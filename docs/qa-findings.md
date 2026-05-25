@@ -17,7 +17,8 @@ Anything that needed those, lives here.
 ## P1 — should fix before event day
 
 (None blocking. The 6 cosmetic `svelte-check` warnings were resolved in this
-track.)
+track. The polish pass added a global `+error.svelte` boundary and the
+missing `admin-users.spec.ts` to round out the suite to 11 specs.)
 
 ---
 
@@ -118,6 +119,50 @@ does Cat A). For dry-run we want maximum assignment flexibility, so the
 seed deliberately gives every judge every category. If that ever bites
 during a manual dry-run, set `SEED_JUDGE_CATEGORIES=A,B` in env and patch
 the seed (5-minute change).
+
+### F-10 — `pnpm lint` reports 46 pre-existing errors across tracks 2/3
+**Track:** 0 (lint config) and 2/3 (rule violations)
+
+`pnpm lint` (eslint with `eslint-plugin-svelte` + `@typescript-eslint`)
+reports 46 errors in `src/`, none in the files Track 6 added/modified.
+Breakdown of the rules tripped:
+
+- `svelte/no-navigation-without-resolve` — every `href=` and `goto()` in
+  `judge/+page.svelte`, `judge/done/[id]`, `judge/score/[id]`, and a
+  handful of admin pages. SvelteKit's typed-routes nudge — wrap calls in
+  `resolve('/judge', { ... })` from `$app/paths`.
+- `svelte/prefer-svelte-reactivity` — `new Set(...)` in
+  `admin/users/+page.svelte` + `admin/users/print/+page.svelte` should use
+  `SvelteSet` for reactive set membership.
+- `@typescript-eslint/no-unused-vars` — DataTable import in
+  `admin/users/+page.svelte`, `data` prop in `login/+page.svelte`,
+  `columns` array also in users page.
+- `@typescript-eslint/no-explicit-any` — two `any` casts in
+  `judge/score/[id]/+page.server.ts` around the score-band lookup.
+
+None of these are bugs — they're style/strictness violations the lint
+config tightened up. Worth a single track-2/3 pass post-event but won't
+affect event-day correctness. The svelte-check + tsc passes are still
+0/0. To unblock CI in the meantime, either fix the rule sites or relax
+the rules in `eslint.config.js` (DESIGN team's call).
+
+### F-11 — Vitest `client` project requires Playwright Chromium binary
+**Track:** 0 (Setup)
+
+`pnpm test:unit` fails on a fresh checkout because `vite.config.ts`'s
+`client` project uses `@vitest/browser-playwright` with Chromium. The
+binary is downloaded via `npx playwright install` which is NOT run by
+`pnpm install` (esbuild build scripts are intentionally suppressed).
+
+Workarounds:
+- For server-only unit tests today: `pnpm vitest run --project server`
+  (passes 13/13).
+- For the full suite: `npx playwright install chromium` once before
+  the first `pnpm test:unit` run.
+
+Add `pnpm playwright install chromium` to the project README's "Local
+dev quickstart" or to a `pnpm postinstall` script (latter is more
+ergonomic but adds ~150 MB to every fresh checkout).
 
 ---
 
