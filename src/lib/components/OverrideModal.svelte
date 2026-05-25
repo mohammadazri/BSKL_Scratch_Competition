@@ -16,6 +16,7 @@
 	import Textarea from './Textarea.svelte';
 	import { ShieldAlert } from '@lucide/svelte';
 	import { enhance } from '$app/forms';
+	import { untrack } from 'svelte';
 	import { toasts } from '$lib/stores/toast';
 	import type { PerfLevel } from '$lib/types';
 	import type { RubricLevel } from '$lib/scoring';
@@ -46,10 +47,18 @@
 		onsuccess
 	}: Props = $props();
 
-	// Working state — seeded from current values, mutable while the modal is open.
-	let newLevel = $state<PerfLevel>(currentLevel ?? levels[0]?.level ?? 'Proficient');
+	// Working state — seeded from current values (untracked: intentional one-shot
+	// read; the $effect below re-seeds on subsequent opens), mutable while the
+	// modal is open.
+	let newLevel = $state<PerfLevel>(
+		untrack(() => currentLevel ?? levels[0]?.level ?? 'Proficient')
+	);
 	let newPoints = $state<number>(
-		currentPoints ?? Math.round(((levels[0]?.minPts ?? 0) + (levels[0]?.maxPts ?? 0)) / 2)
+		untrack(
+			() =>
+				currentPoints ??
+				Math.round(((levels[0]?.minPts ?? 0) + (levels[0]?.maxPts ?? 0)) / 2)
+		)
 	);
 	let reason = $state('');
 	let submitting = $state(false);

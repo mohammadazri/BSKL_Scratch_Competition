@@ -85,6 +85,7 @@ so the same set of regressions can't slip through twice.
 | File | Covers |
 | --- | --- |
 | `auth.spec.ts` | `/login` UI shape (both password + magic-link forms reachable), wrong-password handling, role-based redirect (`/admin`, `/judge`, `/viewer`), logout. Also asserts both brand logos resolve to 200 (catches accidental Track 0 deletion). |
+| `admin-users.spec.ts` | Super_admin creates a judge via the Create modal, sees the temp password banner, deactivates the new row, reactivates it; second test edits role → viewer and asserts the categories fieldset hides. Idempotent via `[e2e-user-<ts>]` prefix. |
 | `admin-import.spec.ts` | Schools CSV preview + commit, participants CSV preview + commit, DQ toggle on a participant row. Idempotent via a per-run `[e2e-import-<ts>]` prefix. |
 | `admin-assign.spec.ts` | Auto-assign preview shows a balanced split (2-6 participants per judge for 15 ÷ 4), commit, manual reassign. |
 | `judge-flow.spec.ts` | Pick first queue item, fill every criterion at Proficient, fill sprint time, autosave settles, submit, land on `/judge/done/[id]`. |
