@@ -1,63 +1,104 @@
 <!--
-	Minimal accessible modal shell. Renders a fixed overlay with a centred
-	dialog when `open` is true; clicking the overlay or pressing Escape closes
-	via `onClose`. The body slot owns the inner layout entirely.
+	Modal — base building block. Used by ConfirmModal, AutoAssignPreview, etc.
+	Centered card with backdrop, ESC to close, click outside to dismiss.
+	Accepts `onClose` (Track 3 style) or `onclose` (Svelte 5 attribute style) —
+	both are wired up so existing call-sites keep working.
 -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { X } from '@lucide/svelte';
 
 	interface Props {
 		open: boolean;
-		title: string;
-		onClose: () => void;
-		children: Snippet;
+		title?: string;
+		size?: 'sm' | 'md' | 'lg';
+		onClose?: () => void;
+		onclose?: () => void;
+		children?: Snippet;
+		footer?: Snippet;
 	}
 
-	let { open, title, onClose, children }: Props = $props();
+	let {
+		open = $bindable(false),
+		title,
+		size = 'md',
+		onClose,
+		onclose,
+		children,
+		footer
+	}: Props = $props();
 
-	function onKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape' && open) onClose();
+	const width = $derived(
+		size === 'sm' ? 'max-w-sm' : size === 'lg' ? 'max-w-3xl' : 'max-w-lg'
+	);
+
+	function close() {
+		open = false;
+		onClose?.();
+		onclose?.();
+	}
+
+	function onKey(e: KeyboardEvent) {
+		if (e.key === 'Escape' && open) close();
 	}
 </script>
 
-<svelte:window onkeydown={onKeydown} />
+<svelte:window onkeydown={onKey} />
 
 {#if open}
+	<!-- backdrop -->
+	<div
+		class="fixed inset-0 z-40 bg-black/60"
+		role="presentation"
+		onclick={close}
+		aria-hidden="true"
+	></div>
+
+	<!-- dialog -->
 	<div
 		class="fixed inset-0 z-50 flex items-center justify-center p-4"
-		style="background: rgba(0, 0, 0, 0.6);"
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby={title ? 'modal-title' : undefined}
 	>
-		<button
-			type="button"
-			class="absolute inset-0 h-full w-full cursor-default"
-			aria-label="Close dialog"
-			onclick={onClose}
-		></button>
 		<div
-			role="dialog"
-			aria-modal="true"
-			aria-label={title}
-			class="relative w-full max-w-md overflow-hidden rounded-lg border"
+			class="relative w-full {width} rounded-[var(--radius-lg)] border shadow-xl"
 			style="background: var(--color-bg-2); border-color: var(--border-strong);"
 		>
-			<header
-				class="flex items-center justify-between border-b px-4 py-3"
-				style="border-color: var(--border);"
-			>
-				<h2 class="text-base font-medium" style="color: var(--color-text-1);">{title}</h2>
-				<button
-					type="button"
-					onclick={onClose}
-					aria-label="Close"
-					class="inline-flex h-9 w-9 items-center justify-center rounded-md text-lg"
-					style="color: var(--color-text-2);"
+			{#if title}
+				<header
+					class="flex items-center justify-between gap-3 border-b px-5 py-4"
+					style="border-color: var(--border);"
 				>
-					×
-				</button>
-			</header>
-			<div class="p-4">
-				{@render children()}
+					<h2
+						id="modal-title"
+						class="text-base font-semibold"
+						style="font-family: var(--font-display); color: var(--color-text-1);"
+					>
+						{title}
+					</h2>
+					<button
+						type="button"
+						class="-mr-2 grid h-9 w-9 place-items-center rounded-[var(--radius-sm)] transition hover:bg-white/5"
+						style="color: var(--color-text-2);"
+						onclick={close}
+						aria-label="Close"
+					>
+						<X size={18} strokeWidth={1.5} />
+					</button>
+				</header>
+			{/if}
+			<div class="p-5">
+				{#if children}{@render children()}{/if}
 			</div>
+			{#if footer}
+				<footer
+					class="flex items-center justify-end gap-2 border-t px-5 py-4"
+					style="border-color: var(--border);"
+				>
+					{@render footer()}
+				</footer>
+			{/if}
 		</div>
 	</div>
 {/if}
