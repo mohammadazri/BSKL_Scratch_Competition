@@ -1,0 +1,41 @@
+# Environment — NEVER commit
+.env
+.env.local
+.env.*.local
+
+# Node / pnpm
+node_modules/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# SvelteKit + Vite (Track 0 will overwrite this file with the full scaffold version)
+.svelte-kit/
+build/
+.vite/
+
+# Playwright (Track 6)
+test-results/
+playwright-report/
+playwright/.cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+
+# Logs
+*.log
+
+# Local Supabase CLI artefacts (if used)
+.supabase/
+
+# Backup files (in case anything pg_dumps locally during dev)
+*.dump
+*.sql.bak
