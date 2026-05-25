@@ -1,0 +1,103 @@
+@import 'tailwindcss';
+
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/space-grotesk/500.css';
+@import '@fontsource/space-grotesk/600.css';
+@import '@fontsource/space-grotesk/700.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+
+@theme {
+	/* Surfaces */
+	--color-bg-0: #0a0f1c;
+	--color-bg-1: #111827;
+	--color-bg-2: #1f2937;
+	--color-bg-3: #374151;
+
+	/* Text */
+	--color-text-1: #f8fafc;
+	--color-text-2: #94a3b8;
+	--color-text-3: #64748b;
+
+	/* Borders — Tailwind v4 doesn't accept rgba in @theme cleanly; expose as plain custom props below */
+
+	/* Brand */
+	--color-accent: #ec4899;
+	--color-accent-2: #38bdf8;
+
+	/* Status */
+	--color-success: #10b981;
+	--color-warning: #f59e0b;
+	--color-danger: #ef4444;
+
+	/* Typography */
+	--font-display: 'Space Grotesk', system-ui, sans-serif;
+	--font-sans: 'Inter', system-ui, sans-serif;
+	--font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+	/* Radii */
+	--radius-sm: 4px;
+	--radius: 8px;
+	--radius-lg: 12px;
+}
+
+/* Non-@theme tokens (borders, soft accents) */
+:root {
+	--border: rgb(255 255 255 / 0.08);
+	--border-strong: rgb(255 255 255 / 0.16);
+	--accent-soft: rgb(236 72 153 / 0.12);
+}
+
+@media (prefers-color-scheme: light) {
+	@theme {
+		--color-bg-0: #fafafa;
+		--color-bg-1: #ffffff;
+		--color-bg-2: #f3f4f6;
+		--color-bg-3: #e5e7eb;
+		--color-text-1: #0f172a;
+		--color-text-2: #475569;
+		--color-text-3: #94a3b8;
+		--color-accent: #db2777;
+		--color-accent-2: #0284c7;
+		--color-success: #059669;
+		--color-warning: #d97706;
+		--color-danger: #dc2626;
+	}
+	:root {
+		--border: rgb(0 0 0 / 0.08);
+		--border-strong: rgb(0 0 0 / 0.16);
+		--accent-soft: rgb(219 39 119 / 0.1);
+	}
+}
+
+html,
+body {
+	background: var(--color-bg-0);
+	color: var(--color-text-1);
+	font-family: var(--font-sans);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+/* Heading family */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	font-family: var(--font-display);
+}
+
+/* Respect reduced-motion globally */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.001ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.001ms !important;
+	}
+}
