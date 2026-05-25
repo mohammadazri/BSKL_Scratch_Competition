@@ -5,6 +5,7 @@
 	fallback if the venue WiFi can't reliably deliver email.
 -->
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import type { ActionData, PageData } from './$types';
 
@@ -12,7 +13,9 @@
 
 	let mode: 'password' | 'magic' = $state('password');
 	let submitting = $state(false);
-	let email = $state((form as { email?: string } | null)?.email ?? '');
+	// Repopulate the email field if the server bounced the form back with an
+	// error; `untrack` silences `state_referenced_locally` on `form`.
+	let email = $state(untrack(() => (form as { email?: string } | null)?.email ?? ''));
 </script>
 
 <svelte:head>

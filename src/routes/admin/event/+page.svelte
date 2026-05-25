@@ -4,6 +4,7 @@
 	Lock toggle freezes all scoresheets via RLS at the DB level.
 -->
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import Button from '$lib/components/Button.svelte';
@@ -15,9 +16,13 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	let eventName = $state(data.event.eventName);
-	let sprintMinutes = $state(data.event.sprintMinutes);
-	let eventDate = $state(data.event.eventDate ?? '');
+	// Seed locally-editable form fields from the initial server payload.
+	// `untrack` keeps the $state() call non-reactive (silences
+	// `state_referenced_locally`); the $effect below handles resync on
+	// navigation / form submit reloads.
+	let eventName = $state(untrack(() => data.event.eventName));
+	let sprintMinutes = $state(untrack(() => data.event.sprintMinutes));
+	let eventDate = $state(untrack(() => data.event.eventDate ?? ''));
 
 	$effect(() => {
 		eventName = data.event.eventName;

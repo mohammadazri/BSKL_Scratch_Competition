@@ -4,7 +4,7 @@
 	Action row at the bottom: auto-assign, lock event, export, audit log.
 -->
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, untrack } from 'svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import Card from '$lib/components/Card.svelte';
 	import Button from '$lib/components/Button.svelte';
@@ -14,7 +14,10 @@
 
 	let { data }: { data: PageData } = $props();
 
-	let activity = $state(data.activity);
+	// `activity` is initialised from the server payload but mutated locally as
+	// realtime INSERTs arrive; `untrack` silences `state_referenced_locally`.
+	// The $effect below handles resync if the user navigates back here.
+	let activity = $state(untrack(() => data.activity));
 	let liveConnected = $state(false);
 	let channel: ReturnType<typeof window.fetch> | null = null;
 	let unsub: (() => void) | null = null;

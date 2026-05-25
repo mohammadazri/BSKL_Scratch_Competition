@@ -5,6 +5,7 @@
 	and `window.print()` is triggered.
 -->
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Card from '$lib/components/Card.svelte';
@@ -16,7 +17,9 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	let selected = $state<Set<string>>(new Set(data.users.map((u) => u.id)));
+	// Default to "all users selected" but allow the operator to toggle locally;
+	// `untrack` silences `state_referenced_locally` on the initial seed.
+	let selected = $state<Set<string>>(new Set(untrack(() => data.users.map((u) => u.id))));
 
 	function toggle(id: string) {
 		const next = new Set(selected);
