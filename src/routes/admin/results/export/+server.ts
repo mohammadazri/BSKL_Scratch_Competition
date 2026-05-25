@@ -1,6 +1,7 @@
-// Leaderboard CSV export — /admin/results/export.
-// Uses the same filters as the page (?category=, ?theme=, ?school=, ?status=).
-// RLS limits what super_admin sees to everything; viewer hits its own endpoint.
+// CSV export for /admin/results.
+// Same query path as the page loader — applies whatever filters are in the
+// query string. RLS limits rows to what the requesting user can see (super_admin
+// = all).
 
 import type { RequestHandler } from './$types';
 import { parseResultsFilters, fetchRankings } from '$lib/results/query';

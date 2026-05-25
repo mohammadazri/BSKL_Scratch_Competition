@@ -1,381 +1,358 @@
 <!--
-	ScoresheetDetailPage — body for /admin/scoresheets/[id] and
-	/viewer/scoresheets/[id].
+	ScoresheetDetailPage — per-scoresheet drill-in.
+	Rendered by /admin/scoresheets/[id] and /viewer/scoresheets/[id].
 
-	The layout is identical between admin and viewer; the only difference is
-	whether the Override + Unlock buttons render. We branch on `data.role`.
+	Layout per DESIGN.md / TRACK_5_RESULTS.md:
+	  • Back link
+	  • Header card with participant, judge, sprint time, submitted-at
+	  • Per-section criterion lists (level + points + comment + override badge)
+	  • Total + super_admin-only action row (Override, Unlock)
 
-	Form actions live on the page (?/override, ?/unlock); this component just
-	posts to them via enhance.
+	Viewer-role variant hides Override + Unlock entirely (read-only).
 -->
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
-	import { enhance } from '$app/forms';
-	import { Download, ShieldAlert, Unlock, ArrowLeft, MessageSquare } from '@lucide/svelte';
-	import PageHeader from '$lib/components/PageHeader.svelte';
+	import { ArrowLeft, Download, ShieldAlert, Unlock, MessageSquare } from '@lucide/svelte';
+	import BrandHeader from '$lib/components/BrandHeader.svelte';
 	import Card from '$lib/components/Card.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import StatusPill from '$lib/components/StatusPill.svelte';
-	import CategoryChip from '$lib/components/CategoryChip.svelte';
 	import OverrideModal from '$lib/components/OverrideModal.svelte';
-	import Modal from '$lib/components/Modal.svelte';
-	import Textarea from '$lib/components/Textarea.svelte';
-	import { toasts } from '$lib/stores/toast';
-	import type { ScoresheetPageData, ScoreLineItem } from '$lib/results/types';
+	import UnlockModal from './UnlockModal.svelte';
+	import type { ScoresheetPageData } from '$lib/results/types';
+	import type { PerfLevel } from '$lib/types';
+	import type { RubricLevel } from '$lib/scoring';
 
 	interface Props {
 		data: ScoresheetPageData;
 	}
-
 	let { data }: Props = $props();
 
-	const backHref = $derived(data.role === 'super_admin' ? '/admin/results' : '/viewer/results');
-	const exportHref = $derived(
-		data.detail
-			? `/${data.role === 'super_admin' ? 'admin' : 'viewer'}/scoresheets/${data.detail.scoresheetId}/export`
-			: '#'
-	);
+	const detail = $derived(data.detail);
+	const role = $derived(data.role);
 
-	// ─── Override modal state ─────────────────────────────────────────────────
+	// Override modal state — driven by clicking a criterion row.
 	let overrideOpen = $state(false);
-	let activeCriterion = $state<ScoreLineItem | null>(null);
+	let overrideCtx = $state<{
+		criterionId: string;
+		criterionName: string;
+		maxPoints: number;
+		levels: RubricLevel[];
+		currentLevel: PerfLevel | null;
+		currentPoints: number | null;
+	} | null>(null);
 
-	function openOverride(item: ScoreLineItem) {
-		if (data.role !== 'super_admin') return;
-		activeCriterion = item;
+	let unlockOpen = $state(false);
+
+	function openOverride(line: {
+		criterionId: string;
+		criterionName: string;
+		maxPoints: number;
+		levelBands: RubricLevel[];
+		level: PerfLevel | null;
+		points: number | null;
+	}) {
+		if (role !== 'super_admin') return;
+		overrideCtx = {
+			criterionId: line.criterionId,
+			criterionName: line.criterionName,
+			maxPoints: line.maxPoints,
+			levels: line.levelBands,
+			currentLevel: line.level,
+			currentPoints: line.points
+		};
 		overrideOpen = true;
 	}
 
-	// ─── Unlock modal ─────────────────────────────────────────────────────────
-	let unlockOpen = $state(false);
-	let unlockReason = $state('');
-	let unlockSubmitting = $state(false);
-	let unlockError = $state<string | null>(null);
-
-	function fmtSprint(seconds: number | null): string {
+	function fmtTime(seconds: number | null): string {
 		if (seconds == null) return '—';
 		const m = Math.floor(seconds / 60);
 		const s = seconds % 60;
 		return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 	}
 
-	function fmtTime(iso: string | null): string {
+	function fmtTs(iso: string | null): string {
 		if (!iso) return '—';
 		const d = new Date(iso);
-		const pad = (n: number) => String(n).padStart(2, '0');
-		return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+		if (Number.isNaN(d.getTime())) return iso;
+		return d.toLocaleString();
 	}
+
+	const backHref = $derived(
+		role === 'super_admin' ? '/admin/results' : '/viewer/results'
+	);
+
+	const exportHref = $derived(
+		detail
+			? `/${role === 'super_admin' ? 'admin' : 'viewer'}/scoresheets/${detail.scoresheetId}/export`
+			: '#'
+	);
 </script>
 
-<svelte:head>
-	<title>
-		{data.detail
-			? `${data.detail.participantName} · Scoresheet`
-			: 'Scoresheet'} · P3 Judging
-	</title>
-</svelte:head>
-
-<button
-	type="button"
-	class="mb-4 inline-flex items-center gap-1.5 text-xs font-medium tracking-wider uppercase transition hover:opacity-80"
-	style="color: var(--color-text-2);"
-	onclick={() => goto(backHref)}
->
-	<ArrowLeft size={14} strokeWidth={1.5} />
-	Back to results
-</button>
-
-{#if data.loadError}
-	<div
-		class="mb-4 rounded-[var(--radius)] border p-4 text-sm"
-		style="background: var(--color-bg-2); border-color: var(--color-danger); color: var(--color-danger);"
-	>
-		{data.loadError}
-	</div>
+{#if role !== 'super_admin'}
+	<BrandHeader />
 {/if}
 
-{#if data.detail}
-	{@const d = data.detail}
-
-	<PageHeader
-		title={d.participantName}
-		subtitle="{d.schoolName} · Category {d.category} · {d.theme ?? 'Theme not set'}"
-		breadcrumb="Scoresheet"
+<main class="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+	<a
+		href={backHref}
+		class="mb-4 inline-flex items-center gap-2 text-sm transition hover:underline"
+		style="color: var(--color-text-2);"
 	>
-		{#snippet actions()}
-			<Button variant="secondary" href={exportHref}>
-				{#snippet icon()}
-					<Download size={16} strokeWidth={1.5} />
-				{/snippet}
-				Export CSV
-			</Button>
-			{#if data.role === 'super_admin' && d.status !== 'draft'}
-				<Button variant="ghost" onclick={() => (unlockOpen = true)}>
-					{#snippet icon()}
-						<Unlock size={16} strokeWidth={1.5} />
-					{/snippet}
-					Unlock
-				</Button>
-			{/if}
-		{/snippet}
-	</PageHeader>
+		<ArrowLeft size={14} strokeWidth={1.5} />
+		Back to results
+	</a>
 
-	<!-- Header card -->
-	<Card label="Submission">
-		<div class="grid gap-3 sm:grid-cols-3 lg:grid-cols-5 text-sm">
-			<div>
-				<p class="text-[11px] uppercase tracking-wider" style="color: var(--color-text-2);">
-					Judge
-				</p>
-				<p class="mt-1" style="color: var(--color-text-1);">{d.judgeName}</p>
-				<p class="text-xs" style="color: var(--color-text-3);">{d.judgeEmail}</p>
-			</div>
-			<div>
-				<p class="text-[11px] uppercase tracking-wider" style="color: var(--color-text-2);">
-					Status
-				</p>
-				<div class="mt-1"><StatusPill status={d.status} /></div>
-			</div>
-			<div>
-				<p class="text-[11px] uppercase tracking-wider" style="color: var(--color-text-2);">
-					Submitted
-				</p>
-				<p
-					class="mt-1 tabular-nums"
-					style="color: var(--color-text-1); font-family: var(--font-mono);"
-				>
-					{fmtTime(d.submittedAt)}
-				</p>
-			</div>
-			<div>
-				<p class="text-[11px] uppercase tracking-wider" style="color: var(--color-text-2);">
-					Sprint time
-				</p>
-				<p
-					class="mt-1 tabular-nums"
-					style="color: var(--color-text-1); font-family: var(--font-mono);"
-				>
-					{fmtSprint(d.liveSprintTimeSeconds)}
-				</p>
-			</div>
-			<div>
-				<p class="text-[11px] uppercase tracking-wider" style="color: var(--color-text-2);">
-					Category
-				</p>
-				<div class="mt-1 flex items-center gap-2">
-					<CategoryChip category={d.category} size="md" />
-					<span style="color: var(--color-text-2);">{d.theme ?? '—'}</span>
+	{#if data.loadError}
+		<div
+			class="rounded-[var(--radius)] border p-4 text-sm"
+			style="background: var(--color-bg-2); border-color: var(--color-danger); color: var(--color-danger);"
+		>
+			Failed to load scoresheet: {data.loadError}
+		</div>
+	{:else if !detail}
+		<div
+			class="rounded-[var(--radius)] border p-4 text-sm"
+			style="background: var(--color-bg-2); border-color: var(--border); color: var(--color-text-2);"
+		>
+			Scoresheet not found.
+		</div>
+	{:else}
+		<!-- Header card -->
+		<div
+			class="mb-6 rounded-[var(--radius-lg)] border p-5 sm:p-6"
+			style="background: var(--color-bg-2); border-color: var(--border);"
+		>
+			<div class="flex flex-wrap items-start justify-between gap-3">
+				<div>
+					<p
+						class="text-[11px] font-medium tracking-[0.18em] uppercase"
+						style="color: var(--color-text-2);"
+					>
+						Scoresheet
+					</p>
+					<h1
+						class="mt-1 text-2xl font-semibold sm:text-3xl"
+						style="font-family: var(--font-display); color: var(--color-text-1);"
+					>
+						{detail.participantName}
+					</h1>
+					<p class="mt-1 text-sm" style="color: var(--color-text-2);">
+						{detail.schoolName} · Cat {detail.category}
+						{#if detail.theme}· {detail.theme}{/if}
+					</p>
+				</div>
+				<div class="flex items-center gap-2">
+					<StatusPill status={detail.status} />
+					<a
+						href={exportHref}
+						download
+						class="inline-flex h-10 items-center justify-center gap-2 rounded-[var(--radius)] border px-3 text-xs font-medium transition-colors"
+						style="background: var(--color-bg-3); border-color: var(--border); color: var(--color-text-1);"
+					>
+						<Download size={12} strokeWidth={1.5} />
+						Export
+					</a>
 				</div>
 			</div>
-		</div>
-	</Card>
 
-	<!-- Sections of criteria -->
-	{#each d.sections as section (section.section)}
-		<div class="mt-6">
-			<Card label={section.label}>
-				<div class="divide-y" style="border-color: var(--border);">
-					{#each section.scores as item (item.criterionId)}
-						<div
-							class="flex flex-col gap-2 py-3 sm:flex-row sm:items-start sm:gap-4"
-							style="border-color: var(--border);"
+			<dl
+				class="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 border-t pt-4 text-xs sm:grid-cols-4"
+				style="border-color: var(--border);"
+			>
+				<div>
+					<dt
+						class="text-[10px] tracking-wider uppercase"
+						style="color: var(--color-text-3);"
+					>
+						Judge
+					</dt>
+					<dd class="mt-0.5" style="color: var(--color-text-1);">
+						{detail.judgeName}
+					</dd>
+				</div>
+				<div>
+					<dt
+						class="text-[10px] tracking-wider uppercase"
+						style="color: var(--color-text-3);"
+					>
+						Submitted
+					</dt>
+					<dd
+						class="mt-0.5 font-mono tabular-nums"
+						style="color: var(--color-text-1);"
+					>
+						{fmtTs(detail.submittedAt)}
+					</dd>
+				</div>
+				<div>
+					<dt
+						class="text-[10px] tracking-wider uppercase"
+						style="color: var(--color-text-3);"
+					>
+						Sprint time
+					</dt>
+					<dd
+						class="mt-0.5 font-mono tabular-nums"
+						style="color: var(--color-text-1);"
+					>
+						{fmtTime(detail.liveSprintTimeSeconds)}
+					</dd>
+				</div>
+				<div>
+					<dt
+						class="text-[10px] tracking-wider uppercase"
+						style="color: var(--color-text-3);"
+					>
+						Total
+					</dt>
+					<dd
+						class="mt-0.5 font-mono text-base font-semibold tabular-nums"
+						style="color: var(--color-text-1);"
+					>
+						{detail.totalPoints} / {detail.maxPoints}
+					</dd>
+				</div>
+			</dl>
+		</div>
+
+		<!-- Sections -->
+		{#snippet lineBody(line: import('$lib/results/types').ScoreLineItem, interactive: boolean)}
+			<div class="min-w-0 flex-1">
+				<p class="text-sm font-medium" style="color: var(--color-text-1);">
+					{line.criterionName}
+				</p>
+				<p class="mt-0.5 text-xs" style="color: var(--color-text-2);">
+					{line.level ?? 'Not scored'}
+					{#if line.isOverride && line.overrideReason}
+						<span
+							class="ml-2 inline-flex items-center gap-1 text-[10px] uppercase tracking-wider"
+							style="color: var(--color-danger);"
 						>
-							<div class="flex-1 min-w-0">
-								<div class="flex items-center gap-2 flex-wrap">
-									<p
-										class="font-medium"
-										style="color: var(--color-text-1);"
+							<ShieldAlert size={11} strokeWidth={2} />
+							override
+						</span>
+					{/if}
+				</p>
+				{#if line.comment}
+					<p
+						class="mt-1 flex items-start gap-1 text-xs"
+						style="color: var(--color-text-3);"
+					>
+						<MessageSquare
+							size={11}
+							strokeWidth={1.5}
+							style="margin-top: 2px; flex-shrink: 0;"
+						/>
+						<span>{line.comment}</span>
+					</p>
+				{/if}
+				{#if line.isOverride && line.overrideReason}
+					<p
+						class="mt-1 text-xs italic"
+						style="color: var(--color-text-3);"
+					>
+						Override reason: {line.overrideReason}
+					</p>
+				{/if}
+			</div>
+			<div class="flex items-center gap-3">
+				<span
+					class="font-mono tabular-nums"
+					style="color: var(--color-text-1);"
+				>
+					{line.points ?? '—'} / {line.maxPoints}
+				</span>
+				{#if interactive}
+					<span
+						class="text-[10px] uppercase tracking-wider"
+						style="color: var(--color-text-3);"
+					>
+						click to override
+					</span>
+				{/if}
+			</div>
+		{/snippet}
+
+		<div class="space-y-6">
+			{#each detail.sections as section (section.section)}
+				<Card label="{section.label} — {section.subtotal} / {section.maxSubtotal}">
+					<ul class="divide-y" style="color: var(--color-text-1);">
+						{#each section.scores as line (line.criterionId)}
+							{@const interactive = role === 'super_admin'}
+							<li
+								class="border-b py-0 last:border-b-0"
+								style="border-color: var(--border);"
+							>
+								{#if interactive}
+									<button
+										type="button"
+										class="flex w-full flex-wrap items-start justify-between gap-3 py-3 text-left transition hover:bg-[color:var(--accent-soft)]"
+										onclick={() => openOverride(line)}
 									>
-										{item.criterionName}
-									</p>
-									{#if item.isOverride}
-										<span
-											class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider"
-											style="background: rgba(239,68,68,0.15); color: var(--color-danger);"
-											title={item.overrideReason ?? 'Overridden by super_admin'}
-										>
-											<ShieldAlert size={10} strokeWidth={2} />
-											override
-										</span>
-									{/if}
-								</div>
-								<p
-									class="mt-1 text-xs"
-									style="color: var(--color-text-2);"
-								>
-									{item.level ?? 'Not scored'} · max {item.maxPoints} pts
-								</p>
-								{#if item.comment}
-									<div
-										class="mt-2 flex items-start gap-2 rounded-[var(--radius-sm)] border p-2 text-xs"
-										style="background: var(--color-bg-1); border-color: var(--border); color: var(--color-text-2);"
-									>
-										<MessageSquare
-											size={12}
-											strokeWidth={1.5}
-											style="flex-shrink: 0; margin-top: 2px;"
-										/>
-										<span>{item.comment}</span>
+										{@render lineBody(line, true)}
+									</button>
+								{:else}
+									<div class="flex flex-wrap items-start justify-between gap-3 py-3">
+										{@render lineBody(line, false)}
 									</div>
 								{/if}
-								{#if item.isOverride && item.overrideReason}
-									<p
-										class="mt-2 text-xs italic"
-										style="color: var(--color-danger);"
-									>
-										Override reason: {item.overrideReason}
-									</p>
-								{/if}
-							</div>
-							<div class="flex items-center gap-3 sm:flex-col sm:items-end">
-								<p
-									class="text-base tabular-nums whitespace-nowrap"
-									style="color: var(--color-text-1); font-family: var(--font-mono);"
-								>
-									<span class="font-semibold">{item.points ?? '—'}</span>
-									<span style="color: var(--color-text-3);"> / {item.maxPoints}</span>
-								</p>
-								{#if data.role === 'super_admin'}
-									<Button
-										variant="ghost"
-										size="sm"
-										onclick={() => openOverride(item)}
-									>
-										{#snippet icon()}
-											<ShieldAlert size={14} strokeWidth={1.5} />
-										{/snippet}
-										Override
-									</Button>
-								{/if}
-							</div>
-						</div>
-					{/each}
-
-					<div
-						class="flex items-center justify-between py-3 text-sm"
-						style="border-color: var(--border);"
-					>
-						<span style="color: var(--color-text-2);">Section subtotal</span>
-						<span
-							class="tabular-nums"
-							style="color: var(--color-text-1); font-family: var(--font-mono);"
-						>
-							{section.subtotal} / {section.maxSubtotal}
-						</span>
-					</div>
-				</div>
-			</Card>
+							</li>
+						{/each}
+					</ul>
+				</Card>
+			{/each}
 		</div>
-	{/each}
 
-	<!-- Total -->
-	<div class="mt-6">
-		<Card>
-			<div class="flex items-center justify-between">
+		<!-- Footer total + actions -->
+		<div
+			class="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius)] border px-4 py-3"
+			style="background: var(--color-bg-2); border-color: var(--border);"
+		>
+			<div>
 				<p
-					class="text-sm font-semibold tracking-wider uppercase"
+					class="text-[11px] font-medium tracking-[0.18em] uppercase"
 					style="color: var(--color-text-2);"
 				>
 					Total
 				</p>
 				<p
-					class="text-3xl font-bold tabular-nums"
-					style="color: var(--color-text-1); font-family: var(--font-display);"
+					class="mt-0.5 text-2xl font-semibold tabular-nums"
+					style="font-family: var(--font-display); color: var(--color-text-1);"
 				>
-					{d.totalPoints}
-					<span class="text-base font-normal" style="color: var(--color-text-3);">
-						/ {d.maxPoints}
-					</span>
+					{detail.totalPoints} / {detail.maxPoints}
 				</p>
 			</div>
-		</Card>
-	</div>
+			{#if role === 'super_admin'}
+				<div class="flex items-center gap-2">
+					<Button
+						variant="secondary"
+						onclick={() => (unlockOpen = true)}
+						disabled={detail.status === 'draft'}
+					>
+						{#snippet icon()}
+							<Unlock size={14} strokeWidth={1.5} />
+						{/snippet}
+						Unlock to draft
+					</Button>
+				</div>
+			{/if}
+		</div>
 
-	<!-- Override modal -->
-	{#if activeCriterion && data.role === 'super_admin'}
-		<OverrideModal
-			bind:open={overrideOpen}
-			criterionId={activeCriterion.criterionId}
-			criterionName={activeCriterion.criterionName}
-			maxPoints={activeCriterion.maxPoints}
-			levels={activeCriterion.levelBands}
-			currentLevel={activeCriterion.level}
-			currentPoints={activeCriterion.points}
-			currentJudgeName={d.judgeName}
-			onsuccess={() => invalidateAll()}
-		/>
+		<!-- Override modal -->
+		{#if overrideCtx}
+			<OverrideModal
+				bind:open={overrideOpen}
+				criterionId={overrideCtx.criterionId}
+				criterionName={overrideCtx.criterionName}
+				maxPoints={overrideCtx.maxPoints}
+				levels={overrideCtx.levels}
+				currentLevel={overrideCtx.currentLevel}
+				currentPoints={overrideCtx.currentPoints}
+				currentJudgeName={detail.judgeName}
+			/>
+		{/if}
+
+		<!-- Unlock — inline form inside its own modal so we can require a reason. -->
+		<UnlockModal bind:open={unlockOpen} />
 	{/if}
-
-	<!-- Unlock modal -->
-	{#if data.role === 'super_admin'}
-		<Modal bind:open={unlockOpen} title="Unlock scoresheet" size="md">
-			<form
-				id="unlock-form"
-				method="POST"
-				action="?/unlock"
-				use:enhance={({ formData, cancel }) => {
-					const trimmed = String(formData.get('reason') ?? '').trim();
-					if (!trimmed) {
-						unlockError = 'A reason is required.';
-						cancel();
-						return;
-					}
-					unlockSubmitting = true;
-					unlockError = null;
-					return async ({ result, update }) => {
-						unlockSubmitting = false;
-						if (result.type === 'failure') {
-							unlockError =
-								(result.data as { unlockError?: string } | undefined)?.unlockError ??
-								'Unlock failed.';
-							return;
-						}
-						if (result.type === 'error') {
-							unlockError = result.error?.message ?? 'Unlock failed.';
-							return;
-						}
-						toasts.success('Scoresheet unlocked — judge can re-edit.');
-						unlockOpen = false;
-						unlockReason = '';
-						await update();
-					};
-				}}
-			>
-				<p class="mb-3 text-sm" style="color: var(--color-text-2);">
-					Unlocking sets the scoresheet status back to <code>draft</code> so the judge
-					can re-edit it. The change is captured in the audit log.
-				</p>
-				<Textarea
-					label="Reason"
-					name="reason"
-					required
-					bind:value={unlockReason}
-					rows={3}
-					placeholder="Why is this being unlocked?"
-					error={unlockError ?? undefined}
-				/>
-			</form>
-
-			{#snippet footer()}
-				<Button
-					variant="ghost"
-					type="button"
-					onclick={() => (unlockOpen = false)}
-					disabled={unlockSubmitting}
-				>
-					Cancel
-				</Button>
-				<button
-					type="submit"
-					form="unlock-form"
-					disabled={unlockSubmitting}
-					class="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius)] px-4 py-2.5 text-sm font-medium transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-					style="background: var(--color-warning); color: white; border: 1px solid var(--color-warning);"
-				>
-					<Unlock size={16} strokeWidth={1.5} />
-					Unlock
-				</button>
-			{/snippet}
-		</Modal>
-	{/if}
-{/if}
+</main>

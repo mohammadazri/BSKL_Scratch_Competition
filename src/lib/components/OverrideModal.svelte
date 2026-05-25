@@ -46,10 +46,11 @@
 		onsuccess
 	}: Props = $props();
 
-	// Working state — re-seeded from props every time the modal opens (the
-	// $effect below tracks `open` + the criterion props and rewrites these).
-	let newLevel = $state<PerfLevel>('Proficient');
-	let newPoints = $state<number>(0);
+	// Working state — seeded from current values, mutable while the modal is open.
+	let newLevel = $state<PerfLevel>(currentLevel ?? levels[0]?.level ?? 'Proficient');
+	let newPoints = $state<number>(
+		currentPoints ?? Math.round(((levels[0]?.minPts ?? 0) + (levels[0]?.maxPts ?? 0)) / 2)
+	);
 	let reason = $state('');
 	let submitting = $state(false);
 	let errorMsg = $state<string | null>(null);

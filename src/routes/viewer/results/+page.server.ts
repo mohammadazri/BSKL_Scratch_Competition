@@ -1,8 +1,7 @@
-// /viewer/results — leaderboard for viewer role.
-// Same loader as /admin/results; the only difference is role=viewer so the
-// shared component hides any role-gated actions (none in the leaderboard
-// itself, but the drill-in link goes to /viewer/scoresheets/[id] instead).
-// Role guard runs in /viewer/+layout.server.ts (viewer + super_admin).
+// /viewer/results — read-only leaderboard.
+// Role guard runs in src/routes/viewer/+layout.server.ts (viewer or super_admin).
+// Identical data shape as /admin/results; only the `role` flag differs, which
+// drives drill-row href and hides the override/unlock affordances downstream.
 
 import type { PageServerLoad } from './$types';
 import {
@@ -13,19 +12,19 @@ import {
 } from '$lib/results/query';
 import type { ResultsPageData } from '$lib/results/types';
 
-export const load: PageServerLoad = async ({ locals, url }): Promise<ResultsPageData> => {
+export const load: PageServerLoad = async ({ locals, url }) => {
 	const filters = parseResultsFilters(url.searchParams);
-	const [{ rows, error }, schoolOptions] = await Promise.all([
+	const [rankResult, schoolOptions] = await Promise.all([
 		fetchRankings(locals.supabase, filters),
 		fetchSchoolOptions(locals.supabase)
 	]);
 
 	return {
-		rows,
+		rows: rankResult.rows,
 		filters,
 		schoolOptions,
-		totals: computeTotals(rows),
-		role: 'viewer',
-		loadError: error
-	};
+		totals: computeTotals(rankResult.rows),
+		role: 'viewer' as const,
+		loadError: rankResult.error
+	} satisfies ResultsPageData;
 };

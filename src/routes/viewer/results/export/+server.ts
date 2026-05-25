@@ -1,5 +1,7 @@
-// Viewer CSV export — identical payload to /admin/results/export.
-// RLS already grants viewer read access to all required tables.
+// CSV export for /viewer/results.
+// Same query path as the page loader. Viewers have full SELECT via RLS so the
+// CSV they pull is identical to what super_admin sees — by design, the
+// observer view is fully transparent.
 
 import type { RequestHandler } from './$types';
 import { parseResultsFilters, fetchRankings } from '$lib/results/query';

@@ -83,14 +83,7 @@ export async function fetchScoresheetDetail(
 	}
 
 	// 5. Existing scores on this sheet.
-	const { data: scoreRows } = await supabase
-		.from('scores')
-		.select(
-			'id, criterion_id, level, points, comment, is_override, override_reason'
-		)
-		.eq('scoresheet_id', sheet.id);
-
-	type ScoreRowShape = {
+	type ScoreRow = {
 		id: string;
 		criterion_id: string;
 		level: PerfLevel;
@@ -99,8 +92,15 @@ export async function fetchScoresheetDetail(
 		is_override: boolean;
 		override_reason: string | null;
 	};
-	const scoreByCriterion = new Map<string, ScoreRowShape>();
-	for (const s of (scoreRows ?? []) as unknown as ScoreRowShape[]) {
+	const { data: scoreRows } = await supabase
+		.from('scores')
+		.select(
+			'id, criterion_id, level, points, comment, is_override, override_reason'
+		)
+		.eq('scoresheet_id', sheet.id);
+
+	const scoreByCriterion = new Map<string, ScoreRow>();
+	for (const s of (scoreRows ?? []) as ScoreRow[]) {
 		scoreByCriterion.set(s.criterion_id, s);
 	}
 
