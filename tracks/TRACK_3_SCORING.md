@@ -7,6 +7,7 @@
 **Branch:** `track/3-scoring`
 
 **Inputs to read first:**
+
 - [../DEVELOPMENT.md](../DEVELOPMENT.md) — commit policy
 - [../DESIGN.md](../DESIGN.md) — § 4 A is the spec for this screen
 - [../SCHEMA.md](../SCHEMA.md) — `scoresheets`, `scores`, `criterion_levels`, `disqualifications`, `judge_queue` view
@@ -30,12 +31,12 @@ All guarded — `+layout.server.ts` checks `user.role === 'judge'` OR super_admi
 
 Use the `judge_queue` view (defined in SCHEMA.md). Renders a `<DataTable>`:
 
-| Status | Participant | Category | School | Theme | Progress | Action |
-|---|---|---|---|---|---|---|
-| ○ draft | Aisha Tan | B | BSKL | Eco-Warriors | 7 / 10 | Continue → |
-| — not started | Ravi Singh | B | ISKL | Smart Cities | 0 / 10 | Start → |
-| ● submitted | Tom Lee | A | MKIS | Space Pioneers | 6 / 6 | View |
-| ⚐ finalised | Liam Chen | C | Alice | Eco-Warriors | 7 / 7 | View (locked) |
+| Status        | Participant | Category | School | Theme          | Progress | Action        |
+| ------------- | ----------- | -------- | ------ | -------------- | -------- | ------------- |
+| ○ draft       | Aisha Tan   | B        | BSKL   | Eco-Warriors   | 7 / 10   | Continue →    |
+| — not started | Ravi Singh  | B        | ISKL   | Smart Cities   | 0 / 10   | Start →       |
+| ● submitted   | Tom Lee     | A        | MKIS   | Space Pioneers | 6 / 6    | View          |
+| ⚐ finalised   | Liam Chen   | C        | Alice  | Eco-Warriors   | 7 / 7    | View (locked) |
 
 - Filter chips at top: All / Not started / Draft / Submitted / Finalised
 - Sort by status by default (not-started first, then draft, then submitted)
@@ -53,6 +54,7 @@ Two-column on desktop ≥1024px; single-column with sticky bottom bar on mobile/
 **Left column (60%, scrollable):** stack of criterion cards, grouped by Section A → Section B with a `▌SECTION` header between groups.
 
 **Right column (40%, sticky desktop / bottom-sheet mobile):**
+
 - Live total (mono, large)
 - Progress bar (X / N criteria scored)
 - Sprint time picker (mm:ss, max 45:00)
@@ -109,6 +111,7 @@ Required to submit (unless DQ flag raised). Until entered, the Submit button sho
 ### DQ flag
 
 Sidebar button → opens `<DqModal>`:
+
 - Reason dropdown (4 options from `dq_reason` enum + "Other")
 - Notes textarea (required)
 - Confirm
@@ -127,6 +130,7 @@ Sidebar button → opens `<DqModal>`:
 ### Submit flow
 
 1. Click "SUBMIT FINAL" → confirmation modal:
+
    ```
    Submit Aisha Tan's scoresheet?
 
@@ -135,12 +139,14 @@ Sidebar button → opens `<DqModal>`:
 
    [ Cancel ]    [ Submit ▸ ]
    ```
+
 2. On confirm: `?/submit` action — validates all criteria scored, validates sprint time entered (or DQ raised), updates `status = 'submitted'` and `submitted_at = now()`.
 3. Redirect to `/judge/done/[scoresheetId]`.
 
 ### `/judge/done/[scoresheetId]`
 
 Summary card:
+
 - Big "✓ Submitted" with timestamp
 - Recap: participant, total, time
 - Per-criterion line list (level + points)
@@ -152,43 +158,49 @@ Summary card:
 
 ```ts
 export const actions = {
-  save: async ({ request, locals, params }) => {
-    const user = locals.user;
-    if (user.role !== 'judge' && user.role !== 'super_admin') throw error(403);
+	save: async ({ request, locals, params }) => {
+		const user = locals.user;
+		if (user.role !== 'judge' && user.role !== 'super_admin') throw error(403);
 
-    // Idempotent upsert: get or create scoresheet, then upsert each score row
-    const { sheet } = await getOrCreateScoresheet(locals.supabase, params.participantId, user.id);
-    const formData = await request.formData();
-    const payload = parseScorePayload(formData); // { criterionId, level, points, comment }[]
+		// Idempotent upsert: get or create scoresheet, then upsert each score row
+		const { sheet } = await getOrCreateScoresheet(locals.supabase, params.participantId, user.id);
+		const formData = await request.formData();
+		const payload = parseScorePayload(formData); // { criterionId, level, points, comment }[]
 
-    for (const s of payload) {
-      await locals.supabase.from('scores').upsert({
-        scoresheet_id: sheet.id,
-        criterion_id: s.criterionId,
-        level: s.level,
-        points: s.points,
-        comment: s.comment
-      }, { onConflict: 'scoresheet_id,criterion_id' });
-    }
+		for (const s of payload) {
+			await locals.supabase.from('scores').upsert(
+				{
+					scoresheet_id: sheet.id,
+					criterion_id: s.criterionId,
+					level: s.level,
+					points: s.points,
+					comment: s.comment
+				},
+				{ onConflict: 'scoresheet_id,criterion_id' }
+			);
+		}
 
-    const sprintTime = formData.get('live_sprint_time_seconds');
-    if (sprintTime !== null) {
-      await locals.supabase.from('scoresheets').update({
-        live_sprint_time_seconds: Number(sprintTime)
-      }).eq('id', sheet.id);
-    }
+		const sprintTime = formData.get('live_sprint_time_seconds');
+		if (sprintTime !== null) {
+			await locals.supabase
+				.from('scoresheets')
+				.update({
+					live_sprint_time_seconds: Number(sprintTime)
+				})
+				.eq('id', sheet.id);
+		}
 
-    return { saved: true, at: new Date().toISOString() };
-  },
+		return { saved: true, at: new Date().toISOString() };
+	},
 
-  submit: async ({ locals, params }) => {
-    // Validate all criteria scored, sprint time set (or DQ raised), then UPDATE status='submitted'
-    // RLS prevents this if event is locked.
-  },
+	submit: async ({ locals, params }) => {
+		// Validate all criteria scored, sprint time set (or DQ raised), then UPDATE status='submitted'
+		// RLS prevents this if event is locked.
+	},
 
-  flagDq: async ({ request, locals }) => {
-    // INSERT INTO disqualifications
-  }
+	flagDq: async ({ request, locals }) => {
+		// INSERT INTO disqualifications
+	}
 };
 ```
 
@@ -196,16 +208,16 @@ export const actions = {
 
 ## Components to build
 
-| Component | Notes |
-|---|---|
-| `<RadioLevel>` | 3 or 4 radio rows; each shows level name + band + descriptor in small text below |
-| `<NumberStepper>` | `-` button, big numeric display, `+` button; respects min/max; touch-friendly |
-| `<TimeInput>` | `MM : SS` two-input combo; max param; emits integer seconds |
-| `<CriterionCard>` | Wraps the above + comment toggle + collapse-when-scored |
-| `<LiveTotalCard>` | Big mono number, progress bar, count-up animation |
-| `<SaveStatusIndicator>` | "saving / saved / failed" with timestamp |
-| `<DqModal>` | Reason + notes + confirm |
-| `<SubmitConfirmModal>` | Pre-submit recap and confirm |
+| Component               | Notes                                                                            |
+| ----------------------- | -------------------------------------------------------------------------------- |
+| `<RadioLevel>`          | 3 or 4 radio rows; each shows level name + band + descriptor in small text below |
+| `<NumberStepper>`       | `-` button, big numeric display, `+` button; respects min/max; touch-friendly    |
+| `<TimeInput>`           | `MM : SS` two-input combo; max param; emits integer seconds                      |
+| `<CriterionCard>`       | Wraps the above + comment toggle + collapse-when-scored                          |
+| `<LiveTotalCard>`       | Big mono number, progress bar, count-up animation                                |
+| `<SaveStatusIndicator>` | "saving / saved / failed" with timestamp                                         |
+| `<DqModal>`             | Reason + notes + confirm                                                         |
+| `<SubmitConfirmModal>`  | Pre-submit recap and confirm                                                     |
 
 ---
 

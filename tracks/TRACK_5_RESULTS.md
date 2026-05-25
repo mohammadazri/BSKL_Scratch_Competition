@@ -7,6 +7,7 @@
 **Branch:** `track/5-results`
 
 **Inputs to read first:**
+
 - [../DEVELOPMENT.md](../DEVELOPMENT.md)
 - [../DESIGN.md](../DESIGN.md) § 4 C — leaderboard mockup
 - [../SCHEMA.md](../SCHEMA.md) — `final_rankings` view, `scores`, `disqualifications`
@@ -37,6 +38,7 @@ Columns: Rank, Participant, School, Score, Time, Status.
 - Click row → `/admin/scoresheets/[id]` (or `/viewer/scoresheets/[id]`).
 
 Filters at the top:
+
 - Category (A / B / C) — default current selection from URL
 - Theme (Eco-Warriors / Smart Cities / Space Pioneers / All)
 - School (multiselect)
@@ -45,6 +47,7 @@ Filters at the top:
 Sort: default is by rank ascending. Click any column header to re-sort.
 
 Footer:
+
 - Total scored, total pending, ties broken by sprint time count
 - `Export CSV` button
 - `Print podium` (super_admin) — generates a 1st/2nd/3rd certificate-style printable page per category
@@ -52,6 +55,7 @@ Footer:
 ### Real-time updates
 
 Subscribe to changes on `scoresheets` and `scores`:
+
 - Any submit / update → refetch the rankings query (it's quick, the view is small).
 - Smooth transitions when ranks change (Svelte `animate:flip` directive).
 
@@ -85,6 +89,7 @@ Shows the full scoresheet:
 ```
 
 - `Override score`: click a criterion → modal:
+
   ```
   Override — Variables & Gameplay
   ────────────────────────────────
@@ -97,6 +102,7 @@ Shows the full scoresheet:
 
   [ Cancel ]  [ Override ⚠ ]
   ```
+
   - Reason field required (enforced both UI and DB constraint).
   - On confirm: UPSERT into `scores` with `is_override = true`, `override_reason = ...`. Audit trigger captures before/after.
   - Original score is NOT lost — `before_json` in audit_log contains it.
@@ -131,28 +137,31 @@ Server action `?/override`:
 
 ```ts
 override: async ({ request, locals, params }) => {
-  if (locals.user.role !== 'super_admin') throw error(403);
+	if (locals.user.role !== 'super_admin') throw error(403);
 
-  const fd = await request.formData();
-  const criterionId = fd.get('criterion_id') as string;
-  const level = fd.get('level') as string;
-  const points = Number(fd.get('points'));
-  const reason = String(fd.get('reason') ?? '').trim();
-  if (!reason) throw error(400, 'reason required');
+	const fd = await request.formData();
+	const criterionId = fd.get('criterion_id') as string;
+	const level = fd.get('level') as string;
+	const points = Number(fd.get('points'));
+	const reason = String(fd.get('reason') ?? '').trim();
+	if (!reason) throw error(400, 'reason required');
 
-  const { error: err } = await locals.supabase.from('scores').upsert({
-    scoresheet_id: params.id,
-    criterion_id: criterionId,
-    level,
-    points,
-    comment: undefined,         // don't overwrite judge's comment
-    is_override: true,
-    override_reason: reason
-  }, { onConflict: 'scoresheet_id,criterion_id' });
+	const { error: err } = await locals.supabase.from('scores').upsert(
+		{
+			scoresheet_id: params.id,
+			criterion_id: criterionId,
+			level,
+			points,
+			comment: undefined, // don't overwrite judge's comment
+			is_override: true,
+			override_reason: reason
+		},
+		{ onConflict: 'scoresheet_id,criterion_id' }
+	);
 
-  if (err) throw error(500, err.message);
-  return { overridden: true };
-}
+	if (err) throw error(500, err.message);
+	return { overridden: true };
+};
 ```
 
 Audit trigger captures the full before/after automatically.

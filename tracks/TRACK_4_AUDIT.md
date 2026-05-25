@@ -7,6 +7,7 @@
 **Branch:** `track/4-audit`
 
 **Inputs to read first:**
+
 - [../DEVELOPMENT.md](../DEVELOPMENT.md) — commit policy, why audit matters
 - [../DESIGN.md](../DESIGN.md) § 4 D — audit log mockup
 - [../SCHEMA.md](../SCHEMA.md) § `audit_log` — full schema + RLS
@@ -70,13 +71,13 @@ TIME       ACTOR     ACTION              TARGET           ▼
 
 ## Components to build
 
-| Component | Notes |
-|---|---|
-| `<AuditTable>` | Virtualized rows (use `@tanstack/svelte-virtual` if list exceeds 1000) |
-| `<AuditRow>` | Collapsed-by-default; expand to show diff |
-| `<JsonDiff>` | Side-by-side or unified diff of before_json / after_json |
-| `<FilterBar>` | Filter dropdowns + date range + search |
-| `<LiveIndicator>` | Pulsing dot + "live" / "reconnecting" status text |
+| Component         | Notes                                                                  |
+| ----------------- | ---------------------------------------------------------------------- |
+| `<AuditTable>`    | Virtualized rows (use `@tanstack/svelte-virtual` if list exceeds 1000) |
+| `<AuditRow>`      | Collapsed-by-default; expand to show diff                              |
+| `<JsonDiff>`      | Side-by-side or unified diff of before_json / after_json               |
+| `<FilterBar>`     | Filter dropdowns + date range + search                                 |
+| `<LiveIndicator>` | Pulsing dot + "live" / "reconnecting" status text                      |
 
 ---
 
@@ -84,36 +85,36 @@ TIME       ACTOR     ACTION              TARGET           ▼
 
 ```ts
 export const load = async ({ locals, url }) => {
-  const params = parseFilters(url.searchParams);
+	const params = parseFilters(url.searchParams);
 
-  let query = locals.supabase
-    .from('audit_log')
-    .select('*, actor:profiles!actor_id(full_name, role)')
-    .order('at', { ascending: false })
-    .limit(200);
+	let query = locals.supabase
+		.from('audit_log')
+		.select('*, actor:profiles!actor_id(full_name, role)')
+		.order('at', { ascending: false })
+		.limit(200);
 
-  if (params.actorIds.length) query = query.in('actor_id', params.actorIds);
-  if (params.actions.length)   query = query.in('action', params.actions);
-  if (params.fromDate)         query = query.gte('at', params.fromDate);
-  if (params.toDate)           query = query.lte('at', params.toDate);
-  if (params.search)           query = query.or(`reason.ilike.%${params.search}%`);
+	if (params.actorIds.length) query = query.in('actor_id', params.actorIds);
+	if (params.actions.length) query = query.in('action', params.actions);
+	if (params.fromDate) query = query.gte('at', params.fromDate);
+	if (params.toDate) query = query.lte('at', params.toDate);
+	if (params.search) query = query.or(`reason.ilike.%${params.search}%`);
 
-  const { data, error } = await query;
-  if (error) throw error;
-  return { rows: data };
+	const { data, error } = await query;
+	if (error) throw error;
+	return { rows: data };
 };
 
 export const actions = {
-  exportCsv: async ({ locals, url }) => {
-    // Same query but no limit; stream as CSV
-    const rows = await fetchAllMatchingAudit(locals.supabase, parseFilters(url.searchParams));
-    return new Response(toCsv(rows), {
-      headers: {
-        'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="audit-${new Date().toISOString().slice(0,10)}.csv"`
-      }
-    });
-  }
+	exportCsv: async ({ locals, url }) => {
+		// Same query but no limit; stream as CSV
+		const rows = await fetchAllMatchingAudit(locals.supabase, parseFilters(url.searchParams));
+		return new Response(toCsv(rows), {
+			headers: {
+				'Content-Type': 'text/csv',
+				'Content-Disposition': `attachment; filename="audit-${new Date().toISOString().slice(0, 10)}.csv"`
+			}
+		});
+	}
 };
 ```
 
@@ -132,15 +133,23 @@ let rows = $state(data.rows);
 let live = $state(false);
 
 onMount(() => {
-  const channel = supabase
-    .channel('audit_log_tail')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_log' }, ({ new: row }) => {
-      // Prepend if it matches current filters (or reload from server for correctness)
-      rows = [row, ...rows].slice(0, 200);
-    })
-    .subscribe((status) => { live = status === 'SUBSCRIBED'; });
+	const channel = supabase
+		.channel('audit_log_tail')
+		.on(
+			'postgres_changes',
+			{ event: 'INSERT', schema: 'public', table: 'audit_log' },
+			({ new: row }) => {
+				// Prepend if it matches current filters (or reload from server for correctness)
+				rows = [row, ...rows].slice(0, 200);
+			}
+		)
+		.subscribe((status) => {
+			live = status === 'SUBSCRIBED';
+		});
 
-  return () => { supabase.removeChannel(channel); };
+	return () => {
+		supabase.removeChannel(channel);
+	};
 });
 ```
 

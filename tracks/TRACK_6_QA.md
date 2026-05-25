@@ -24,12 +24,12 @@ Three phases:
 
 For each page in the app, verify all four states:
 
-| State | What to check |
-|---|---|
-| **Loading** | Skeleton or spinner; no layout shift when data arrives |
-| **Empty** | Friendly `<EmptyState>` with action ("Your queue is empty. Check with admin.") |
-| **Error** | Toast or banner with actionable message; not a raw stack trace |
-| **Populated** | Renders correctly at small and large data sizes |
+| State         | What to check                                                                  |
+| ------------- | ------------------------------------------------------------------------------ |
+| **Loading**   | Skeleton or spinner; no layout shift when data arrives                         |
+| **Empty**     | Friendly `<EmptyState>` with action ("Your queue is empty. Check with admin.") |
+| **Error**     | Toast or banner with actionable message; not a raw stack trace                 |
+| **Populated** | Renders correctly at small and large data sizes                                |
 
 Create `docs/qa-audit.md` with a checklist row per page:
 
@@ -88,6 +88,7 @@ Open 5 browser profiles (or use Playwright trace mode):
 3. **Viewer tab** — open `/viewer/results`
 
 Simulate event flow:
+
 - All 4 judges open their queue, start scoring their first participant
 - Judges fill out scoresheets at realistic pace (3–5 min each, varied)
 - Mid-event: super_admin overrides one score (verify it lands in audit, leaderboard updates)
@@ -108,19 +109,19 @@ Document anything off in `docs/qa-dry-run.md`. Fix any issues. Re-run.
 
 Required tests (one file each):
 
-| File | Covers |
-|---|---|
-| `e2e/auth.spec.ts` | login (password + magic link), role redirect, logout |
-| `e2e/admin-users.spec.ts` | create judge, assign role, deactivate |
-| `e2e/admin-import.spec.ts` | CSV import of schools + participants, dq toggle |
-| `e2e/admin-assign.spec.ts` | auto-assign preview + commit, manual swap |
-| `e2e/judge-flow.spec.ts` | complete scoresheet end-to-end, submit, see in done page |
-| `e2e/judge-autosave.spec.ts` | partial score, refresh page, draft restored exactly |
-| `e2e/admin-override.spec.ts` | super_admin overrides score, audit log shows before/after |
-| `e2e/leaderboard.spec.ts` | submit two scoresheets with same score; tiebreak by sprint time |
-| `e2e/event-lock.spec.ts` | lock event, verify judge cannot save |
-| `e2e/viewer.spec.ts` | viewer sees results + audit; no edit buttons |
-| `e2e/rls-isolation.spec.ts` | Judge A cannot read Judge B's scoresheet via direct API call |
+| File                         | Covers                                                          |
+| ---------------------------- | --------------------------------------------------------------- |
+| `e2e/auth.spec.ts`           | login (password + magic link), role redirect, logout            |
+| `e2e/admin-users.spec.ts`    | create judge, assign role, deactivate                           |
+| `e2e/admin-import.spec.ts`   | CSV import of schools + participants, dq toggle                 |
+| `e2e/admin-assign.spec.ts`   | auto-assign preview + commit, manual swap                       |
+| `e2e/judge-flow.spec.ts`     | complete scoresheet end-to-end, submit, see in done page        |
+| `e2e/judge-autosave.spec.ts` | partial score, refresh page, draft restored exactly             |
+| `e2e/admin-override.spec.ts` | super_admin overrides score, audit log shows before/after       |
+| `e2e/leaderboard.spec.ts`    | submit two scoresheets with same score; tiebreak by sprint time |
+| `e2e/event-lock.spec.ts`     | lock event, verify judge cannot save                            |
+| `e2e/viewer.spec.ts`         | viewer sees results + audit; no edit buttons                    |
+| `e2e/rls-isolation.spec.ts`  | Judge A cannot read Judge B's scoresheet via direct API call    |
 
 CI hook: `pnpm test:e2e` in a GitHub Actions or local pre-push hook (per Mohammad's preference — discuss in PR).
 

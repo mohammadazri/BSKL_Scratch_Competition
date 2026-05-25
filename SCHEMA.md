@@ -370,36 +370,36 @@ $$;
 
 `viewer` = strict read-only observer (principals, P3 management, sponsors). Can see everything `super_admin` can, but cannot insert/update/delete anything anywhere.
 
-| Table | Role | SELECT | INSERT | UPDATE | DELETE |
-|---|---|---|---|---|---|
-| `profiles` | super_admin | all | yes | yes | no (use `is_active`) |
-| `profiles` | judge | self only | no | self (limited cols) | no |
-| `profiles` | **viewer** | **all** | **no** | **no** | **no** |
-| `schools` | super_admin | all | yes | yes | yes (if no participants) |
-| `schools` | judge | all (read for display) | no | no | no |
-| `schools` | **viewer** | **all** | **no** | **no** | **no** |
-| `participants` | super_admin | all | yes | yes | yes |
-| `participants` | judge | assigned only | no | no | no |
-| `participants` | **viewer** | **all** | **no** | **no** | **no** |
-| `criteria` / `criterion_levels` | all roles | all | no (seed only) | no | no |
-| `assignments` | super_admin | all | yes | yes | yes |
-| `assignments` | judge | self only | no | no | no |
-| `assignments` | **viewer** | **all** | **no** | **no** | **no** |
-| `scoresheets` | super_admin | all | yes | yes | no |
-| `scoresheets` | judge | own only | own (draft) | own (draft only) | no |
-| `scoresheets` | **viewer** | **all** | **no** | **no** | **no** |
-| `scores` | super_admin | all | yes | yes (override) | yes |
-| `scores` | judge | own scoresheet | own (draft) | own (draft) | own (draft) |
-| `scores` | **viewer** | **all** | **no** | **no** | **no** |
-| `disqualifications` | super_admin | all | yes | yes | no |
-| `disqualifications` | judge | own scoresheet | own | no | no |
-| `disqualifications` | **viewer** | **all** | **no** | **no** | **no** |
-| `event_state` | super_admin | yes | n/a | yes | n/a |
-| `event_state` | judge | yes | no | no | n/a |
-| `event_state` | **viewer** | **yes** | **no** | **no** | n/a |
-| `audit_log` | super_admin | all | no (trigger only) | **never** | **never** |
-| `audit_log` | judge | own actions only | no | **never** | **never** |
-| `audit_log` | **viewer** | **all** | **no** | **never** | **never** |
+| Table                           | Role        | SELECT                 | INSERT            | UPDATE              | DELETE                   |
+| ------------------------------- | ----------- | ---------------------- | ----------------- | ------------------- | ------------------------ |
+| `profiles`                      | super_admin | all                    | yes               | yes                 | no (use `is_active`)     |
+| `profiles`                      | judge       | self only              | no                | self (limited cols) | no                       |
+| `profiles`                      | **viewer**  | **all**                | **no**            | **no**              | **no**                   |
+| `schools`                       | super_admin | all                    | yes               | yes                 | yes (if no participants) |
+| `schools`                       | judge       | all (read for display) | no                | no                  | no                       |
+| `schools`                       | **viewer**  | **all**                | **no**            | **no**              | **no**                   |
+| `participants`                  | super_admin | all                    | yes               | yes                 | yes                      |
+| `participants`                  | judge       | assigned only          | no                | no                  | no                       |
+| `participants`                  | **viewer**  | **all**                | **no**            | **no**              | **no**                   |
+| `criteria` / `criterion_levels` | all roles   | all                    | no (seed only)    | no                  | no                       |
+| `assignments`                   | super_admin | all                    | yes               | yes                 | yes                      |
+| `assignments`                   | judge       | self only              | no                | no                  | no                       |
+| `assignments`                   | **viewer**  | **all**                | **no**            | **no**              | **no**                   |
+| `scoresheets`                   | super_admin | all                    | yes               | yes                 | no                       |
+| `scoresheets`                   | judge       | own only               | own (draft)       | own (draft only)    | no                       |
+| `scoresheets`                   | **viewer**  | **all**                | **no**            | **no**              | **no**                   |
+| `scores`                        | super_admin | all                    | yes               | yes (override)      | yes                      |
+| `scores`                        | judge       | own scoresheet         | own (draft)       | own (draft)         | own (draft)              |
+| `scores`                        | **viewer**  | **all**                | **no**            | **no**              | **no**                   |
+| `disqualifications`             | super_admin | all                    | yes               | yes                 | no                       |
+| `disqualifications`             | judge       | own scoresheet         | own               | no                  | no                       |
+| `disqualifications`             | **viewer**  | **all**                | **no**            | **no**              | **no**                   |
+| `event_state`                   | super_admin | yes                    | n/a               | yes                 | n/a                      |
+| `event_state`                   | judge       | yes                    | no                | no                  | n/a                      |
+| `event_state`                   | **viewer**  | **yes**                | **no**            | **no**              | n/a                      |
+| `audit_log`                     | super_admin | all                    | no (trigger only) | **never**           | **never**                |
+| `audit_log`                     | judge       | own actions only       | no                | **never**           | **never**                |
+| `audit_log`                     | **viewer**  | **all**                | **no**            | **never**           | **never**                |
 
 **Rule of thumb in policy writing:** use `can_read_all()` in every table's `SELECT` policy to grant read access to `super_admin` and `viewer` in one go.
 

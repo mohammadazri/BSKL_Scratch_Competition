@@ -11,7 +11,5 @@
 	>
 		Sign in
 	</h1>
-	<p class="text-sm" style="color: var(--color-text-2);">
-		Login UI lands with Track 2.
-	</p>
+	<p class="text-sm" style="color: var(--color-text-2);">Login UI lands with Track 2.</p>
 </main>

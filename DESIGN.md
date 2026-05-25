@@ -26,6 +26,7 @@ static/brand/
 ```
 
 Rules for logo use:
+
 - Always use the **official asset** — never redraw, recreate, restyle, or recolour the logos.
 - Header layout: `[P3 logo]  P3 JUDGING  ·  Future Coders Challenge 2026  ·  hosted at [BSKL logo]`
 - Logos display at fixed pixel height (32px desktop, 28px mobile) — width auto.
@@ -39,39 +40,39 @@ Implement in `src/app.css` via Tailwind `@theme` directive (Tailwind v4) or `tai
 
 ### Colours
 
-| Token | Dark mode | Light mode | Use |
-|---|---|---|---|
-| `--bg-0` | `#0A0F1C` | `#FAFAFA` | App background |
-| `--bg-1` | `#111827` | `#FFFFFF` | Default surface |
-| `--bg-2` | `#1F2937` | `#F3F4F6` | Raised surface, cards |
-| `--bg-3` | `#374151` | `#E5E7EB` | Hover state, inputs |
-| `--border` | `rgba(255,255,255,0.08)` | `rgba(0,0,0,0.08)` | Hairline dividers |
-| `--border-strong` | `rgba(255,255,255,0.16)` | `rgba(0,0,0,0.16)` | Card outline, focus |
-| `--text-1` | `#F8FAFC` | `#0F172A` | Primary text |
-| `--text-2` | `#94A3B8` | `#475569` | Secondary text, labels |
-| `--text-3` | `#64748B` | `#94A3B8` | Disabled / placeholder |
-| `--accent` | `#EC4899` | `#DB2777` | P3 magenta — primary actions, brand |
-| `--accent-soft` | `rgba(236,72,153,0.12)` | `rgba(219,39,119,0.10)` | Accent backgrounds |
-| `--accent-2` | `#38BDF8` | `#0284C7` | Electric cyan — info, links |
-| `--success` | `#10B981` | `#059669` | Submitted, OK |
-| `--warning` | `#F59E0B` | `#D97706` | Draft, attention |
-| `--danger` | `#EF4444` | `#DC2626` | DQ, error, override |
+| Token             | Dark mode                | Light mode              | Use                                 |
+| ----------------- | ------------------------ | ----------------------- | ----------------------------------- |
+| `--bg-0`          | `#0A0F1C`                | `#FAFAFA`               | App background                      |
+| `--bg-1`          | `#111827`                | `#FFFFFF`               | Default surface                     |
+| `--bg-2`          | `#1F2937`                | `#F3F4F6`               | Raised surface, cards               |
+| `--bg-3`          | `#374151`                | `#E5E7EB`               | Hover state, inputs                 |
+| `--border`        | `rgba(255,255,255,0.08)` | `rgba(0,0,0,0.08)`      | Hairline dividers                   |
+| `--border-strong` | `rgba(255,255,255,0.16)` | `rgba(0,0,0,0.16)`      | Card outline, focus                 |
+| `--text-1`        | `#F8FAFC`                | `#0F172A`               | Primary text                        |
+| `--text-2`        | `#94A3B8`                | `#475569`               | Secondary text, labels              |
+| `--text-3`        | `#64748B`                | `#94A3B8`               | Disabled / placeholder              |
+| `--accent`        | `#EC4899`                | `#DB2777`               | P3 magenta — primary actions, brand |
+| `--accent-soft`   | `rgba(236,72,153,0.12)`  | `rgba(219,39,119,0.10)` | Accent backgrounds                  |
+| `--accent-2`      | `#38BDF8`                | `#0284C7`               | Electric cyan — info, links         |
+| `--success`       | `#10B981`                | `#059669`               | Submitted, OK                       |
+| `--warning`       | `#F59E0B`                | `#D97706`               | Draft, attention                    |
+| `--danger`        | `#EF4444`                | `#DC2626`               | DQ, error, override                 |
 
 **Rule:** never combine `--accent` with `--accent-2` on the same primary action. Pick one per surface.
 
 ### Typography
 
-| Use | Font | Weight | Size |
-|---|---|---|---|
-| Display (rare, hero) | Space Grotesk | 700 | 48–64px |
-| Heading 1 (page) | Space Grotesk | 600 | 28px |
-| Heading 2 (section) | Space Grotesk | 600 | 20px |
-| Heading 3 (card) | Space Grotesk | 500 | 16px |
-| Body | Inter | 400 | 14px (15px on tablets) |
-| Body-strong | Inter | 600 | 14px |
-| Label | Inter | 500 | 12px (uppercase, letter-spacing 0.05em) |
-| Numbers / scores / time | JetBrains Mono | 500 | matches surrounding text size +1 |
-| Code / IDs | JetBrains Mono | 400 | 13px |
+| Use                     | Font           | Weight | Size                                    |
+| ----------------------- | -------------- | ------ | --------------------------------------- |
+| Display (rare, hero)    | Space Grotesk  | 700    | 48–64px                                 |
+| Heading 1 (page)        | Space Grotesk  | 600    | 28px                                    |
+| Heading 2 (section)     | Space Grotesk  | 600    | 20px                                    |
+| Heading 3 (card)        | Space Grotesk  | 500    | 16px                                    |
+| Body                    | Inter          | 400    | 14px (15px on tablets)                  |
+| Body-strong             | Inter          | 600    | 14px                                    |
+| Label                   | Inter          | 500    | 12px (uppercase, letter-spacing 0.05em) |
+| Numbers / scores / time | JetBrains Mono | 500    | matches surrounding text size +1        |
+| Code / IDs              | JetBrains Mono | 400    | 13px                                    |
 
 Self-host via `@fontsource/inter`, `@fontsource/space-grotesk`, `@fontsource/jetbrains-mono` — **do not load from Google Fonts CDN** (BSKL WiFi might be fine, but self-hosting removes the dependency and keeps the app fully tunneled through Cloudflare).
 
@@ -81,11 +82,11 @@ Self-host via `@fontsource/inter`, `@fontsource/space-grotesk`, `@fontsource/jet
 
 ### Radii
 
-| Token | Value | Use |
-|---|---|---|
-| `--radius-sm` | 4px | Inputs, small chips |
-| `--radius` | 8px | Buttons, cards |
-| `--radius-lg` | 12px | Modals, big surfaces |
+| Token         | Value | Use                  |
+| ------------- | ----- | -------------------- |
+| `--radius-sm` | 4px   | Inputs, small chips  |
+| `--radius`    | 8px   | Buttons, cards       |
+| `--radius-lg` | 12px  | Modals, big surfaces |
 
 No fully-rounded "pill" buttons except for status badges. Squarer = more corporate.
 
@@ -312,24 +313,24 @@ Optional subtitle / description
 
 ## 5. Component catalogue (build in `src/lib/components/`)
 
-| Component | Props (sketch) | Used in |
-|---|---|---|
-| `<AppShell>` | `children`, `user` | every authenticated page |
-| `<Sidebar>` | `items[]`, `activeHref` | AppShell |
-| `<PageHeader>` | `title`, `subtitle`, `actions` | every page |
-| `<Card>` | `label?`, `children` | most pages |
-| `<Button>` | `variant: primary|secondary|ghost|danger`, `loading`, `icon` | everywhere |
-| `<Input>` `<Select>` `<Textarea>` | standard | forms |
-| `<NumberStepper>` | `min`, `max`, `value`, `onChange` | scoring form |
-| `<TimeInput>` | `value: seconds`, `max: 2700` | scoring form sprint time |
-| `<RadioLevel>` | `levels: {label, range, descriptor}[]`, `selected` | scoring form |
-| `<StatusPill>` | `status: draft|submitted|finalised|override|dq` | many |
-| `<DataTable>` | `columns`, `rows`, `sortable`, `sticky` | results, audit, lists |
-| `<ProgressBar>` | `value`, `max`, `colour` | dashboard, scoring |
-| `<Toast>` | global service | save indicators, errors |
-| `<ConfirmModal>` | `title`, `message`, `confirmLabel`, `danger?` | submit, delete, override |
-| `<BrandHeader>` | renders P3 + BSKL logos | AppShell top bar |
-| `<EmptyState>` | `icon`, `title`, `description`, `action?` | empty queues, no data |
+| Component                         | Props (sketch)                                     | Used in                  |
+| --------------------------------- | -------------------------------------------------- | ------------------------ | --------- | -------------------------- | ---------- | ---- |
+| `<AppShell>`                      | `children`, `user`                                 | every authenticated page |
+| `<Sidebar>`                       | `items[]`, `activeHref`                            | AppShell                 |
+| `<PageHeader>`                    | `title`, `subtitle`, `actions`                     | every page               |
+| `<Card>`                          | `label?`, `children`                               | most pages               |
+| `<Button>`                        | `variant: primary                                  | secondary                | ghost     | danger`, `loading`, `icon` | everywhere |
+| `<Input>` `<Select>` `<Textarea>` | standard                                           | forms                    |
+| `<NumberStepper>`                 | `min`, `max`, `value`, `onChange`                  | scoring form             |
+| `<TimeInput>`                     | `value: seconds`, `max: 2700`                      | scoring form sprint time |
+| `<RadioLevel>`                    | `levels: {label, range, descriptor}[]`, `selected` | scoring form             |
+| `<StatusPill>`                    | `status: draft                                     | submitted                | finalised | override                   | dq`        | many |
+| `<DataTable>`                     | `columns`, `rows`, `sortable`, `sticky`            | results, audit, lists    |
+| `<ProgressBar>`                   | `value`, `max`, `colour`                           | dashboard, scoring       |
+| `<Toast>`                         | global service                                     | save indicators, errors  |
+| `<ConfirmModal>`                  | `title`, `message`, `confirmLabel`, `danger?`      | submit, delete, override |
+| `<BrandHeader>`                   | renders P3 + BSKL logos                            | AppShell top bar         |
+| `<EmptyState>`                    | `icon`, `title`, `description`, `action?`          | empty queues, no data    |
 
 ---
 

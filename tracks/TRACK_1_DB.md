@@ -8,6 +8,7 @@
 **Branch:** `track/1-db`
 
 **Inputs to read first:**
+
 - [../SCHEMA.md](../SCHEMA.md) — the whole file is your spec
 - [../SEED_RUBRICS.md](../SEED_RUBRICS.md) — the JSON block at the bottom is the seed source of truth
 - [../DEVELOPMENT.md](../DEVELOPMENT.md) § 0 — commit policy
@@ -17,6 +18,7 @@
 ## Approach
 
 You'll author **numbered SQL migration files** in `supabase/migrations/` that can be applied in order via either:
+
 - **Supabase Studio SQL editor** (paste each file) — fine for dev.
 - **`supabase db push`** via the Supabase CLI — preferred for repeatability.
 
@@ -54,6 +56,7 @@ Commit: `db: create enums for roles, categories, sections, levels, themes, statu
 ### `supabase/migrations/003_tables.sql`
 
 Every `CREATE TABLE` from [SCHEMA.md](../SCHEMA.md) § Tables, in dependency order:
+
 1. `profiles` (depends on `auth.users` which Supabase creates)
 2. `schools`
 3. `participants` (FK → schools)
@@ -86,6 +89,7 @@ Commit: `db: helper functions for rls, audit triggers, score-band check, auto pr
 ### `supabase/migrations/005_triggers.sql`
 
 Every `CREATE TRIGGER` from SCHEMA.md:
+
 - `set_updated_at` on every mutable table
 - `audit_row(...)` on every audit-relevant table
 - `check_score_in_band` on `scores`
@@ -99,6 +103,7 @@ Commit: `db: install updated_at, audit, score-band, and new-user triggers`
 - All policies from SCHEMA.md § Policy SQL plus the full policy set implied by § Policy summary
 
 **Full policy set — write all of these.** SCHEMA.md shows key examples; you implement the whole table. For each table, write:
+
 - `<table>_super_all FOR ALL TO authenticated USING (is_super_admin()) WITH CHECK (is_super_admin())`
 - `<table>_read` policy using `can_read_all()` for viewer + the role-appropriate predicate for judges
 - Judge-specific INSERT/UPDATE/DELETE policies for `scoresheets`, `scores`, `disqualifications`
@@ -132,24 +137,24 @@ const sql = postgres(process.env.DATABASE_URL!);
 const data = JSON.parse(readFileSync('supabase/seed/rubrics.json', 'utf8'));
 
 for (const cat of data.categories) {
-  for (const sec of cat.sections) {
-    for (const crit of sec.criteria) {
-      const [{ id: criterionId }] = await sql`
+	for (const sec of cat.sections) {
+		for (const crit of sec.criteria) {
+			const [{ id: criterionId }] = await sql`
         INSERT INTO criteria (category, section, name, max_points, sort_order)
         VALUES (${cat.category}, ${sec.section}, ${crit.name}, ${crit.max_points}, ${crit.sort_order})
         ON CONFLICT (category, section, sort_order)
         DO UPDATE SET name = EXCLUDED.name, max_points = EXCLUDED.max_points
         RETURNING id`;
 
-      for (const lvl of crit.levels) {
-        await sql`
+			for (const lvl of crit.levels) {
+				await sql`
           INSERT INTO criterion_levels (criterion_id, level, min_pts, max_pts, descriptor)
           VALUES (${criterionId}, ${lvl.level}, ${lvl.min_pts}, ${lvl.max_pts}, ${lvl.descriptor})
           ON CONFLICT (criterion_id, level)
           DO UPDATE SET min_pts = EXCLUDED.min_pts, max_pts = EXCLUDED.max_pts, descriptor = EXCLUDED.descriptor`;
-      }
-    }
-  }
+			}
+		}
+	}
 }
 
 console.log('seed complete');
@@ -163,21 +168,30 @@ Commit: `db: rubric seed json + idempotent loader script`
 Mirror every table from SCHEMA.md as Drizzle table definitions. Example:
 
 ```ts
-import { pgEnum, pgTable, text, uuid, integer, boolean, timestamp, jsonb } from 'drizzle-orm/pg-core';
+import {
+	pgEnum,
+	pgTable,
+	text,
+	uuid,
+	integer,
+	boolean,
+	timestamp,
+	jsonb
+} from 'drizzle-orm/pg-core';
 
-export const userRoleEnum = pgEnum('user_role', ['super_admin','judge','viewer']);
-export const categoryEnum = pgEnum('category', ['A','B','C']);
+export const userRoleEnum = pgEnum('user_role', ['super_admin', 'judge', 'viewer']);
+export const categoryEnum = pgEnum('category', ['A', 'B', 'C']);
 // ...
 
 export const profiles = pgTable('profiles', {
-  id: uuid('id').primaryKey(),
-  email: text('email').notNull().unique(),
-  fullName: text('full_name').notNull(),
-  role: userRoleEnum('role').notNull().default('judge'),
-  categories: categoryEnum('categories').array().notNull().default(['A','B','C']),
-  isActive: boolean('is_active').notNull().default(true),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	id: uuid('id').primaryKey(),
+	email: text('email').notNull().unique(),
+	fullName: text('full_name').notNull(),
+	role: userRoleEnum('role').notNull().default('judge'),
+	categories: categoryEnum('categories').array().notNull().default(['A', 'B', 'C']),
+	isActive: boolean('is_active').notNull().default(true),
+	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 });
 // ...every other table
 ```

@@ -33,7 +33,11 @@
 		<span class="hidden text-[11px] sm:inline" style="color: var(--color-text-2);">
 			hosted at
 		</span>
-		<img src="/brand/bskl-logo.svg" alt="British International School of Kuala Lumpur" class="h-8 w-auto" />
+		<img
+			src="/brand/bskl-logo.svg"
+			alt="British International School of Kuala Lumpur"
+			class="h-8 w-auto"
+		/>
 	</div>
 </header>
 

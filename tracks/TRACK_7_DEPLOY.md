@@ -9,6 +9,7 @@
 **Branch:** `track/7-deploy`
 
 **Inputs to read first:**
+
 - [../DEVELOPMENT.md](../DEVELOPMENT.md) § 8 (deployment overview)
 - [../DESIGN.md](../DESIGN.md) § 1 (logo verification step — install must refuse to start without logos)
 
@@ -152,6 +153,7 @@ ingress:
 DNS: in Cloudflare dashboard → DNS → add a CNAME for `judging` pointing to `<YOUR-TUNNEL-UUID>.cfargotunnel.com`, proxied (orange cloud).
 
 (Optional) Cloudflare Access:
+
 - Zero Trust dashboard → Access → Applications → add `judging.<your-domain>.com`
 - Policy: emails in (`aiman0608@gmail.com`, 4 judges' emails, viewer emails)
 

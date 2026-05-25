@@ -64,11 +64,13 @@ In the app UI, in error messages, in the README, in `package.json` description �
 A web app that lets **judges** score student Scratch projects during the P3 Future Coders Challenge 2026.
 
 **Three user roles:**
+
 - **`super_admin`** — Mohammad. Full control: create users, assign roles, import participants, run auto-assignment, override scores (audit-logged), view audit log, export results. Can also be assigned scoring like any judge.
 - **`judge`** — 4 accounts. Sees only their assigned participants. Fills rubric scoresheets, saves drafts, submits. Cannot see other judges' scores or drafts.
 - **`viewer`** — Read-only observers (principals, P3 management, sponsors, BSKL admin). Sees **everything** super_admin sees — participants, scores, leaderboard, audit log — but cannot edit, override, submit, or delete anything. Useful for live transparency at the venue without exposing edit power.
 
 **The event flow:**
+
 1. Pre-event: super_admin imports schools + participants (up to 45 per category × 3 categories = 135 total), creates 4 judge accounts + any viewer accounts, clicks "auto-assign" — each judge gets ~11 participants per category.
 2. Event day (45-min sprint): students complete Phase 2 Mystery Objective. Each judge scores their assigned participants on a digital rubric. Time-to-complete captured for tiebreaker.
 3. As scoresheets are submitted, the leaderboard updates live. Ties auto-broken by sprint completion time. Viewers watch the leaderboard / audit log on the venue screens.
@@ -79,16 +81,16 @@ A web app that lets **judges** score student Scratch projects during the P3 Futu
 
 ## 2. Stack
 
-| Layer | Tech | Why |
-|---|---|---|
-| Frontend | **SvelteKit** + TypeScript | Form-actions with progressive enhancement = scoring works on flaky venue WiFi; small JS bundle for tablets |
-| Styling | **TailwindCSS** | Tablet/mobile-responsive without a designer |
-| DB | **Supabase Postgres** (free tier, region `ap-southeast-1` Singapore) | Managed, ~30ms from KL, RLS replaces app-layer auth, realtime channels for live scoreboard |
-| Auth | **Supabase Auth** (magic-link + password) | No code to write; magic-link emailed to judge, fallback password printed on paper |
-| ORM | **Drizzle** | Type-safe, lightweight, fast migrations |
-| Audit | **Postgres triggers** → append-only `audit_log` table | Impossible to bypass from app code |
-| Hosting | **Raspberry Pi** + **Cloudflare Tunnel (`cloudflared`)** | Public HTTPS URL, no port forwarding, free TLS |
-| Optional security | **Cloudflare Access** | Email-allowlist before login page even loads |
+| Layer             | Tech                                                                 | Why                                                                                                        |
+| ----------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Frontend          | **SvelteKit** + TypeScript                                           | Form-actions with progressive enhancement = scoring works on flaky venue WiFi; small JS bundle for tablets |
+| Styling           | **TailwindCSS**                                                      | Tablet/mobile-responsive without a designer                                                                |
+| DB                | **Supabase Postgres** (free tier, region `ap-southeast-1` Singapore) | Managed, ~30ms from KL, RLS replaces app-layer auth, realtime channels for live scoreboard                 |
+| Auth              | **Supabase Auth** (magic-link + password)                            | No code to write; magic-link emailed to judge, fallback password printed on paper                          |
+| ORM               | **Drizzle**                                                          | Type-safe, lightweight, fast migrations                                                                    |
+| Audit             | **Postgres triggers** → append-only `audit_log` table                | Impossible to bypass from app code                                                                         |
+| Hosting           | **Raspberry Pi** + **Cloudflare Tunnel (`cloudflared`)**             | Public HTTPS URL, no port forwarding, free TLS                                                             |
+| Optional security | **Cloudflare Access**                                                | Email-allowlist before login page even loads                                                               |
 
 ---
 
@@ -130,6 +132,7 @@ pnpm dev
 ```
 
 To get Supabase credentials:
+
 1. Sign in at https://supabase.com → New project → name `p3-judging-2026`, region `Southeast Asia (Singapore)`, free tier.
 2. Settings → API → copy `URL` and `anon` key into `.env`.
 3. Settings → API → copy `service_role` key into `.env` as `SUPABASE_SERVICE_ROLE_KEY` (server-side only, never expose to client).
@@ -153,16 +156,16 @@ To keep multiple agents from stepping on each other:
 
 ## 6. Track assignments
 
-| Track | Goal | Depends on | Doc |
-|---|---|---|---|
-| 0 | Scaffold project (SvelteKit, Tailwind, Drizzle, Supabase client, Lucia → skipped) | — | [tracks/TRACK_0_SETUP.md](tracks/TRACK_0_SETUP.md) |
-| 1 | Apply schema, RLS, triggers, seed rubrics | 0 | [tracks/TRACK_1_DB.md](tracks/TRACK_1_DB.md) |
-| 2 | Super-admin UI (users, schools, participants, assignments) | 0, 1 | [tracks/TRACK_2_ADMIN.md](tracks/TRACK_2_ADMIN.md) |
-| 3 | Judge scoring form ⭐ | 0, 1 | [tracks/TRACK_3_SCORING.md](tracks/TRACK_3_SCORING.md) |
-| 4 | Audit log UI + export | 0, 1 | [tracks/TRACK_4_AUDIT.md](tracks/TRACK_4_AUDIT.md) |
-| 5 | Results, overrides, CSV export | 0, 1, 3 | [tracks/TRACK_5_RESULTS.md](tracks/TRACK_5_RESULTS.md) |
-| 6 | Polish, mobile QA, dry-run | 0, 2, 3, 4, 5 | [tracks/TRACK_6_QA.md](tracks/TRACK_6_QA.md) |
-| 7 | Pi + cloudflared deploy | 0 | [tracks/TRACK_7_DEPLOY.md](tracks/TRACK_7_DEPLOY.md) |
+| Track | Goal                                                                              | Depends on    | Doc                                                    |
+| ----- | --------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------ |
+| 0     | Scaffold project (SvelteKit, Tailwind, Drizzle, Supabase client, Lucia → skipped) | —             | [tracks/TRACK_0_SETUP.md](tracks/TRACK_0_SETUP.md)     |
+| 1     | Apply schema, RLS, triggers, seed rubrics                                         | 0             | [tracks/TRACK_1_DB.md](tracks/TRACK_1_DB.md)           |
+| 2     | Super-admin UI (users, schools, participants, assignments)                        | 0, 1          | [tracks/TRACK_2_ADMIN.md](tracks/TRACK_2_ADMIN.md)     |
+| 3     | Judge scoring form ⭐                                                             | 0, 1          | [tracks/TRACK_3_SCORING.md](tracks/TRACK_3_SCORING.md) |
+| 4     | Audit log UI + export                                                             | 0, 1          | [tracks/TRACK_4_AUDIT.md](tracks/TRACK_4_AUDIT.md)     |
+| 5     | Results, overrides, CSV export                                                    | 0, 1, 3       | [tracks/TRACK_5_RESULTS.md](tracks/TRACK_5_RESULTS.md) |
+| 6     | Polish, mobile QA, dry-run                                                        | 0, 2, 3, 4, 5 | [tracks/TRACK_6_QA.md](tracks/TRACK_6_QA.md)           |
+| 7     | Pi + cloudflared deploy                                                           | 0             | [tracks/TRACK_7_DEPLOY.md](tracks/TRACK_7_DEPLOY.md)   |
 
 **Parallel opportunities:** once Track 0 + 1 land, Tracks 2, 3, 4, 7 can run simultaneously. Track 5 needs Track 3's submit logic. Track 6 closes everything out.
 

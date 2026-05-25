@@ -7,6 +7,7 @@
 **Branch:** commit directly to `main` (you're alone here).
 
 **Inputs to read first:**
+
 - [../DEVELOPMENT.md](../DEVELOPMENT.md) — hard rules, commit policy
 - [../DESIGN.md](../DESIGN.md) — design tokens (you implement them here)
 - [../SCHEMA.md](../SCHEMA.md) — just skim, so you know what's coming
@@ -44,7 +45,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  plugins: [tailwindcss(), sveltekit()]
+	plugins: [tailwindcss(), sveltekit()]
 });
 ```
 
@@ -62,39 +63,44 @@ export default defineConfig({
 @import '@fontsource/jetbrains-mono/500.css';
 
 @theme {
-  --color-bg-0: #0A0F1C;
-  --color-bg-1: #111827;
-  --color-bg-2: #1F2937;
-  --color-bg-3: #374151;
-  --color-text-1: #F8FAFC;
-  --color-text-2: #94A3B8;
-  --color-text-3: #64748B;
-  --color-accent: #EC4899;
-  --color-accent-2: #38BDF8;
-  --color-success: #10B981;
-  --color-warning: #F59E0B;
-  --color-danger: #EF4444;
-  --font-display: 'Space Grotesk', system-ui, sans-serif;
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
-  --radius-sm: 4px;
-  --radius: 8px;
-  --radius-lg: 12px;
+	--color-bg-0: #0a0f1c;
+	--color-bg-1: #111827;
+	--color-bg-2: #1f2937;
+	--color-bg-3: #374151;
+	--color-text-1: #f8fafc;
+	--color-text-2: #94a3b8;
+	--color-text-3: #64748b;
+	--color-accent: #ec4899;
+	--color-accent-2: #38bdf8;
+	--color-success: #10b981;
+	--color-warning: #f59e0b;
+	--color-danger: #ef4444;
+	--font-display: 'Space Grotesk', system-ui, sans-serif;
+	--font-sans: 'Inter', system-ui, sans-serif;
+	--font-mono: 'JetBrains Mono', ui-monospace, monospace;
+	--radius-sm: 4px;
+	--radius: 8px;
+	--radius-lg: 12px;
 }
 
-html, body { background: var(--color-bg-0); color: var(--color-text-1); font-family: var(--font-sans); }
+html,
+body {
+	background: var(--color-bg-0);
+	color: var(--color-text-1);
+	font-family: var(--font-sans);
+}
 
 @media (prefers-color-scheme: light) {
-  @theme {
-    --color-bg-0: #FAFAFA;
-    --color-bg-1: #FFFFFF;
-    --color-bg-2: #F3F4F6;
-    --color-bg-3: #E5E7EB;
-    --color-text-1: #0F172A;
-    --color-text-2: #475569;
-    --color-text-3: #94A3B8;
-    /* ...etc */
-  }
+	@theme {
+		--color-bg-0: #fafafa;
+		--color-bg-1: #ffffff;
+		--color-bg-2: #f3f4f6;
+		--color-bg-3: #e5e7eb;
+		--color-text-1: #0f172a;
+		--color-text-2: #475569;
+		--color-text-3: #94a3b8;
+		/* ...etc */
+	}
 }
 ```
 
@@ -120,7 +126,7 @@ import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
 
 export const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { autoRefreshToken: false, persistSession: false }
+	auth: { autoRefreshToken: false, persistSession: false }
 });
 ```
 
@@ -140,10 +146,10 @@ export const supabase = createBrowserClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE
 ```ts
 import { defineConfig } from 'drizzle-kit';
 export default defineConfig({
-  schema: './src/lib/server/db/schema.ts',
-  out: './supabase/migrations',
-  dialect: 'postgresql',
-  dbCredentials: { url: process.env.DATABASE_URL! }
+	schema: './src/lib/server/db/schema.ts',
+	out: './supabase/migrations',
+	dialect: 'postgresql',
+	dbCredentials: { url: process.env.DATABASE_URL! }
 });
 ```
 
@@ -260,14 +266,27 @@ git commit -m "add brand header component with p3 and bskl logos"
 
 ```json
 {
-  "version": "0.2",
-  "language": "en",
-  "words": [
-    "BSKL", "Aisha", "Azri", "cloudflared", "drizzle", "ISKL", "MKIS",
-    "P3", "Scratch", "sb3", "supabase", "sveltekit", "tailwindcss",
-    "Lucia", "puppeteer", "tabler"
-  ],
-  "ignorePaths": ["node_modules", "build", ".svelte-kit", "static/brand"]
+	"version": "0.2",
+	"language": "en",
+	"words": [
+		"BSKL",
+		"Aisha",
+		"Azri",
+		"cloudflared",
+		"drizzle",
+		"ISKL",
+		"MKIS",
+		"P3",
+		"Scratch",
+		"sb3",
+		"supabase",
+		"sveltekit",
+		"tailwindcss",
+		"Lucia",
+		"puppeteer",
+		"tabler"
+	],
+	"ignorePaths": ["node_modules", "build", ".svelte-kit", "static/brand"]
 }
 ```
 

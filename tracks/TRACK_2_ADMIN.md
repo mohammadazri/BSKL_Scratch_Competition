@@ -7,6 +7,7 @@
 **Branch:** `track/2-admin`
 
 **Inputs to read first:**
+
 - [../DEVELOPMENT.md](../DEVELOPMENT.md) — commit policy, 3 roles
 - [../DESIGN.md](../DESIGN.md) — every UI choice cites this
 - [../SCHEMA.md](../SCHEMA.md) — tables you'll be CRUD-ing
@@ -72,6 +73,7 @@ Use SvelteKit's `+page.server.ts` for the initial load; subscribe to Supabase re
 Table columns: Avatar (initials), Name, Email, Role pill, Categories (chips), Active, Last seen, Actions.
 
 Actions per row:
+
 - Edit (modal — name, role, categories array)
 - Deactivate / Reactivate
 - Reset password (calls `supabaseAdmin.auth.admin.updateUserById` to set a new temp password)
@@ -93,6 +95,7 @@ DataTable: name, school, category pill, theme, judge (resolved from `assignments
 Add participant modal: name, school (select from existing), category, theme (optional).
 
 **CSV import** (the most-used path):
+
 - Headers: `full_name,school_name,category,theme`
 - Server action: for each row, find-or-create school by name, insert participant.
 - Show summary preview before commit ("12 new schools will be created, 87 participants will be added — proceed?").
@@ -138,6 +141,7 @@ Apply only commits to DB on the second click. Audit row written.
 ### `/admin/event`
 
 Single-card page:
+
 - Event name, date (read-only after first save), sprint minutes (default 45)
 - **Lock event** toggle: when ON, all scoresheets become read-only across the app (enforced by RLS via `is_event_locked()`). Used at end-of-event to freeze results.
 - Show locked-by + locked-at when locked.
@@ -146,33 +150,33 @@ Single-card page:
 
 ## Components to build (in `src/lib/components/`)
 
-| Component | Notes |
-|---|---|
-| `<DataTable>` | Generic — columns config, rows, sortable, sticky header, row-click handler, empty-state slot |
-| `<CsvUpload>` | File picker + preview table + commit button; calls a parser callback |
-| `<UserAvatar>` | Initials in coloured circle; role pill below for table cells |
-| `<RolePill>` | Colour by role: super_admin → magenta, judge → cyan, viewer → text-2 |
-| `<CategoryChip>` | Small "A" / "B" / "C" chip, colour-coded |
-| `<AssignmentMatrix>` | Grid view; props: judges[], participants[], assignments map |
-| `<AutoAssignPreview>` | Modal — shows the planned assignment before commit |
-| `<DqModal>` | Reason picker + notes |
-| `<ConfirmModal>` | Re-used; danger variant for irreversible actions |
-| `<PrintableSlips>` | A4-sized print stylesheet for login PIN slips |
+| Component             | Notes                                                                                        |
+| --------------------- | -------------------------------------------------------------------------------------------- |
+| `<DataTable>`         | Generic — columns config, rows, sortable, sticky header, row-click handler, empty-state slot |
+| `<CsvUpload>`         | File picker + preview table + commit button; calls a parser callback                         |
+| `<UserAvatar>`        | Initials in coloured circle; role pill below for table cells                                 |
+| `<RolePill>`          | Colour by role: super_admin → magenta, judge → cyan, viewer → text-2                         |
+| `<CategoryChip>`      | Small "A" / "B" / "C" chip, colour-coded                                                     |
+| `<AssignmentMatrix>`  | Grid view; props: judges[], participants[], assignments map                                  |
+| `<AutoAssignPreview>` | Modal — shows the planned assignment before commit                                           |
+| `<DqModal>`           | Reason picker + notes                                                                        |
+| `<ConfirmModal>`      | Re-used; danger variant for irreversible actions                                             |
+| `<PrintableSlips>`    | A4-sized print stylesheet for login PIN slips                                                |
 
 ---
 
 ## Server endpoints (in `src/routes/admin/.../+server.ts` or as form actions)
 
-| Endpoint | Method | Purpose |
-|---|---|---|
-| `/admin/users` form action `create` | POST | create user via `supabaseAdmin.auth.admin.createUser` |
-| `/admin/users` form action `setRole` | POST | update profile.role |
-| `/admin/schools/import` | POST | parse CSV → bulk insert schools |
-| `/admin/participants/import` | POST | parse CSV → bulk insert participants + find-or-create schools |
-| `/admin/assignments/auto` | POST | run auto-assign algorithm (see below), return preview |
-| `/admin/assignments/auto/commit` | POST | apply the preview |
-| `/admin/assignments/swap` | POST | swap one participant's judge |
-| `/admin/event/lock` | POST | toggle locked flag |
+| Endpoint                             | Method | Purpose                                                       |
+| ------------------------------------ | ------ | ------------------------------------------------------------- |
+| `/admin/users` form action `create`  | POST   | create user via `supabaseAdmin.auth.admin.createUser`         |
+| `/admin/users` form action `setRole` | POST   | update profile.role                                           |
+| `/admin/schools/import`              | POST   | parse CSV → bulk insert schools                               |
+| `/admin/participants/import`         | POST   | parse CSV → bulk insert participants + find-or-create schools |
+| `/admin/assignments/auto`            | POST   | run auto-assign algorithm (see below), return preview         |
+| `/admin/assignments/auto/commit`     | POST   | apply the preview                                             |
+| `/admin/assignments/swap`            | POST   | swap one participant's judge                                  |
+| `/admin/event/lock`                  | POST   | toggle locked flag                                            |
 
 ---
 
@@ -182,40 +186,40 @@ Single-card page:
 import { shuffle } from '$lib/utils/random';
 
 export function autoAssign(args: {
-  participants: { id: string; school_id: string }[];
-  judges: { id: string }[];
-  maxPerSchoolPerJudge?: number; // default 3
+	participants: { id: string; school_id: string }[];
+	judges: { id: string }[];
+	maxPerSchoolPerJudge?: number; // default 3
 }) {
-  const { participants, judges, maxPerSchoolPerJudge = 3 } = args;
-  if (judges.length === 0) throw new Error('no eligible judges');
+	const { participants, judges, maxPerSchoolPerJudge = 3 } = args;
+	if (judges.length === 0) throw new Error('no eligible judges');
 
-  const shuffled = shuffle(participants);
-  const buckets = new Map<string, { id: string; school_id: string }[]>();
-  judges.forEach((j) => buckets.set(j.id, []));
+	const shuffled = shuffle(participants);
+	const buckets = new Map<string, { id: string; school_id: string }[]>();
+	judges.forEach((j) => buckets.set(j.id, []));
 
-  // Round-robin pointer
-  let i = 0;
-  outer: for (const p of shuffled) {
-    // Try each judge starting from current pointer, skip if school-cap hit
-    for (let tries = 0; tries < judges.length; tries++) {
-      const judge = judges[(i + tries) % judges.length];
-      const bucket = buckets.get(judge.id)!;
-      const fromSameSchool = bucket.filter((x) => x.school_id === p.school_id).length;
-      if (fromSameSchool < maxPerSchoolPerJudge) {
-        bucket.push(p);
-        i = (i + tries + 1) % judges.length;
-        continue outer;
-      }
-    }
-    // No judge under the cap — assign to least-loaded judge anyway (school-spread is best-effort)
-    const least = [...buckets.entries()].sort((a, b) => a[1].length - b[1].length)[0];
-    least[1].push(p);
-  }
+	// Round-robin pointer
+	let i = 0;
+	outer: for (const p of shuffled) {
+		// Try each judge starting from current pointer, skip if school-cap hit
+		for (let tries = 0; tries < judges.length; tries++) {
+			const judge = judges[(i + tries) % judges.length];
+			const bucket = buckets.get(judge.id)!;
+			const fromSameSchool = bucket.filter((x) => x.school_id === p.school_id).length;
+			if (fromSameSchool < maxPerSchoolPerJudge) {
+				bucket.push(p);
+				i = (i + tries + 1) % judges.length;
+				continue outer;
+			}
+		}
+		// No judge under the cap — assign to least-loaded judge anyway (school-spread is best-effort)
+		const least = [...buckets.entries()].sort((a, b) => a[1].length - b[1].length)[0];
+		least[1].push(p);
+	}
 
-  return [...buckets.entries()].map(([judgeId, parts]) => ({
-    judge_id: judgeId,
-    participant_ids: parts.map((p) => p.id)
-  }));
+	return [...buckets.entries()].map(([judgeId, parts]) => ({
+		judge_id: judgeId,
+		participant_ids: parts.map((p) => p.id)
+	}));
 }
 ```
 
