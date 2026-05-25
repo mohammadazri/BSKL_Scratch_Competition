@@ -28,6 +28,7 @@
 				{ href: '/admin/schools', label: 'Schools', icon: School },
 				{ href: '/admin/participants', label: 'Participants', icon: UserSquare2 },
 				{ href: '/admin/assignments', label: 'Assignments', icon: ClipboardList },
+				{ href: '/admin/results', label: 'Results', icon: Trophy },
 				{ href: '/admin/event', label: 'Event', icon: Settings2 }
 			];
 		}

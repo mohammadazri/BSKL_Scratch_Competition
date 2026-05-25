@@ -90,9 +90,18 @@ export async function fetchScoresheetDetail(
 		)
 		.eq('scoresheet_id', sheet.id);
 
-	const scoreByCriterion = new Map<string, (typeof scoreRows)[number]>();
-	for (const s of scoreRows ?? []) {
-		scoreByCriterion.set(s.criterion_id as string, s);
+	type ScoreRowShape = {
+		id: string;
+		criterion_id: string;
+		level: PerfLevel;
+		points: number;
+		comment: string | null;
+		is_override: boolean;
+		override_reason: string | null;
+	};
+	const scoreByCriterion = new Map<string, ScoreRowShape>();
+	for (const s of (scoreRows ?? []) as unknown as ScoreRowShape[]) {
+		scoreByCriterion.set(s.criterion_id, s);
 	}
 
 	// 6. Stitch into per-section groups.
@@ -100,16 +109,16 @@ export async function fetchScoresheetDetail(
 		const cid = c.id as string;
 		const score = scoreByCriterion.get(cid);
 		return {
-			scoreId: score ? (score.id as string) : null,
+			scoreId: score ? score.id : null,
 			criterionId: cid,
 			criterionName: c.name as string,
 			sortOrder: c.sort_order as number,
 			maxPoints: c.max_points as number,
-			level: score ? (score.level as PerfLevel) : null,
-			points: score ? (score.points as number) : null,
-			comment: score ? ((score.comment as string | null) ?? null) : null,
+			level: score ? score.level : null,
+			points: score ? score.points : null,
+			comment: score ? (score.comment ?? null) : null,
 			isOverride: score ? Boolean(score.is_override) : false,
-			overrideReason: score ? ((score.override_reason as string | null) ?? null) : null,
+			overrideReason: score ? (score.override_reason ?? null) : null,
 			levelBands: sortLevels(levelsByCriterion.get(cid) ?? [])
 		};
 	});
