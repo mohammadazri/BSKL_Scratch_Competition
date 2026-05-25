@@ -338,30 +338,32 @@ ALTER TABLE audit_log           ENABLE ROW LEVEL SECURITY;
 
 ### Helper functions
 
+**Why `SECURITY DEFINER` on every helper below:** the RLS policies on `profiles` themselves call `is_super_admin()` (which reads `profiles`). Without `SECURITY DEFINER`, that call re-enters the same RLS policy and Postgres raises `infinite recursion detected in policy for relation "profiles"`. Running the helper with the function owner's privileges (typically `postgres`) bypasses RLS on the read inside the helper and breaks the loop. The helpers themselves still only return a boolean — they don't leak data.
+
 ```sql
 CREATE OR REPLACE FUNCTION current_role_is(target user_role)
-RETURNS boolean LANGUAGE sql STABLE AS $$
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT EXISTS (
     SELECT 1 FROM profiles
      WHERE id = auth.uid() AND role = target AND is_active = true
   );
 $$;
 
-CREATE OR REPLACE FUNCTION is_super_admin() RETURNS boolean LANGUAGE sql STABLE AS $$
+CREATE OR REPLACE FUNCTION is_super_admin() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT current_role_is('super_admin');
 $$;
 
-CREATE OR REPLACE FUNCTION is_viewer() RETURNS boolean LANGUAGE sql STABLE AS $$
+CREATE OR REPLACE FUNCTION is_viewer() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT current_role_is('viewer');
 $$;
 
 -- Anyone in this set can READ everything (super_admin and viewer).
 -- Use this in SELECT policies to grant read-all to observers without granting writes.
-CREATE OR REPLACE FUNCTION can_read_all() RETURNS boolean LANGUAGE sql STABLE AS $$
+CREATE OR REPLACE FUNCTION can_read_all() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT is_super_admin() OR is_viewer();
 $$;
 
-CREATE OR REPLACE FUNCTION is_event_locked() RETURNS boolean LANGUAGE sql STABLE AS $$
+CREATE OR REPLACE FUNCTION is_event_locked() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT locked FROM event_state WHERE id = 1;
 $$;
 ```

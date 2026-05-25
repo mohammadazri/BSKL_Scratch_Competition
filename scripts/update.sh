@@ -27,6 +27,27 @@ cd "${APP_DIR}"
 echo "==> git pull --ff-only"
 sudo -u "${SERVICE_USER}" git pull --ff-only
 
+# Brand-asset gate: refuse to deploy without official logos in static/brand/.
+# Mirrors the check in install-pi.sh so a stray git push that drops a logo
+# can never reach production.
+echo "==> verifying brand assets present"
+P3_OK=0
+BSKL_OK=0
+for ext in svg png; do
+  [[ -s "static/brand/p3-logo.${ext}"   ]] && P3_OK=1
+  [[ -s "static/brand/bskl-logo.${ext}" ]] && BSKL_OK=1
+done
+if [[ "${P3_OK}" -ne 1 ]]; then
+  echo "FATAL: P3 logo missing or empty in static/brand/ (expected p3-logo.svg or p3-logo.png)."
+  echo "       Replace placeholders per TODO_BRAND_ASSETS.md before deploying."
+  exit 1
+fi
+if [[ "${BSKL_OK}" -ne 1 ]]; then
+  echo "FATAL: BSKL logo missing or empty in static/brand/ (expected bskl-logo.svg or bskl-logo.png)."
+  echo "       Replace placeholders per TODO_BRAND_ASSETS.md before deploying."
+  exit 1
+fi
+
 echo "==> pnpm install --frozen-lockfile"
 sudo -u "${SERVICE_USER}" pnpm install --frozen-lockfile
 
