@@ -1,0 +1,32 @@
+[Unit]
+Description=P3 Judging website (SvelteKit on Node)
+Documentation=https://github.com/AimanMohammad/judging-site
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=p3judge
+Group=p3judge
+WorkingDirectory=/opt/p3-judging
+# .env on the Pi holds all secrets. systemd EnvironmentFile does NOT expand
+# ${VAR} references — write literal values only.
+EnvironmentFile=/opt/p3-judging/.env
+ExecStart=/usr/bin/node build/index.js
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=3000
+
+# Mild hardening — the app needs network, /opt/p3-judging, and journald only.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
