@@ -453,6 +453,7 @@
 			<option value="super_admin">Super admin</option>
 			<option value="judge">Judge</option>
 			<option value="viewer">Viewer</option>
+			<option value="registration_committee">Registration committee</option>
 		</Select>
 
 		{#if newRole === 'judge'}
