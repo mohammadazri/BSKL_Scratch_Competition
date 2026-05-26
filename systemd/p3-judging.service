@@ -20,7 +20,7 @@ StandardError=journal
 
 Environment=NODE_ENV=production
 Environment=HOST=127.0.0.1
-Environment=PORT=3000
+Environment=PORT=5999
 
 # Mild hardening — the app needs network, /opt/p3-judging, and journald only.
 NoNewPrivileges=true

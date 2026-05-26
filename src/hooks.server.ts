@@ -14,9 +14,6 @@ const supabaseHandle: Handle = async ({ event, resolve }) => {
 	// `x-forwarded-proto: https`; direct LAN HTTP requests don't.
 	const isHttps = event.request.headers.get('x-forwarded-proto') === 'https';
 
-	const incomingCookies = event.cookies.getAll();
-	console.log(`[req] ${event.request.method} ${event.url.pathname} cookies=${incomingCookies.map((c) => c.name).join(',') || 'none'}`);
-
 	event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
 		cookies: {
 			getAll: () => event.cookies.getAll(),
@@ -24,7 +21,6 @@ const supabaseHandle: Handle = async ({ event, resolve }) => {
 				cookies.forEach(({ name, value, options }) => {
 					// Force secure=false on plain HTTP — browsers reject Secure
 					// cookies over HTTP and the session is lost on the next request.
-					console.log(`[cookie] set ${name} secure=${isHttps}`);
 					event.cookies.set(name, value, {
 						...options,
 						path: '/',
@@ -41,21 +37,16 @@ const supabaseHandle: Handle = async ({ event, resolve }) => {
 		const {
 			data: { session }
 		} = await event.locals.supabase.auth.getSession();
-		if (!session) {
-			console.log(`[session] NULL (no session from cookies)`);
-			return { session: null, user: null };
-		}
+		if (!session) return { session: null, user: null };
 
+		// Validate the JWT against the auth server — getSession() trusts the cookie blindly,
+		// getUser() re-checks with Supabase. This is the secure pattern.
 		const {
 			data: { user },
 			error
 		} = await event.locals.supabase.auth.getUser();
-		if (error) {
-			console.log(`[session] getUser error: ${error.message}`);
-			return { session: null, user: null };
-		}
+		if (error) return { session: null, user: null };
 
-		console.log(`[session] OK user=${user?.email}`);
 		return { session, user };
 	};
 
