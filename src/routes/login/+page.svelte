@@ -129,7 +129,7 @@
 			</button>
 		</form>
 
-		<div class="mt-5 text-center text-xs" style="color: var(--color-text-2);">
+		<div class="mt-5 flex flex-col items-center gap-2 text-center text-xs" style="color: var(--color-text-2);">
 			{#if mode === 'password'}
 				<button
 					type="button"
@@ -139,6 +139,13 @@
 				>
 					or · email me a magic link
 				</button>
+				<a
+					href="/login/forgot-password"
+					class="underline-offset-4 hover:underline"
+					style="color: var(--color-text-2);"
+				>
+					Forgot password?
+				</a>
 			{:else}
 				<button
 					type="button"
