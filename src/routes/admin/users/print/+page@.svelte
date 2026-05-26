@@ -55,13 +55,17 @@
 	<title>Print login slips · P3 Judging</title>
 </svelte:head>
 
-<div class="print-hide">
+<!-- This page opts out of AppShell (+page@.svelte) so the print output is
+     clean: no top bar, no sidebar, no toast container competing for space.
+     The operator chrome below is wrapped in .print-hide and disappears
+     when the user hits Ctrl+P. -->
+<div class="print-hide mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
 	<PageHeader
 		title="Print login slips"
 		subtitle="Generate temporary passwords for active judges, viewers, and registration committee, then print one slip per user."
 	>
 		{#snippet actions()}
-			<Button variant="ghost" href="/admin/users">Back to users</Button>
+			<Button variant="ghost" href="/admin/users">‹ Back to users</Button>
 		{/snippet}
 	</PageHeader>
 

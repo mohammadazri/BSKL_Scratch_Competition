@@ -455,15 +455,11 @@
 	}
 
 	/* ── Print rules ──────────────────────────────────────────────────────
-	   Canonical "print only this section" pattern: hide every element on
-	   the page with visibility:hidden, then re-show just the .print-sheet
-	   subtree. This avoids playing whack-a-mole with every wrapper in
-	   AppShell (BrandHeader, Sidebar, user menu, Toast, etc) which use
-	   plain <div>s and don't match the old `header, nav, aside` selectors.
-
-	   We additionally pin the print-sheet to the top of the page and reset
-	   all the screen-mode layout constraints (max-width, padding, flex
-	   gaps) imposed by <main> in AppShell so the slip is the full A4 width.
+	   The print page opts out of AppShell via +page@.svelte, so the only
+	   things on the printed page are the operator chrome (in .print-hide
+	   above) and the slips. We hide the chrome and let the slips flow
+	   naturally onto A4 pages — no visibility tricks, no absolute
+	   positioning hacks.
 	*/
 	@media print {
 		:global(html),
@@ -471,25 +467,32 @@
 			background: white !important;
 			margin: 0 !important;
 			padding: 0 !important;
+			color: #0f172a !important;
 		}
-		:global(body *) {
-			visibility: hidden;
-		}
-		.print-sheet,
-		.print-sheet * {
-			visibility: visible;
+		:global(.print-hide) {
+			display: none !important;
 		}
 		.print-sheet {
-			position: absolute;
-			inset: 0;
 			padding: 0 !important;
 			gap: 0 !important;
 			background: white !important;
 		}
 		.slip {
-			margin: 0 0 5mm;
+			margin: 0 0 5mm !important;
+			page-break-inside: avoid;
+			break-inside: avoid;
 			page-break-after: auto;
 			border: 1px solid #e2e8f0 !important;
+			/* Make absolutely sure printer renders fills + the accent bar. */
+			-webkit-print-color-adjust: exact;
+			print-color-adjust: exact;
+		}
+		.accent-bar,
+		.creds-row,
+		.tip,
+		.qr {
+			-webkit-print-color-adjust: exact;
+			print-color-adjust: exact;
 		}
 	}
 	@page {
