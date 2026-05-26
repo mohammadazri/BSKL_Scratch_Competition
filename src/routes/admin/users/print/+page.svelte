@@ -40,7 +40,8 @@
 			role: s.role,
 			password: s.password,
 			pinLabel: s.pinLabel,
-			categories: s.categories
+			categories: s.categories,
+			qrSvg: s.qrSvg
 		}))
 	);
 
@@ -164,6 +165,7 @@
 	<PrintableSlips
 		event={data.event.eventName ?? 'P3 Future Coders Challenge 2026'}
 		eventDate={data.event.eventDate}
+		url={data.appUrl}
 		slips={slipsForPrint}
 	/>
 {/if}

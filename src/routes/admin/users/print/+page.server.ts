@@ -13,10 +13,12 @@
 // button that batch-resets and prints in one go.
 
 import { fail } from '@sveltejs/kit';
+import QRCode from 'qrcode';
 import type { Actions, PageServerLoad } from './$types';
 import { supabaseAdmin } from '$lib/server/supabase';
 import { requireSuperAdmin } from '$lib/server/guards';
 import { tempPassword } from '$lib/utils/random';
+import { appUrl } from '$lib/app-url';
 import type { Category, Role } from '$lib/types';
 
 export type PrintSlip = {
@@ -28,9 +30,20 @@ export type PrintSlip = {
 	pinLabel: string | null;
 	/** Plain-text password only present after the regenerate action runs. */
 	password: string;
+	/** Inline SVG of the QR code that encodes the sign-in URL. */
+	qrSvg: string;
 };
 
-export const load: PageServerLoad = async () => {
+async function svgQr(text: string): Promise<string> {
+	return QRCode.toString(text, {
+		type: 'svg',
+		errorCorrectionLevel: 'M',
+		margin: 0,
+		color: { dark: '#0f172a', light: '#ffffff00' }
+	});
+}
+
+export const load: PageServerLoad = async ({ url }) => {
 	// On initial load we show a "click to generate" pre-print screen — we
 	// don't auto-reset every active user just because someone navigated here.
 	const { data: rows } = await supabaseAdmin
@@ -60,6 +73,7 @@ export const load: PageServerLoad = async () => {
 			eventName: ev?.event_name as string | undefined,
 			eventDate: (ev?.event_date as string | null) ?? null
 		},
+		appUrl: appUrl(url.origin),
 		slips: null as PrintSlip[] | null
 	};
 };
@@ -69,7 +83,7 @@ export const actions: Actions = {
 	// can reset ANY user's password including super_admin accounts. The parent
 	// layout guard does NOT run before form actions — without this inline check
 	// any authenticated user could POST here and take over arbitrary accounts.
-	regenerate: async ({ request, locals }) => {
+	regenerate: async ({ request, locals, url }) => {
 		await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const ids = form.getAll('id').map((v) => String(v));
@@ -79,6 +93,9 @@ export const actions: Actions = {
 			.from('profiles')
 			.select('id, email, full_name, role, categories, pin_label')
 			.in('id', ids);
+
+		const signInUrl = `${appUrl(url.origin)}/login`;
+		const qr = await svgQr(signInUrl);
 
 		const slips: PrintSlip[] = [];
 		for (const r of rows ?? []) {
@@ -96,10 +113,11 @@ export const actions: Actions = {
 				role: r.role as Role,
 				categories: (r.categories ?? []) as Category[],
 				pinLabel: (r.pin_label as string | null) ?? null,
-				password
+				password,
+				qrSvg: qr
 			});
 		}
 
-		return { ok: true, slips, count: slips.length };
+		return { ok: true, slips, count: slips.length, signInUrl };
 	}
 };
