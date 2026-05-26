@@ -1,22 +1,24 @@
 <!--
-	CriterionCard — wraps the RadioLevel + NumberStepper + optional comment
-	textarea for a single rubric criterion.
+	CriterionCard — fast scoring for one rubric criterion.
 
-	Three behaviours from TRACK_3_SCORING.md:
-	  1. Picking a level auto-fills points to the middle of the band.
-	  2. Manually typing a points value outside the current band re-selects
-	     the level whose band contains it (if any).
-	  3. Once scored, the card collapses to a one-line summary; click to expand.
+	Redesigned for the event-day judge psychology:
+	  • Recognition over recall — all four bands visible at all times as
+	    horizontal pills, no clicking to reveal descriptors.
+	  • Reduced cognitive load — descriptor of the SELECTED band shows
+	    inline beneath the pills, others are summarised by their range only.
+	  • Compact: ~80-160px tall (vs 350-450px in the old vertical radio
+	    list), so 7 criteria fit on a single screen with minimal scrolling.
+	  • Auto-collapses to a one-line summary after scoring, expand to edit.
 
-	The card carries hidden inputs (criterion_id, level, points, comment) so
-	the surrounding form submits cleanly without JS.
+	Hidden inputs keep no-JS submit working: criterion_id, level__<id>,
+	points__<id>, comment__<id>.
 -->
 <script lang="ts">
 	import type { RubricCriterion, RubricLevel } from '$lib/scoring';
 	import { midpoint, levelForPoints, clampToLevel } from '$lib/scoring';
 	import type { PerfLevel } from '$lib/types';
-	import RadioLevel from './RadioLevel.svelte';
 	import NumberStepper from './NumberStepper.svelte';
+	import { Check, MessageSquare, Pencil } from '@lucide/svelte';
 
 	interface Props {
 		criterion: RubricCriterion;
@@ -40,9 +42,13 @@
 		onChange
 	}: Props = $props();
 
-	let collapsed = $state(false);
+	let scored = $derived(level !== null && points !== null);
+
+	// Default: unscored = expanded, scored = collapsed.
+	let manualOpen = $state<boolean | null>(null);
+	let expanded = $derived(manualOpen ?? !scored);
+
 	let commentOpen = $state(false);
-	// Open the comment editor by default if a comment already exists.
 	$effect(() => {
 		if (comment && comment.length > 0) commentOpen = true;
 	});
@@ -55,24 +61,20 @@
 		onChange?.({ level, points, comment });
 	}
 
-	function onLevelPick(opt: RubricLevel) {
-		// Auto-fill the middle of the band.
-		const mid = midpoint(opt);
-		points = mid;
+	function pickLevel(opt: RubricLevel) {
+		if (disabled) return;
+		level = opt.level;
+		points = midpoint(opt);
 		emit();
 	}
 
 	function onPointsChange(v: number) {
-		// If the value moved outside the current level's band, jump to the
-		// level that contains it (per spec).
 		if (selectedLevel && (v < selectedLevel.minPts || v > selectedLevel.maxPts)) {
 			const next = levelForPoints(v, criterion.levels);
 			if (next) {
 				level = next.level;
-				// Clamp into the new level's band as a safety net (DB trigger requires).
 				points = clampToLevel(v, next);
-			} else {
-				// Shouldn't happen with contiguous bands; keep the old level + clamp.
+			} else if (selectedLevel) {
 				points = clampToLevel(v, selectedLevel);
 			}
 		} else {
@@ -82,90 +84,141 @@
 	}
 
 	function onCommentInput(e: Event) {
-		const el = e.currentTarget as HTMLTextAreaElement;
-		comment = el.value;
+		comment = (e.currentTarget as HTMLTextAreaElement).value;
 		emit();
 	}
 
-	function toggleCollapsed() {
-		if (level === null || points === null) {
-			collapsed = false;
-			return;
-		}
-		collapsed = !collapsed;
+	// Visual accent per level so judges can scan a long list quickly:
+	// green = best, red = worst, intuitive at a glance.
+	function levelColor(lvl: PerfLevel): string {
+		if (lvl === 'Excellent') return '#10b981';
+		if (lvl === 'Proficient') return '#0891b2';
+		if (lvl === 'Developing') return '#d97706';
+		return '#dc2626';
 	}
-
-	let scored = $derived(level !== null && points !== null);
 </script>
 
 <section
-	class="rounded-lg border"
-	style="background: var(--color-bg-2); border-color: {scored
-		? 'var(--border-strong)'
+	class="overflow-hidden rounded-lg border"
+	style="background: var(--color-bg-2); border-color: {scored && selectedLevel
+		? levelColor(selectedLevel.level) + '55'
 		: 'var(--border)'};"
 	data-criterion-id={criterion.id}
 >
-	<!-- Header / summary row -->
+	<!-- Header (always visible) — name + score chip + edit/collapse button -->
 	<header
-		class="flex items-center justify-between gap-3 p-4"
-		style={collapsed ? '' : 'border-bottom: 1px solid var(--border);'}
+		class="flex items-center gap-3 px-4 py-2.5"
+		style="border-bottom: {expanded ? '1px solid var(--border)' : 'none'};"
 	>
-		<div class="min-w-0">
-			<h3 class="text-base font-medium" style="color: var(--color-text-1);">
+		<div class="min-w-0 flex-1">
+			<h3
+				class="truncate text-sm font-semibold sm:text-base"
+				style="color: var(--color-text-1);"
+			>
 				{criterion.name}
-				<span class="ml-2 text-xs" style="color: var(--color-text-2); font-family: var(--font-mono);">
-					/ {criterion.maxPoints}
-				</span>
 			</h3>
-			{#if collapsed && scored}
-				<p class="mt-0.5 text-xs" style="color: var(--color-text-2);">
-					{level} · <span style="font-family: var(--font-mono); color: var(--color-text-1);">
-						{points} / {criterion.maxPoints}
-					</span>
-				</p>
-			{/if}
 		</div>
-		<div class="flex items-center gap-2">
-			{#if scored}
+		{#if scored && selectedLevel}
+			<div class="flex items-center gap-2 text-xs">
 				<span
-					class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
-					style="background: var(--accent-soft); color: var(--color-accent);"
+					class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium"
+					style="background: {levelColor(selectedLevel.level)}22; color: {levelColor(
+						selectedLevel.level
+					)};"
 				>
-					scored
+					<Check size={12} strokeWidth={2.5} />
+					{selectedLevel.level}
 				</span>
-			{/if}
-			{#if scored && !disabled}
-				<button
-					type="button"
-					onclick={toggleCollapsed}
-					aria-expanded={!collapsed}
-					aria-label={collapsed ? 'Expand criterion' : 'Collapse criterion'}
-					class="inline-flex items-center justify-center rounded-md text-xs underline"
-					style="min-height: 44px; min-width: 44px; color: var(--color-text-2);"
+				<span
+					class="text-sm font-semibold tabular-nums"
+					style="color: var(--color-text-1); font-family: var(--font-mono);"
 				>
-					{collapsed ? 'edit' : 'collapse'}
-				</button>
-			{/if}
-		</div>
+					{points} / {criterion.maxPoints}
+				</span>
+			</div>
+		{:else}
+			<span
+				class="rounded-full px-2 py-0.5 text-[11px] font-medium"
+				style="background: var(--color-bg-3); color: var(--color-text-3); font-family: var(--font-mono);"
+			>
+				/ {criterion.maxPoints}
+			</span>
+		{/if}
+		{#if !disabled}
+			<button
+				type="button"
+				onclick={() => (manualOpen = !expanded)}
+				aria-expanded={expanded}
+				aria-label={expanded ? 'Collapse' : 'Edit'}
+				class="grid h-9 w-9 place-items-center rounded-md hover:bg-white/5"
+				style="color: var(--color-text-2);"
+			>
+				{#if expanded}
+					<span class="text-xs">▴</span>
+				{:else}
+					<Pencil size={14} strokeWidth={1.5} />
+				{/if}
+			</button>
+		{/if}
 	</header>
 
-	{#if !collapsed}
-		<div class="flex flex-col gap-4 p-4 pt-2">
-			<RadioLevel
-				name={`level__${criterion.id}`}
-				levels={criterion.levels}
-				bind:selected={level}
-				{disabled}
-				onPick={onLevelPick}
-			/>
+	{#if expanded}
+		<div class="flex flex-col gap-3 px-4 py-3">
+			<!-- 4 horizontal pills — single row, recognition over recall.
+			     Each pill carries the band range so the judge sees the full
+			     rubric without clicking. -->
+			<div
+				role="radiogroup"
+				aria-label="Performance level"
+				class="grid gap-1.5 sm:gap-2"
+				style="grid-template-columns: repeat({criterion.levels.length}, minmax(0, 1fr));"
+			>
+				{#each criterion.levels as opt (opt.id)}
+					{@const isSelected = level === opt.level}
+					{@const c = levelColor(opt.level)}
+					<button
+						type="button"
+						onclick={() => pickLevel(opt)}
+						{disabled}
+						aria-pressed={isSelected}
+						class="flex h-auto min-h-[44px] flex-col items-center justify-center gap-0.5 rounded-md border px-2 py-2 transition-colors disabled:opacity-50"
+						style="background: {isSelected ? c + '22' : 'var(--color-bg-1)'}; border-color: {isSelected
+							? c
+							: 'var(--border)'};"
+					>
+						<span
+							class="text-[11px] font-semibold sm:text-xs"
+							style="color: {isSelected ? c : 'var(--color-text-1)'};"
+						>
+							{opt.level}
+						</span>
+						<span
+							class="text-[10px] tabular-nums"
+							style="color: var(--color-text-3); font-family: var(--font-mono);"
+						>
+							{opt.minPts === opt.maxPts ? opt.minPts : `${opt.minPts}–${opt.maxPts}`}
+						</span>
+					</button>
+				{/each}
+			</div>
 
-			<div class="flex flex-wrap items-center gap-3">
-				<span
-					class="text-xs font-medium tracking-wide uppercase"
-					style="color: var(--color-text-2);"
+			<!-- Inline descriptor of the SELECTED band only — judges focus on
+			     the one band they're choosing, not all four at once. -->
+			{#if selectedLevel}
+				<p
+					class="rounded-md border-l-2 px-3 py-2 text-xs leading-snug"
+					style="border-color: {levelColor(selectedLevel.level)}; background: var(--color-bg-1); color: var(--color-text-2);"
 				>
-					Points
-				</span>
+					{selectedLevel.descriptor}
+				</p>
+			{:else}
+				<p class="text-xs" style="color: var(--color-text-3);">
+					Tap a level to score this criterion.
+				</p>
+			{/if}
+
+			<!-- Points stepper + note toggle on a single compact row. -->
+			<div class="flex flex-wrap items-center gap-3">
 				<NumberStepper
 					name={`points__${criterion.id}`}
 					bind:value={points}
@@ -174,56 +227,43 @@
 					disabled={disabled || !selectedLevel}
 					onValue={onPointsChange}
 				/>
-				{#if selectedLevel}
-					<span
-						class="text-xs"
-						style="color: var(--color-text-3); font-family: var(--font-mono);"
-					>
-						band {selectedLevel.minPts === selectedLevel.maxPts
-							? selectedLevel.minPts
-							: `${selectedLevel.minPts}–${selectedLevel.maxPts}`}
-					</span>
-				{:else}
-					<span class="text-xs" style="color: var(--color-text-3);">
-						Pick a level first.
-					</span>
-				{/if}
-			</div>
-
-			<div>
 				<button
 					type="button"
 					onclick={() => (commentOpen = !commentOpen)}
-					class="text-xs underline"
+					{disabled}
+					class="ml-auto inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs hover:bg-white/5"
 					style="color: var(--color-text-2);"
-					disabled={disabled}
+					aria-pressed={commentOpen}
 				>
-					{comment && comment.length > 0 ? 'Edit note' : 'Add note (optional)'}
+					<MessageSquare size={14} strokeWidth={1.5} />
+					{comment && comment.length > 0 ? 'Edit note' : 'Add note'}
 				</button>
-				{#if commentOpen}
-					<textarea
-						name={`comment__${criterion.id}`}
-						rows="2"
-						maxlength="500"
-						value={comment ?? ''}
-						oninput={onCommentInput}
-						{disabled}
-						placeholder="Short note for this criterion (visible to super admin)."
-						class="mt-2 w-full rounded-md border p-2 text-sm outline-none"
-						style="background: var(--color-bg-1); border-color: var(--border); color: var(--color-text-1);"
-					></textarea>
-				{:else}
-					<input type="hidden" name={`comment__${criterion.id}`} value={comment ?? ''} />
-				{/if}
 			</div>
+
+			{#if commentOpen}
+				<textarea
+					name={`comment__${criterion.id}`}
+					rows="2"
+					maxlength="500"
+					value={comment ?? ''}
+					oninput={onCommentInput}
+					{disabled}
+					placeholder="Short note for this criterion (admin can see)."
+					class="w-full rounded-md border p-2 text-sm outline-none"
+					style="background: var(--color-bg-1); border-color: var(--border); color: var(--color-text-1);"
+				></textarea>
+			{:else}
+				<input type="hidden" name={`comment__${criterion.id}`} value={comment ?? ''} />
+			{/if}
+
+			<input type="hidden" name={`level__${criterion.id}`} value={level ?? ''} />
 		</div>
 	{:else}
-		<!-- Hidden inputs preserve the value when the section is collapsed. -->
+		<!-- Collapsed — preserve all hidden inputs so the form still submits. -->
 		<input type="hidden" name={`level__${criterion.id}`} value={level ?? ''} />
 		<input type="hidden" name={`points__${criterion.id}`} value={points ?? ''} />
 		<input type="hidden" name={`comment__${criterion.id}`} value={comment ?? ''} />
 	{/if}
 
-	<!-- Always emit the criterion id so the server knows this slot exists. -->
 	<input type="hidden" name="criterion_id" value={criterion.id} />
 </section>

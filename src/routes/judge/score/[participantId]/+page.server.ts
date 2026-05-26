@@ -330,56 +330,69 @@ async function getPhase(locals: App.Locals): Promise<'setup' | 'section_a' | 'se
 
 // Find the next participant in this judge's queue who hasn't been scored yet
 // for the given phase. Returns null when the judge has finished everyone.
-//   - section_a: skip rows already with section_a_submitted_at set
-//   - section_b: skip rows already with status='submitted'/'finalised'
-// Always excludes the current participant so we don't loop back to them.
+// Implemented as three independent queries instead of a nested embed because
+// Supabase's PostgREST FK-hint syntax for reverse joins is fragile — the
+// previous one-shot query was silently returning [] in some configurations,
+// which meant the auto-advance always fell through to the dashboard flash.
 async function nextParticipantForJudge(
 	locals: App.Locals,
 	judgeId: string,
 	currentParticipantId: string,
 	phase: 'section_a' | 'section_b'
 ): Promise<string | null> {
-	// judge_queue is the view; status mirrors scoresheets.status. For
-	// section_a we ALSO need section_a_submitted_at which isn't in the view,
-	// so we join through scoresheets directly.
-	const { data: rows } = await locals.supabase
+	// 1. Every participant assigned to this judge (excluding the one we just
+	//    finished scoring).
+	const { data: asgns } = await locals.supabase
 		.from('assignments')
-		.select(
-			'participant_id, scoresheets:scoresheets!scoresheets_participant_id_fkey(judge_id, status, section_a_submitted_at), participants:participants!inner(full_name)'
-		)
+		.select('participant_id')
 		.eq('judge_id', judgeId)
 		.neq('participant_id', currentParticipantId);
 
-	if (!rows) return null;
+	const participantIds = (asgns ?? []).map((a) => a.participant_id as string);
+	if (participantIds.length === 0) return null;
 
-	type Row = {
-		participant_id: string;
-		participants: { full_name: string } | { full_name: string }[];
-		scoresheets:
-			| Array<{ judge_id: string; status: string; section_a_submitted_at: string | null }>
-			| { judge_id: string; status: string; section_a_submitted_at: string | null }
-			| null;
-	};
+	// 2. This judge's scoresheets for those participants (may be empty for
+	//    participants they haven't started yet).
+	const { data: sheets } = await locals.supabase
+		.from('scoresheets')
+		.select('participant_id, status, section_a_submitted_at')
+		.eq('judge_id', judgeId)
+		.in('participant_id', participantIds);
 
-	const candidates = (rows as Row[])
-		.map((r) => {
-			const sheets = Array.isArray(r.scoresheets) ? r.scoresheets : r.scoresheets ? [r.scoresheets] : [];
-			const sheet = sheets.find((s) => s.judge_id === judgeId);
-			const name = Array.isArray(r.participants)
-				? (r.participants[0]?.full_name ?? '')
-				: (r.participants?.full_name ?? '');
-			return {
-				participantId: r.participant_id,
-				name,
-				sectionADone: !!sheet?.section_a_submitted_at,
-				finalDone: sheet?.status === 'submitted' || sheet?.status === 'finalised'
-			};
+	type Sheet = { status: string; section_a_submitted_at: string | null };
+	const sheetByParticipant = new Map<string, Sheet>();
+	for (const s of sheets ?? []) {
+		sheetByParticipant.set(s.participant_id as string, {
+			status: s.status as string,
+			section_a_submitted_at: (s.section_a_submitted_at as string | null) ?? null
+		});
+	}
+
+	// 3. Participant names — for predictable alphabetical ordering.
+	const { data: parts } = await locals.supabase
+		.from('participants')
+		.select('id, full_name')
+		.in('id', participantIds);
+
+	const nameById = new Map<string, string>();
+	for (const p of parts ?? []) {
+		nameById.set(p.id as string, (p.full_name as string) ?? '');
+	}
+
+	const candidates = participantIds
+		.filter((id) => {
+			const sheet = sheetByParticipant.get(id);
+			if (phase === 'section_a') {
+				// Section A done = the judge has submitted Section A for this
+				// participant. No sheet = also not done.
+				return !sheet?.section_a_submitted_at;
+			}
+			// Section B: skip anyone the judge has fully submitted.
+			return !sheet || (sheet.status !== 'submitted' && sheet.status !== 'finalised');
 		})
-		.filter((c) => (phase === 'section_a' ? !c.sectionADone : !c.finalDone))
-		// Alphabetical so the order is predictable for the judge.
-		.sort((a, b) => a.name.localeCompare(b.name));
+		.sort((a, b) => (nameById.get(a) ?? '').localeCompare(nameById.get(b) ?? ''));
 
-	return candidates[0]?.participantId ?? null;
+	return candidates[0] ?? null;
 }
 
 // Returns the set of criterion ids that belong to a given section, scoped to
