@@ -151,11 +151,14 @@ export const actions: Actions = {
 		const id = String(form.get('id') ?? '');
 		const dq = String(form.get('dq') ?? 'true') === 'true';
 		const reason = parseDqReason(form.get('reason'));
-		const notes = String(form.get('notes') ?? '').trim();
+		// SECURITY: cap input length to bound work and storage.
+		const notes = String(form.get('notes') ?? '').slice(0, 2000).trim();
 
 		if (!id) return fail(400, { error: 'Missing id.' });
-		if (dq && (!reason || !notes)) {
-			return fail(400, { error: 'DQ requires a reason and notes.' });
+		if (dq && (!reason || notes.length < 10)) {
+			return fail(400, {
+				error: 'DQ requires a reason and a note of at least 10 characters explaining what happened.'
+			});
 		}
 
 		// Fetch existing notes to preserve non-DQ context when re-qualifying.

@@ -42,7 +42,15 @@ export const actions: Actions = {
 		if (!level) return fail(400, { overrideError: 'Missing level.' });
 		if (pointsRaw == null || pointsRaw === '')
 			return fail(400, { overrideError: 'Missing points.' });
-		if (!reason) return fail(400, { overrideError: 'Reason required.' });
+		// SECURITY / audit-trail: a one-character "." is technically truthy but
+		// useless for explaining why a score was overridden. Require a short
+		// sentence (10+ chars) and cap at 2000 to bound storage / display.
+		if (reason.length < 10) {
+			return fail(400, { overrideError: 'Override reason must be at least 10 characters.' });
+		}
+		if (reason.length > 2000) {
+			return fail(400, { overrideError: 'Override reason is too long (max 2000 chars).' });
+		}
 
 		const points = Number(pointsRaw);
 		if (!Number.isFinite(points) || points < 0)
@@ -75,7 +83,14 @@ export const actions: Actions = {
 	unlock: async ({ request, locals, params }) => {
 		const fd = await request.formData();
 		const reason = String(fd.get('reason') ?? '').trim();
-		if (!reason) return fail(400, { unlockError: 'Reason required.' });
+		// SECURITY / audit-trail: unlocking re-opens a submitted scoresheet for
+		// edits. The reason ends up in audit_log; require a real sentence.
+		if (reason.length < 10) {
+			return fail(400, { unlockError: 'Unlock reason must be at least 10 characters.' });
+		}
+		if (reason.length > 2000) {
+			return fail(400, { unlockError: 'Unlock reason is too long (max 2000 chars).' });
+		}
 
 		// Look up the current state — only submitted/finalised can be unlocked;
 		// already-draft is a no-op (and signals a UX mistake).

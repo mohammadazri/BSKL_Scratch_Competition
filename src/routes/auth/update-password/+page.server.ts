@@ -24,8 +24,15 @@ export const actions: Actions = {
 		const password = String(form.get('password') ?? '');
 		const confirm = String(form.get('confirm') ?? '');
 
-		if (password.length < 8) {
-			return fail(400, { error: 'Password must be at least 8 characters.' });
+		// SECURITY: 10-char minimum matches our generated temp passwords. Cap
+		// at 72 chars because bcrypt (Supabase's hasher) silently truncates at
+		// 72 bytes, which would let an attacker brute-force a long-password
+		// account by submitting only the first 72 bytes.
+		if (password.length < 10) {
+			return fail(400, { error: 'Password must be at least 10 characters.' });
+		}
+		if (password.length > 72) {
+			return fail(400, { error: 'Password must be 72 characters or fewer.' });
 		}
 		if (password !== confirm) {
 			return fail(400, { error: 'Passwords do not match.' });
