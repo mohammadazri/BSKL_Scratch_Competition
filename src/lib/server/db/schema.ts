@@ -26,7 +26,18 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 // Enums
 // ─────────────────────────────────────────────────────────────────────────────
-export const userRoleEnum = pgEnum('user_role', ['super_admin', 'judge', 'viewer']);
+export const userRoleEnum = pgEnum('user_role', [
+	'super_admin',
+	'judge',
+	'viewer',
+	'registration_committee'
+]);
+export const eventPhaseEnum = pgEnum('event_phase', [
+	'setup',
+	'section_a',
+	'section_b',
+	'finalised'
+]);
 export const categoryEnum = pgEnum('category', ['A', 'B', 'C']);
 export const sectionEnum = pgEnum('section', ['A', 'B']);
 export const perfLevelEnum = pgEnum('perf_level', [
@@ -48,38 +59,8 @@ export const dqReasonEnum = pgEnum('dq_reason', [
 	'unsportsmanlike_conduct',
 	'other'
 ]);
-export const auditActionEnum = pgEnum('audit_action', [
-	'login',
-	'logout',
-	'user_create',
-	'user_update',
-	'user_role_change',
-	'user_disable',
-	'school_create',
-	'school_update',
-	'school_delete',
-	'participant_create',
-	'participant_update',
-	'participant_delete',
-	'participant_import',
-	'assignment_create',
-	'assignment_update',
-	'assignment_delete',
-	'assignment_auto_run',
-	'scoresheet_create',
-	'scoresheet_update',
-	'scoresheet_submit',
-	'scoresheet_unlock',
-	'score_create',
-	'score_update',
-	'score_override',
-	'dq_flag_raise',
-	'dq_flag_clear',
-	'event_lock',
-	'event_unlock',
-	'export_csv',
-	'export_pdf'
-]);
+// audit_action enum + audit_log table removed in migration 013 — audit data
+// now lives in a JSONL file on the Pi (see src/lib/server/audit-local.ts).
 
 // ─────────────────────────────────────────────────────────────────────────────
 // profiles
@@ -96,6 +77,7 @@ export const profiles = pgTable('profiles', {
 		.default(sql`ARRAY['A','B','C']::category[]`),
 	isActive: boolean('is_active').notNull().default(true),
 	pinLabel: text('pin_label'),
+	mustChangePassword: boolean('must_change_password').notNull().default(false),
 	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 });
@@ -189,15 +171,19 @@ export const assignments = pgTable(
 		id: uuid('id').primaryKey().defaultRandom(),
 		participantId: uuid('participant_id')
 			.notNull()
-			.references(() => participants.id, { onDelete: 'cascade' })
-			.unique(),
+			.references(() => participants.id, { onDelete: 'cascade' }),
 		judgeId: uuid('judge_id')
 			.notNull()
 			.references(() => profiles.id, { onDelete: 'restrict' }),
+		section: sectionEnum('section').notNull().default('B'),
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 	},
 	(t) => ({
-		judgeIdx: index('assignments_judge_idx').on(t.judgeId)
+		judgeIdx: index('assignments_judge_idx').on(t.judgeId),
+		uniqParticipantSection: uniqueIndex('assignments_participant_section_key').on(
+			t.participantId,
+			t.section
+		)
 	})
 );
 

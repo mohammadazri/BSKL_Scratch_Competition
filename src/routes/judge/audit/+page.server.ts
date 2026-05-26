@@ -1,12 +1,6 @@
-// /judge/audit — optional, lets a judge review what THEY did.
-//
-// We do role gating inline rather than via a /judge/+layout.server.ts so we
-// don't conflict with Track 3 which will install its own layout guard for the
-// scoring form. When Track 3 lands, this inline check still works — it just
-// runs after Track 3's layout guard.
-//
-// RLS restricts SELECT to rows where actor_id = auth.uid() via the
-// `audit_log_judge_self_read` policy, so a judge naturally sees only their own.
+// /judge/audit — lets a judge review what THEY did.
+// Storage moved to the Pi (migration 013). The local module restricts
+// non-admins to actor_id = current user, so we pass it down explicitly.
 
 import type { PageServerLoad } from './$types';
 import { requireRole } from '$lib/server/guards';
@@ -20,6 +14,5 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		url.pathname
 	);
 
-	const audit = await loadAuditPage(locals.supabase, url, 'judge', session.user.id);
-	return audit;
+	return loadAuditPage(url, 'judge', session.user.id);
 };

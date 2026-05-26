@@ -28,7 +28,8 @@ import type {
 } from './server/db/schema';
 
 // ─── Enum aliases (mirror of Postgres types) ─────────────────────────────────
-export type Role = 'super_admin' | 'judge' | 'viewer';
+export type Role = 'super_admin' | 'judge' | 'viewer' | 'registration_committee';
+export type EventPhase = 'setup' | 'section_a' | 'section_b' | 'finalised';
 export type Category = 'A' | 'B' | 'C';
 export type Section = 'A' | 'B';
 export type PerfLevel = 'Excellent' | 'Proficient' | 'Developing' | 'Insufficient';

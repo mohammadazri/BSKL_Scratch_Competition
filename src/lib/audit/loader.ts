@@ -1,14 +1,17 @@
 // Server-side loader shared between /admin/audit, /viewer/audit, /judge/audit.
 //
-// The only difference between roles is:
-//   • Who can SELECT which rows (handled by RLS, not here).
-//   • Whether the actor filter dropdown shows other people (judge only sees
-//     their own actions, so no point listing other actors).
+// Storage moved off Supabase in migration 013 — audit events now live in a
+// JSON Lines file on the Pi. Reads go through `$lib/server/audit-local`.
 //
-// All three pages call this loader; RLS does the rest.
+// Per-role visibility (used to be RLS):
+//   • super_admin + viewer:        full read
+//   • judge / registration_committee: only their own actions
+//
+// The filter parsing/serialisation lives in `$lib/audit/query` and is shared
+// with the client-side <FilterBar>.
 
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { fetchAuditPage, parseFilters, DEFAULT_AUDIT_LIMIT } from './query';
+import { parseFilters, DEFAULT_AUDIT_LIMIT, type AuditRowWithActor } from './query';
+import { fetchAuditPage, distinctActors } from '$lib/server/audit-local';
 import type { Role } from '$lib/types';
 
 export interface ActorOption {
@@ -17,7 +20,7 @@ export interface ActorOption {
 }
 
 export interface AuditPageData {
-	rows: Awaited<ReturnType<typeof fetchAuditPage>>['rows'];
+	rows: AuditRowWithActor[];
 	truncated: boolean;
 	limit: number;
 	loadError: string | null;
@@ -25,31 +28,29 @@ export interface AuditPageData {
 	actorOptions: ActorOption[];
 	role: Role;
 	currentUserId: string | null;
-	subscribeKey: string; // bumps when filters change so the client re-subscribes
+	subscribeKey: string;
 }
 
 export async function loadAuditPage(
-	supabase: SupabaseClient,
 	url: URL,
 	role: Role,
 	currentUserId: string | null
 ): Promise<AuditPageData> {
 	const filters = parseFilters(url.searchParams);
-	const { rows, error } = await fetchAuditPage(supabase, filters, DEFAULT_AUDIT_LIMIT);
 
-	// Actor list: empty for judge (they see one actor, themselves — pointless).
-	// For super_admin and viewer, populate from profiles. RLS allows both to
-	// SELECT all profiles, so this just works.
+	// Non-admins only see their own actions.
+	const restrict = role === 'super_admin' || role === 'viewer' ? null : currentUserId;
+
+	const { rows, error } = await fetchAuditPage(filters, DEFAULT_AUDIT_LIMIT, restrict);
+
+	// Actor dropdown: distinct actors observed in the log. For judges and
+	// registration_committee it's a one-item list (themselves), so we hide it.
 	let actorOptions: ActorOption[] = [];
 	if (role === 'super_admin' || role === 'viewer') {
-		const { data: profs } = await supabase
-			.from('profiles')
-			.select('id, full_name, role')
-			.eq('is_active', true)
-			.order('full_name', { ascending: true });
-		actorOptions = (profs ?? []).map((p: any) => ({
-			id: p.id,
-			label: `${p.full_name} (${p.role})`
+		const actors = await distinctActors();
+		actorOptions = actors.map((a) => ({
+			id: a.id,
+			label: `${a.fullName} (${a.role ?? 'unknown'})`
 		}));
 	}
 
@@ -62,6 +63,6 @@ export async function loadAuditPage(
 		actorOptions,
 		role,
 		currentUserId,
-		subscribeKey: url.search // identifies the current filter set
+		subscribeKey: url.search
 	};
 }

@@ -82,12 +82,13 @@ async function main() {
 	const sql = postgres(dbUrl, { prepare: false });
 	try {
 		await sql`
-			INSERT INTO profiles (id, email, full_name, role, is_active)
-			VALUES (${userId}::uuid, ${email}, ${fullName}, 'super_admin', true)
+			INSERT INTO profiles (id, email, full_name, role, is_active, must_change_password)
+			VALUES (${userId}::uuid, ${email}, ${fullName}, 'super_admin', true, false)
 			ON CONFLICT (id) DO UPDATE
-				SET role      = 'super_admin',
-				    full_name = ${fullName},
-				    is_active = true
+				SET role                 = 'super_admin',
+				    full_name            = ${fullName},
+				    is_active            = true,
+				    must_change_password = false
 		`;
 	} finally {
 		await sql.end();

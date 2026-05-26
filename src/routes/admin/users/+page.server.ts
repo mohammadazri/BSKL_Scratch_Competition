@@ -7,8 +7,18 @@ import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { supabaseAdmin } from '$lib/server/supabase';
 import { requireSuperAdmin } from '$lib/server/guards';
+import { appendAudit, type AuditActor } from '$lib/server/audit-local';
 import { tempPassword } from '$lib/utils/random';
 import type { Category, Role } from '$lib/types';
+
+function guardActor(session: { user: { id: string }; role: Role; fullName: string; email: string }): AuditActor {
+	return {
+		id: session.user.id,
+		role: session.role,
+		fullName: session.fullName,
+		email: session.email
+	};
+}
 
 export type UserRow = {
 	id: string;
@@ -63,7 +73,14 @@ function parseCategories(form: FormData): Category[] {
 
 function parseRole(form: FormData): Role {
 	const raw = String(form.get('role') ?? 'judge');
-	if (raw === 'super_admin' || raw === 'judge' || raw === 'viewer') return raw;
+	if (
+		raw === 'super_admin' ||
+		raw === 'judge' ||
+		raw === 'viewer' ||
+		raw === 'registration_committee'
+	) {
+		return raw;
+	}
 	return 'judge';
 }
 
@@ -73,8 +90,8 @@ export const actions: Actions = {
 	// actions, so each action MUST call requireSuperAdmin() inline. Without
 	// these checks, any authenticated user (or in some configs, anyone) could
 	// POST here and create/promote/reset arbitrary accounts.
-	create: async ({ request, locals }) => {
-		await requireSuperAdmin(locals.user);
+	create: async ({ request, locals, getClientAddress }) => {
+		const session = await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const email = String(form.get('email') ?? '').trim().toLowerCase();
 		const fullName = String(form.get('full_name') ?? '').trim();
@@ -112,7 +129,8 @@ export const actions: Actions = {
 				role,
 				categories,
 				pin_label: pinLabel,
-				is_active: true
+				is_active: true,
+				must_change_password: true
 			})
 			.eq('id', created.user.id);
 
@@ -122,6 +140,18 @@ export const actions: Actions = {
 			});
 		}
 
+		await appendAudit({
+			actor: guardActor(session),
+			actorIp: getClientAddress(),
+			actorUa: request.headers.get('user-agent'),
+			action: 'user_create',
+			targetType: 'user',
+			targetId: created.user.id,
+			before: null,
+			after: { email, full_name: fullName, role, categories, pin_label: pinLabel, must_change_password: true },
+			reason: null
+		});
+
 		return {
 			ok: true,
 			message: `Created ${email}. Temp password: ${password}`,
@@ -129,8 +159,8 @@ export const actions: Actions = {
 		};
 	},
 
-	update: async ({ request, locals }) => {
-		await requireSuperAdmin(locals.user);
+	update: async ({ request, locals, getClientAddress }) => {
+		const session = await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const id = String(form.get('id') ?? '');
 		const fullName = String(form.get('full_name') ?? '').trim();
@@ -144,32 +174,70 @@ export const actions: Actions = {
 			return fail(400, { error: 'Judges must be assigned at least one category.' });
 		}
 
+		const { data: before } = await supabaseAdmin
+			.from('profiles')
+			.select('full_name, role, categories, pin_label')
+			.eq('id', id)
+			.single();
+
 		const { error: updateErr } = await supabaseAdmin
 			.from('profiles')
 			.update({ full_name: fullName, role, categories, pin_label: pinLabel })
 			.eq('id', id);
 
 		if (updateErr) return fail(400, { error: updateErr.message });
+
+		await appendAudit({
+			actor: guardActor(session),
+			actorIp: getClientAddress(),
+			actorUa: request.headers.get('user-agent'),
+			action: 'user_update',
+			targetType: 'user',
+			targetId: id,
+			before: (before as Record<string, unknown>) ?? null,
+			after: { full_name: fullName, role, categories, pin_label: pinLabel },
+			reason: null
+		});
+
 		return { ok: true, message: 'User updated.' };
 	},
 
-	setRole: async ({ request, locals }) => {
-		await requireSuperAdmin(locals.user);
+	setRole: async ({ request, locals, getClientAddress }) => {
+		const session = await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const id = String(form.get('id') ?? '');
 		const role = parseRole(form);
 		if (!id) return fail(400, { error: 'Missing id.' });
+
+		const { data: before } = await supabaseAdmin
+			.from('profiles')
+			.select('role')
+			.eq('id', id)
+			.single();
 
 		const { error: updateErr } = await supabaseAdmin
 			.from('profiles')
 			.update({ role })
 			.eq('id', id);
 		if (updateErr) return fail(400, { error: updateErr.message });
+
+		await appendAudit({
+			actor: guardActor(session),
+			actorIp: getClientAddress(),
+			actorUa: request.headers.get('user-agent'),
+			action: 'user_role_change',
+			targetType: 'user',
+			targetId: id,
+			before: (before as Record<string, unknown>) ?? null,
+			after: { role },
+			reason: null
+		});
+
 		return { ok: true, message: `Role set to ${role}.` };
 	},
 
-	setActive: async ({ request, locals }) => {
-		await requireSuperAdmin(locals.user);
+	setActive: async ({ request, locals, getClientAddress }) => {
+		const session = await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const id = String(form.get('id') ?? '');
 		const active = String(form.get('active') ?? 'true') === 'true';
@@ -180,14 +248,27 @@ export const actions: Actions = {
 			.update({ is_active: active })
 			.eq('id', id);
 		if (updateErr) return fail(400, { error: updateErr.message });
+
+		await appendAudit({
+			actor: guardActor(session),
+			actorIp: getClientAddress(),
+			actorUa: request.headers.get('user-agent'),
+			action: active ? 'user_update' : 'user_disable',
+			targetType: 'user',
+			targetId: id,
+			before: { is_active: !active },
+			after: { is_active: active },
+			reason: null
+		});
+
 		return {
 			ok: true,
 			message: active ? 'User reactivated.' : 'User deactivated.'
 		};
 	},
 
-	resetPassword: async ({ request, locals }) => {
-		await requireSuperAdmin(locals.user);
+	resetPassword: async ({ request, locals, getClientAddress }) => {
+		const session = await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const id = String(form.get('id') ?? '');
 		if (!id) return fail(400, { error: 'Missing id.' });
@@ -195,6 +276,24 @@ export const actions: Actions = {
 		const password = tempPassword(10);
 		const { error: pwErr } = await supabaseAdmin.auth.admin.updateUserById(id, { password });
 		if (pwErr) return fail(400, { error: pwErr.message });
+
+		// Force the target user to pick a new password on their next sign-in.
+		await supabaseAdmin
+			.from('profiles')
+			.update({ must_change_password: true })
+			.eq('id', id);
+
+		await appendAudit({
+			actor: guardActor(session),
+			actorIp: getClientAddress(),
+			actorUa: request.headers.get('user-agent'),
+			action: 'user_update',
+			targetType: 'user',
+			targetId: id,
+			before: null,
+			after: { password_reset: true, must_change_password: true },
+			reason: 'Admin password reset.'
+		});
 
 		return {
 			ok: true,

@@ -15,7 +15,9 @@
 			? { label: 'Super admin', bg: 'var(--accent-soft)', fg: 'var(--color-accent)' }
 			: role === 'judge'
 				? { label: 'Judge', bg: 'rgba(56, 189, 248, 0.14)', fg: 'var(--color-accent-2)' }
-				: { label: 'Viewer', bg: 'var(--color-bg-3)', fg: 'var(--color-text-2)' }
+				: role === 'registration_committee'
+					? { label: 'Registration', bg: 'rgba(217, 119, 6, 0.14)', fg: '#d97706' }
+					: { label: 'Viewer', bg: 'var(--color-bg-3)', fg: 'var(--color-text-2)' }
 	);
 </script>
 
