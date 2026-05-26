@@ -51,7 +51,7 @@ If you hit `ERR_PNPM_IGNORED_BUILDS` for `esbuild`, the `pnpm-workspace.yaml` al
 cp .env.example .env
 ```
 
-Open `.env` and fill in 5 values from your Supabase dashboard. Find them at:
+Open `.env` and fill in the values from your Supabase dashboard. Find them at:
 
 - **Settings → API Keys** → Project URL, Publishable key, Secret key
 - **Database** (left sidebar) → Connection string → URI → **Session pooler** mode
@@ -62,37 +62,39 @@ PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
 SUPABASE_URL=https://<project-ref>.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=sb_secret_...
 DATABASE_URL=postgresql://postgres.<project-ref>:<password>@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres
+
+# Super admin bootstrap (used only by scripts/seed-superadmin.ts)
+SUPER_ADMIN_EMAIL=your@email.com
+SUPER_ADMIN_PASSWORD=YourPassword
+SUPER_ADMIN_NAME=Your Name
 ```
 
 > ⚠ URL-encode special characters in your DB password. `#` becomes `%23`, `@` becomes `%40`, etc. Otherwise psql truncates at the special character.
 
-### 3. Apply DB migrations and seed the rubrics
+### 3. Apply DB migrations and seed
 
 ```bash
-pnpm tsx scripts/apply-migrations.ts        # creates tables, RLS, triggers, views
-pnpm tsx scripts/seed-rubrics.ts            # seeds 20 criteria + 76 levels
-pnpm tsx scripts/test-rls.ts                # verifies judge isolation + audit immutability
+pnpm tsx scripts/apply-migrations.ts   # creates tables, RLS, triggers, views (idempotent)
+pnpm tsx scripts/seed-rubrics.ts       # seeds 20 criteria + 76 levels (idempotent)
+pnpm tsx scripts/seed-superadmin.ts    # creates the super_admin account from .env (idempotent)
 ```
 
-All three are idempotent — safe to re-run.
+All three are safe to re-run. `seed-superadmin.ts` reads `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD`, and `SUPER_ADMIN_NAME` from `.env` — if the account already exists it resets the password and re-promotes the profile.
 
-### 4. Bootstrap yourself as super_admin
-
-The migrations create no users — sign up via the website's `/login` page with your email, then in **Supabase SQL Editor**:
-
-```sql
-UPDATE profiles SET role = 'super_admin' WHERE email = '<your email>';
+Optionally verify RLS isolation:
+```bash
+pnpm tsx scripts/test-rls.ts
 ```
 
-You're now the super_admin. Create the 4 judge accounts and any viewer accounts from `/admin/users`.
-
-### 5. Run the dev server
+### 4. Run the dev server
 
 ```bash
 pnpm dev
 ```
 
-Open http://localhost:5173. Log in with your bootstrapped account.
+Open http://localhost:5173 and sign in with the super_admin credentials you set in `.env`. You're now the super_admin. Create judge + viewer accounts from `/admin/users`.
+
+### 5. Dev server (already covered in step 4 above)
 
 ---
 
@@ -214,25 +216,52 @@ Production runs on a **Raspberry Pi 4 (4GB+) or Pi 5** with **Cloudflare Zero Tr
 [Judges' browsers] ──HTTPS──> [Cloudflare Edge] ──tunnel──> [Pi: node build/index.js :3000] ──> [Supabase Postgres]
 ```
 
-Quick install on a fresh Pi (Pi OS 64-bit Bookworm):
+### Fresh Pi setup (step by step)
 
 ```bash
-REPO_URL=<your-git-url> bash scripts/install-pi.sh
+# 1. Install system dependencies
+sudo apt-get update
+sudo apt-get install -y git postgresql-client
+
+# 2. Install Node 20 + pnpm
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+npm install -g pnpm
+
+# 3. Clone the repo
+git clone https://github.com/mohammadazri/BSKL_Scratch_Competition.git
+cd BSKL_Scratch_Competition
+
+# 4. Create .env (copy example and fill in your values)
+cp .env.example .env
+nano .env
+
+# 5. Install deps + build
+pnpm install --frozen-lockfile
+pnpm build
+
+# 6. Apply migrations + seed
+set -a; source .env; set +a
+pnpm tsx scripts/apply-migrations.ts
+pnpm tsx scripts/seed-rubrics.ts
+pnpm tsx scripts/seed-superadmin.ts
+
+# 7. Start the app
+node build/index.js
 ```
 
-The install script:
-- Installs Node 20, pnpm, cloudflared
-- Creates `p3judge` service user
-- Clones the repo to `/opt/p3-judging`
-- **Refuses to deploy unless** `static/brand/p3-logo.{svg,png}` and `bskl-logo.{svg,png}` are present and non-empty
-- Builds and installs the systemd unit
+The app listens on `HOST`/`PORT` from `.env` (default `127.0.0.1:3000`).
 
-Then manually (one time): `cloudflared tunnel login`, `cloudflared tunnel create p3-judging`, edit `/etc/cloudflared/config.yml`, add a DNS CNAME, `sudo systemctl start p3-judging cloudflared`. Full instructions in [scripts/README.md](scripts/README.md).
+For production with auto-restart on reboot, use the systemd unit in `systemd/p3-judging.service`. Full operator runbook: [scripts/README.md](scripts/README.md).
 
-To deploy an update later:
+To deploy an update after a `git push`:
 
 ```bash
-ssh pi@<your-pi> "cd /opt/p3-judging && bash scripts/update.sh"
+cd BSKL_Scratch_Competition
+git pull
+pnpm install --frozen-lockfile
+pnpm build
+sudo systemctl restart p3-judging   # or: kill the node process and re-run node build/index.js
 ```
 
 ---
@@ -252,6 +281,20 @@ ssh pi@<your-pi> "cd /opt/p3-judging && bash scripts/update.sh"
 ---
 
 ## Troubleshooting
+
+**Nuclear reset — wipe the DB and start from scratch**
+
+Run in the Supabase SQL Editor:
+```sql
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+GRANT USAGE ON SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL ON SCHEMA public TO postgres, service_role;
+DELETE FROM auth.users;
+```
+Then re-run the three seed commands from step 6 above.
+
+---
 
 **`tenant/user postgres.X not found` when applying migrations** — the `DATABASE_URL` region or cluster digit is wrong. Copy the exact URI from Supabase Dashboard → Database → Connection string → Session pooler. The format is `aws-<N>-<region>.pooler.supabase.com`, e.g. `aws-1-ap-southeast-1.pooler.supabase.com`.
 
