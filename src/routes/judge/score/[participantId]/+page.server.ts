@@ -325,6 +325,60 @@ async function getPhase(locals: App.Locals): Promise<'setup' | 'section_a' | 'se
 	return 'setup';
 }
 
+// Find the next participant in this judge's queue who hasn't been scored yet
+// for the given phase. Returns null when the judge has finished everyone.
+//   - section_a: skip rows already with section_a_submitted_at set
+//   - section_b: skip rows already with status='submitted'/'finalised'
+// Always excludes the current participant so we don't loop back to them.
+async function nextParticipantForJudge(
+	locals: App.Locals,
+	judgeId: string,
+	currentParticipantId: string,
+	phase: 'section_a' | 'section_b'
+): Promise<string | null> {
+	// judge_queue is the view; status mirrors scoresheets.status. For
+	// section_a we ALSO need section_a_submitted_at which isn't in the view,
+	// so we join through scoresheets directly.
+	const { data: rows } = await locals.supabase
+		.from('assignments')
+		.select(
+			'participant_id, scoresheets:scoresheets!scoresheets_participant_id_fkey(judge_id, status, section_a_submitted_at), participants:participants!inner(full_name)'
+		)
+		.eq('judge_id', judgeId)
+		.neq('participant_id', currentParticipantId);
+
+	if (!rows) return null;
+
+	type Row = {
+		participant_id: string;
+		participants: { full_name: string } | { full_name: string }[];
+		scoresheets:
+			| Array<{ judge_id: string; status: string; section_a_submitted_at: string | null }>
+			| { judge_id: string; status: string; section_a_submitted_at: string | null }
+			| null;
+	};
+
+	const candidates = (rows as Row[])
+		.map((r) => {
+			const sheets = Array.isArray(r.scoresheets) ? r.scoresheets : r.scoresheets ? [r.scoresheets] : [];
+			const sheet = sheets.find((s) => s.judge_id === judgeId);
+			const name = Array.isArray(r.participants)
+				? (r.participants[0]?.full_name ?? '')
+				: (r.participants?.full_name ?? '');
+			return {
+				participantId: r.participant_id,
+				name,
+				sectionADone: !!sheet?.section_a_submitted_at,
+				finalDone: sheet?.status === 'submitted' || sheet?.status === 'finalised'
+			};
+		})
+		.filter((c) => (phase === 'section_a' ? !c.sectionADone : !c.finalDone))
+		// Alphabetical so the order is predictable for the judge.
+		.sort((a, b) => a.name.localeCompare(b.name));
+
+	return candidates[0]?.participantId ?? null;
+}
+
 // Returns the set of criterion ids that belong to a given section, scoped to
 // the participant's category. Used to reject scores for the wrong phase.
 async function criterionIdsForSection(
@@ -514,12 +568,17 @@ export const actions: Actions = {
 				.eq('id', sheet.id);
 			if (stampErr) return fail(400, { submitError: stampErr.message });
 
-			return {
-				saved: true,
-				sectionASubmitted: true,
-				at: new Date().toISOString(),
-				scoresheetId: sheet.id
-			};
+			// Jump straight to the next Section-A-unfinished participant if there
+			// is one. If they've finished their queue, drop them back at /judge
+			// with a flash message.
+			const next = await nextParticipantForJudge(
+				locals,
+				profile.id,
+				params.participantId,
+				'section_a'
+			);
+			if (next) throw redirect(303, `/judge/score/${next}`);
+			throw redirect(303, '/judge?flash=section_a_complete');
 		}
 
 		// SECTION B submit path — the original "final submission" flow.
@@ -602,7 +661,18 @@ export const actions: Actions = {
 			.eq('id', sheet.id);
 		if (upStatusErr) return fail(400, { submitError: upStatusErr.message });
 
-		throw redirect(303, `/judge/done/${sheet.id}`);
+		// Auto-advance to the next unfinished participant. Judges asked for
+		// this — they don't want a recap page in between. /judge/done is still
+		// reachable directly (e.g. via the audit log) but isn't on the main
+		// flow anymore.
+		const next = await nextParticipantForJudge(
+			locals,
+			profile.id,
+			params.participantId,
+			'section_b'
+		);
+		if (next) throw redirect(303, `/judge/score/${next}`);
+		throw redirect(303, '/judge?flash=all_done');
 	},
 
 	requestEdit: async ({ request, locals, params }) => {

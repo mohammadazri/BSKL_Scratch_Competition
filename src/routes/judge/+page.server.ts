@@ -19,8 +19,16 @@ export type QueueRow = {
 	totalCount: number;
 };
 
-export const load: PageServerLoad = async ({ locals, parent }) => {
+function flashMessage(key: string | null): string | null {
+	if (key === 'all_done') return "You've submitted every scoresheet. Nicely done.";
+	if (key === 'section_a_complete')
+		return 'Section A complete for your whole queue. Wait for the admin to open Section B.';
+	return null;
+}
+
+export const load: PageServerLoad = async ({ locals, parent, url }) => {
 	const { profile } = await parent();
+	const flash = flashMessage(url.searchParams.get('flash'));
 
 	const { data, error: qErr } = await locals.supabase
 		.from('judge_queue')
@@ -30,7 +38,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		.eq('judge_id', profile.id);
 
 	if (qErr) {
-		return { rows: [] as QueueRow[], loadError: qErr.message };
+		return { rows: [] as QueueRow[], loadError: qErr.message, flash };
 	}
 
 	const rows: QueueRow[] = (data ?? []).map((r) => ({
@@ -61,5 +69,5 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		return a.fullName.localeCompare(b.fullName);
 	});
 
-	return { rows, loadError: null as string | null };
+	return { rows, loadError: null as string | null, flash };
 };

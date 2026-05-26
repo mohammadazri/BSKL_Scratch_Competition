@@ -67,6 +67,17 @@
 		</div>
 	{/if}
 
+	{#if data.flash}
+		<div
+			class="mb-4 flex items-center gap-2 rounded-lg border p-3 text-sm"
+			style="background: rgba(16, 185, 129, 0.10); border-color: var(--color-success); color: var(--color-text-1);"
+			role="status"
+		>
+			<span class="inline-block h-2 w-2 rounded-full" style="background: var(--color-success);"></span>
+			{data.flash}
+		</div>
+	{/if}
+
 	<!-- Filter chips -->
 	<div class="mb-4 flex flex-wrap gap-2">
 		{#each chips as chip (chip.key)}
