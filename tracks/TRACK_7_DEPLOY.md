@@ -145,7 +145,7 @@ tunnel: <YOUR-TUNNEL-UUID>
 credentials-file: /etc/cloudflared/<YOUR-TUNNEL-UUID>.json
 
 ingress:
-  - hostname: p3scratch.sentri.zk
+  - hostname: p3scratch.sentrizk.me
     service: http://localhost:3000
   - service: http_status:404
 ```
@@ -154,7 +154,7 @@ DNS: in Cloudflare dashboard → DNS → add a CNAME for `judging` pointing to `
 
 (Optional) Cloudflare Access:
 
-- Zero Trust dashboard → Access → Applications → add `p3scratch.sentri.zk`
+- Zero Trust dashboard → Access → Applications → add `p3scratch.sentrizk.me`
 - Policy: emails in (`aiman0608@gmail.com`, 4 judges' emails, viewer emails)
 
 ### `scripts/backup-supabase.sh` — pg_dump to USB or local disk
@@ -201,7 +201,7 @@ One-page operator runbook: install, update, backup, restore, logs (`journalctl -
 - [ ] `systemctl status p3-judging` shows `active (running)`
 - [ ] `curl http://localhost:3000` from the Pi returns the SvelteKit app
 - [ ] `cloudflared tunnel info p3-judging` reports the tunnel healthy
-- [ ] Public URL `https://p3scratch.sentri.zk` loads the app from outside the network
+- [ ] Public URL `https://p3scratch.sentrizk.me` loads the app from outside the network
 - [ ] `./scripts/update.sh` completes with no manual intervention after a `git push` to main
 - [ ] `./scripts/backup-supabase.sh` produces a valid `.dump` file; restoring it into a fresh Postgres recreates the state
 

@@ -186,7 +186,7 @@ Production runs on a Raspberry Pi 5 (Pi 4 also fine, 4GB+ RAM) at Mohammad's loc
 [Judges' browsers]
        │ HTTPS
        ▼
-[Cloudflare Edge — p3scratch.sentri.zk]
+[Cloudflare Edge — p3scratch.sentrizk.me]
        │ Cloudflare Tunnel (cloudflared on Pi)
        ▼
 [Pi: node build/index.js on :3000 under systemd]

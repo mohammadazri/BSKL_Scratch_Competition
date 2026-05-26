@@ -210,7 +210,7 @@ judging-site/
 
 ## Deploy to Raspberry Pi
 
-Production runs on a **Raspberry Pi 4 (4GB+) or Pi 5** with **Cloudflare Zero Trust Tunnel** exposing the app at `https://p3scratch.sentri.zk`. No port forwarding, free TLS, optional email-allowlist via Cloudflare Access.
+Production runs on a **Raspberry Pi 4 (4GB+) or Pi 5** with **Cloudflare Zero Trust Tunnel** exposing the app at `https://p3scratch.sentrizk.me`. No port forwarding, free TLS, optional email-allowlist via Cloudflare Access.
 
 ```
 [Judges' browsers] ──HTTPS──> [Cloudflare Edge] ──tunnel──> [Pi: node build/index.js :3000] ──> [Supabase Postgres]

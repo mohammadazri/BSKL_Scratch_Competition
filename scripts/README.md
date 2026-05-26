@@ -49,14 +49,14 @@ After the installer finishes, follow the printed **Next steps**:
    then edit the UUID + hostname placeholders.
 5. Add a CNAME `judging → <UUID>.cfargotunnel.com` (proxied) in the Cloudflare
    DNS dashboard, or run
-   `cloudflared tunnel route dns p3-judging p3scratch.sentri.zk`.
+   `cloudflared tunnel route dns p3-judging p3scratch.sentrizk.me`.
 6. Start everything:
    ```bash
    sudo cloudflared service install
    sudo systemctl start p3-judging cloudflared
    ```
 7. Smoke-check from the Pi: `curl -fsS http://127.0.0.1:3000 | head -n 5`.
-8. Smoke-check from outside: open `https://p3scratch.sentri.zk`.
+8. Smoke-check from outside: open `https://p3scratch.sentrizk.me`.
 
 ---
 
@@ -168,7 +168,7 @@ cloudflared tunnel list
 sudo cloudflared --config /etc/cloudflared/config.yml ingress validate
 
 # Test what hostname routes to what service:
-sudo cloudflared --config /etc/cloudflared/config.yml ingress rule https://p3scratch.sentri.zk
+sudo cloudflared --config /etc/cloudflared/config.yml ingress rule https://p3scratch.sentrizk.me
 ```
 
 ---
@@ -197,7 +197,7 @@ sudo cloudflared --config /etc/cloudflared/config.yml ingress rule https://p3scr
 curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3000
 
 # Public health (replace domain):
-curl -sS -o /dev/null -w '%{http_code}\n' https://p3scratch.sentri.zk
+curl -sS -o /dev/null -w '%{http_code}\n' https://p3scratch.sentrizk.me
 
 # Disk used by backups:
 du -sh /media/usb/p3-backups
