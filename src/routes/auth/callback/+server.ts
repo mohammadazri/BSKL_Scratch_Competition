@@ -4,10 +4,13 @@
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { supabaseAdmin } from '$lib/server/supabase';
+import { safeNextPath } from '$lib/server/guards';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
 	const code = url.searchParams.get('code');
-	const next = url.searchParams.get('next');
+	// SECURITY: validate via safeNextPath — `next.startsWith('/')` lets through
+	// `//evil.com/x` (protocol-relative redirect to attacker domain).
+	const next = safeNextPath(url.searchParams.get('next'));
 	if (code) {
 		const { error } = await locals.supabase.auth.exchangeCodeForSession(code);
 		if (error) {
@@ -18,7 +21,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) throw redirect(303, '/login');
 
-	if (next && next.startsWith('/')) throw redirect(303, next);
+	if (next) throw redirect(303, next);
 
 	const { data } = await supabaseAdmin
 		.from('profiles')

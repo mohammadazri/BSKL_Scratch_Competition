@@ -219,6 +219,9 @@ async function loadActorProfile(
 	return { id: prof.id as string, role: prof.role as 'judge' | 'super_admin' };
 }
 
+/** Hard cap on a single judge comment — guards against a 10MB-comment DoS. */
+const MAX_COMMENT_LENGTH = 2000;
+
 function parsePayload(form: FormData): {
 	scores: Array<{
 		criterionId: string;
@@ -240,7 +243,10 @@ function parsePayload(form: FormData): {
 		seen.add(id);
 		const lvlRaw = String(form.get(`level__${id}`) ?? '').trim();
 		const ptsRaw = String(form.get(`points__${id}`) ?? '').trim();
-		const cmRaw = String(form.get(`comment__${id}`) ?? '').trim();
+		// Cap comment length defensively before trim() to avoid wasted CPU on
+		// pathological inputs (e.g. a 50MB string of whitespace).
+		const cmRawFull = String(form.get(`comment__${id}`) ?? '').slice(0, MAX_COMMENT_LENGTH);
+		const cmRaw = cmRawFull.trim();
 		if (lvlRaw === '' || ptsRaw === '') continue; // not scored yet
 		const pts = Number(ptsRaw);
 		if (!Number.isFinite(pts)) continue;
@@ -260,7 +266,16 @@ function parsePayload(form: FormData): {
 		sprintTimeSeconds = null;
 	} else {
 		const n = Number(sprintRaw);
-		sprintTimeSeconds = Number.isFinite(n) ? Math.max(0, Math.min(2700, Math.floor(n))) : null;
+		// SECURITY: clamp to (0, 2700]. Zero is excluded because a 0-second
+		// sprint would auto-win every tiebreaker. The DB CHECK constraint
+		// (migration 008) enforces the same; this is the friendly app-side
+		// version so the judge gets a clean validation message instead of a
+		// 500 from a constraint violation.
+		if (!Number.isFinite(n)) sprintTimeSeconds = null;
+		else {
+			const clamped = Math.min(2700, Math.floor(n));
+			sprintTimeSeconds = clamped > 0 ? clamped : null;
+		}
 	}
 
 	return { scores, sprintTimeSeconds };
@@ -424,7 +439,8 @@ export const actions: Actions = {
 
 		const form = await request.formData();
 		const reason = String(form.get('reason') ?? '').trim();
-		const notes = String(form.get('notes') ?? '').trim();
+		// SECURITY: cap before trim to bound work on pathological input.
+		const notes = String(form.get('notes') ?? '').slice(0, MAX_COMMENT_LENGTH).trim();
 
 		const allowed = [
 			'complete_on_arrival',
@@ -436,8 +452,11 @@ export const actions: Actions = {
 		if (!allowed.includes(reason)) {
 			return fail(400, { dqError: 'Pick a valid reason.' });
 		}
-		if (notes.length === 0) {
-			return fail(400, { dqError: 'Add a short note explaining what happened.' });
+		// Require a substantive note. A single "." or "n/a" leaves no audit
+		// trail for what justified a DQ — every DQ is consequential, the
+		// note must read like a sentence.
+		if (notes.length < 10) {
+			return fail(400, { dqError: 'DQ note must be at least 10 characters explaining what happened.' });
 		}
 
 		// Check whether an unresolved DQ already exists — if so, update its notes

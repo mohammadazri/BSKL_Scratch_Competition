@@ -4,6 +4,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { supabaseAdmin } from '$lib/server/supabase';
+import { safeNextPath } from '$lib/server/guards';
 
 async function homeForUserId(userId: string): Promise<string> {
 	const { data } = await supabaseAdmin
@@ -42,8 +43,11 @@ export const actions: Actions = {
 			return fail(400, { error: error?.message ?? 'Invalid email or password.', email });
 		}
 
-		const next = url.searchParams.get('next');
-		const dest = next && next.startsWith('/') ? next : await homeForUserId(data.user.id);
+		// SECURITY: `safeNextPath` rejects protocol-relative URLs (//evil.com)
+		// and any other open-redirect tricks. A bare `startsWith('/')` is not
+		// enough — `//evil.com/x` also starts with `/`.
+		const next = safeNextPath(url.searchParams.get('next'));
+		const dest = next ?? (await homeForUserId(data.user.id));
 		throw redirect(303, dest);
 	},
 

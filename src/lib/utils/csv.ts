@@ -114,11 +114,33 @@ export function parseCsv(text: string, opts: CsvParseOptions = {}): CsvParseResu
 	return { headers, rows, errors };
 }
 
+/**
+ * Sanitize a cell against CSV / spreadsheet formula injection.
+ *
+ * If a cell value starts with `=`, `+`, `-`, `@`, tab or CR, Excel / Google
+ * Sheets will interpret it as a formula on open. An attacker who controls a
+ * field (e.g. a participant name "=HYPERLINK(...)") can then exfiltrate data
+ * or execute DDE in older Excel builds. The OWASP-recommended mitigation is
+ * to prefix the cell with a single quote, which Excel strips but treats as
+ * a literal-text marker.
+ *
+ * Apply this to any user-controlled string before writing to CSV.
+ */
+export function sanitizeCsvCell(value: string): string {
+	if (value.length === 0) return value;
+	const first = value.charCodeAt(0);
+	// =, +, -, @, TAB (0x09), CR (0x0d)
+	if (first === 0x3d || first === 0x2b || first === 0x2d || first === 0x40 || first === 0x09 || first === 0x0d) {
+		return "'" + value;
+	}
+	return value;
+}
+
 /** Stringify rows to a CSV — quotes fields that need it. */
 export function toCsv(headers: string[], rows: Record<string, unknown>[]): string {
 	const esc = (v: unknown) => {
 		if (v === null || v === undefined) return '';
-		const s = String(v);
+		const s = sanitizeCsvCell(String(v));
 		if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
 			return '"' + s.replace(/"/g, '""') + '"';
 		}

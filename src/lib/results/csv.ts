@@ -16,6 +16,17 @@ function escapeField(value: unknown): string {
 	if (typeof value === 'string') s = value;
 	else if (typeof value === 'object') s = JSON.stringify(value);
 	else s = String(value);
+
+	// SECURITY: CSV formula injection mitigation. Cells starting with =, +, -,
+	// @, TAB, or CR are interpreted as formulas by Excel/Sheets. Prefix with
+	// a leading single quote (OWASP recommended) so they render as literal text.
+	if (s.length > 0) {
+		const first = s.charCodeAt(0);
+		if (first === 0x3d || first === 0x2b || first === 0x2d || first === 0x40 || first === 0x09 || first === 0x0d) {
+			s = "'" + s;
+		}
+	}
+
 	const needsQuoting = /[",\r\n]/.test(s);
 	if (!needsQuoting) return s;
 	return `"${s.replace(/"/g, '""')}"`;

