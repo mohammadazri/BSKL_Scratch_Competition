@@ -429,21 +429,42 @@
 		color: #334155;
 	}
 
-	/* ── Print rules ── */
+	/* ── Print rules ──────────────────────────────────────────────────────
+	   Canonical "print only this section" pattern: hide every element on
+	   the page with visibility:hidden, then re-show just the .print-sheet
+	   subtree. This avoids playing whack-a-mole with every wrapper in
+	   AppShell (BrandHeader, Sidebar, user menu, Toast, etc) which use
+	   plain <div>s and don't match the old `header, nav, aside` selectors.
+
+	   We additionally pin the print-sheet to the top of the page and reset
+	   all the screen-mode layout constraints (max-width, padding, flex
+	   gaps) imposed by <main> in AppShell so the slip is the full A4 width.
+	*/
 	@media print {
+		:global(html),
 		:global(body) {
 			background: white !important;
+			margin: 0 !important;
+			padding: 0 !important;
 		}
-		:global(header, nav, aside.print-hide, .print-hide) {
-			display: none !important;
+		:global(body *) {
+			visibility: hidden;
+		}
+		.print-sheet,
+		.print-sheet * {
+			visibility: visible;
 		}
 		.print-sheet {
-			padding: 0;
-			gap: 0;
+			position: absolute;
+			inset: 0;
+			padding: 0 !important;
+			gap: 0 !important;
+			background: white !important;
 		}
 		.slip {
 			margin: 0 0 5mm;
 			page-break-after: auto;
+			border: 1px solid #e2e8f0 !important;
 		}
 	}
 	@page {
