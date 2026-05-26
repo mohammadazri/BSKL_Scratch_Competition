@@ -35,11 +35,13 @@ export type PrintSlip = {
 };
 
 async function svgQr(text: string): Promise<string> {
+	// Solid white background, not transparent — printers commonly strip
+	// transparent backgrounds under "save ink" mode and the QR ends up blank.
 	return QRCode.toString(text, {
 		type: 'svg',
 		errorCorrectionLevel: 'M',
-		margin: 0,
-		color: { dark: '#0f172a', light: '#ffffff00' }
+		margin: 1,
+		color: { dark: '#0f172a', light: '#ffffff' }
 	});
 }
 

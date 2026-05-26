@@ -336,11 +336,22 @@
 		background: white;
 		border: 1px solid #e2e8f0;
 		border-radius: 2mm;
+		/* Force printers to actually render the dark QR cells instead of
+		   treating them as background ink and stripping in "save ink" mode. */
+		-webkit-print-color-adjust: exact;
+		print-color-adjust: exact;
 	}
 	.qr :global(svg) {
 		width: 28mm;
 		height: 28mm;
 		display: block;
+		-webkit-print-color-adjust: exact;
+		print-color-adjust: exact;
+	}
+	.qr :global(svg path),
+	.qr :global(svg rect) {
+		-webkit-print-color-adjust: exact;
+		print-color-adjust: exact;
 	}
 	.qr-caption {
 		margin: 0;
