@@ -70,16 +70,17 @@ pnpm tsx scripts/seed-rubrics.ts
 
 ## Bootstrap the first super_admin
 
-After migrations + seed succeed, there are no users yet. The first super_admin (Mohammad) is bootstrapped manually:
+After migrations + seed succeed, run the bootstrap script:
 
-1. Mohammad signs up via the website's normal `/login` flow with `aiman0608@gmail.com`. This creates an `auth.users` row, and the `on_auth_user_created` trigger inserts a `profiles` row with `role = 'judge'`.
-2. In the Supabase SQL Editor, promote him:
+```sh
+pnpm tsx scripts/seed-superadmin.ts
+```
 
-   ```sql
-   UPDATE profiles SET role = 'super_admin' WHERE email = 'aiman0608@gmail.com';
-   ```
+This reads `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD`, and `SUPER_ADMIN_NAME` from `.env`,
+creates the auth user via the Supabase Admin API, and promotes the profile to `super_admin`.
+It is **idempotent** — safe to re-run if you need to reset the password.
 
-3. From this point on, all further user / role management happens via the super-admin UI (Track 2).
+From this point on, all further user / role management happens via the super-admin UI (`/admin/users`).
 
 ---
 
