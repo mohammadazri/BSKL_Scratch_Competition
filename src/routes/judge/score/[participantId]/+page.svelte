@@ -58,15 +58,31 @@
 	);
 
 	// ── Live total + progress derivations ─────────────────────────────────────
+	// During Section A, the LiveTotalCard tracks Section A only — showing
+	// "10 / 100 · 4 of 14 scored" while Section B is locked is demoralising
+	// when the judge has actually finished what they CAN score. During
+	// Section B the goal is to complete the full sheet so we show the grand
+	// total. allScored (used by canSubmit) always reflects the full sheet
+	// because submission only happens once both sections are done.
+	let scopedCriteria = $derived(
+		data.phase === 'section_a' ? data.criteria.filter((c) => c.section === 'A') : data.criteria
+	);
 	let total = $derived(
-		data.criteria.reduce((sum, c) => sum + (scoreState[c.id]?.points ?? 0), 0)
+		scopedCriteria.reduce((sum, c) => sum + (scoreState[c.id]?.points ?? 0), 0)
 	);
-	let maxTotal = $derived(data.criteria.reduce((sum, c) => sum + c.maxPoints, 0));
+	let maxTotal = $derived(scopedCriteria.reduce((sum, c) => sum + c.maxPoints, 0));
 	let scoredCount = $derived(
-		data.criteria.filter((c) => scoreState[c.id]?.level !== null && scoreState[c.id]?.points !== null).length
+		scopedCriteria.filter(
+			(c) => scoreState[c.id]?.level !== null && scoreState[c.id]?.points !== null
+		).length
 	);
-	let totalCriteria = $derived(data.criteria.length);
-	let allScored = $derived(scoredCount === totalCriteria && totalCriteria > 0);
+	let totalCriteria = $derived(scopedCriteria.length);
+	let allScored = $derived(
+		data.criteria.length > 0 &&
+			data.criteria.every(
+				(c) => scoreState[c.id]?.level !== null && scoreState[c.id]?.points !== null
+			)
+	);
 	let dqRaised = $derived(data.dq !== null);
 	let canSubmit = $derived(
 		!data.readOnly &&
@@ -165,12 +181,11 @@
 	let sectionB = $derived(data.criteria.filter((c) => c.section === 'B'));
 
 	// ── Phase-aware editability ────────────────────────────────────────────────
-	// Section A inputs are read-only during Section B (and any later phase).
-	// Section B inputs are read-only during Section A (or earlier).
 	let sectionAEditable = $derived(!data.readOnly && data.phase === 'section_a');
 	let sectionBEditable = $derived(!data.readOnly && data.phase === 'section_b');
 
-	// Section A total — shown as a reference card while Section B is being scored.
+	// Per-section totals and progress — used by both the active scoring header
+	// and the read-only Section A reference card during Section B.
 	let sectionATotal = $derived(
 		sectionA.reduce((sum, c) => sum + (scoreState[c.id]?.points ?? 0), 0)
 	);
@@ -180,6 +195,16 @@
 			(c) => scoreState[c.id]?.level !== null && scoreState[c.id]?.points !== null
 		).length
 	);
+	let sectionBScored = $derived(
+		sectionB.filter(
+			(c) => scoreState[c.id]?.level !== null && scoreState[c.id]?.points !== null
+		).length
+	);
+
+	// Default Section A summary to collapsed during Section B so the judge isn't
+	// staring at a 7-item table while scoring something else. They can expand it
+	// when they need to refresh memory.
+	let sectionASummaryOpen = $state(false);
 
 	// ── Submit modal ──────────────────────────────────────────────────────────
 	let submitConfirmOpen = $state(false);
@@ -284,37 +309,43 @@
 		</div>
 	</header>
 
-	<!-- Phase banner — explains exactly which inputs are editable right now. -->
+	<!-- Phase banner — compact, single line. Long instructions get in the way
+	     when the judge is mid-flow scoring criterion by criterion. -->
 	{#if data.phase === 'setup'}
 		<div
-			class="mb-4 rounded-md border p-3 text-sm"
+			class="mb-4 flex items-center gap-2 rounded-md border px-3 py-2 text-xs"
 			style="background: var(--color-bg-2); border-color: var(--border-strong); color: var(--color-text-2);"
 		>
-			<strong style="color: var(--color-text-1);">Scoring has not opened yet.</strong>
-			Wait for the admin to open <em>Section A</em>. Your form is read-only.
+			<span class="inline-block h-2 w-2 rounded-full" style="background: var(--color-text-3);"></span>
+			Scoring hasn't opened yet. Form is read-only until the admin opens Section A.
 		</div>
 	{:else if data.phase === 'section_a'}
 		<div
-			class="mb-4 rounded-md border p-3 text-sm"
+			class="mb-4 flex items-center gap-2 rounded-md border px-3 py-2 text-xs"
 			style="background: rgba(124, 58, 237, 0.08); border-color: var(--color-accent); color: var(--color-text-1);"
 		>
-			<strong>Section A is open</strong> — pre-event scoring. Save as you go. Section B is locked
-			until the event day.
+			<span class="inline-block h-2 w-2 rounded-full" style="background: var(--color-accent);"></span>
+			<strong>Section A is open.</strong>
+			<span style="color: var(--color-text-2);">
+				Pre-event scoring · Section B opens on event day.
+			</span>
 		</div>
 	{:else if data.phase === 'section_b'}
 		<div
-			class="mb-4 rounded-md border p-3 text-sm"
+			class="mb-4 flex items-center gap-2 rounded-md border px-3 py-2 text-xs"
 			style="background: rgba(8, 145, 178, 0.08); border-color: var(--color-accent-2); color: var(--color-text-1);"
 		>
-			<strong>Section B is open</strong> — event-day scoring. Section A is now locked at the
-			values you saved earlier. Submit when you have scored every Section B criterion.
+			<span class="inline-block h-2 w-2 rounded-full" style="background: var(--color-accent-2);"></span>
+			<strong>Section B is open.</strong>
+			<span style="color: var(--color-text-2);">Section A locked · submit when all scored.</span>
 		</div>
 	{:else}
 		<div
-			class="mb-4 rounded-md border p-3 text-sm"
+			class="mb-4 flex items-center gap-2 rounded-md border px-3 py-2 text-xs"
 			style="background: rgba(239,68,68,0.08); border-color: var(--color-danger); color: var(--color-danger);"
 		>
-			<strong>Scoring is finalised.</strong> All scores are read-only.
+			<span class="inline-block h-2 w-2 rounded-full" style="background: var(--color-danger);"></span>
+			Scoring is finalised. All scores are read-only.
 		</div>
 	{/if}
 
@@ -364,55 +395,80 @@
 			};
 		}}
 	>
-		<!-- Left column: criteria -->
-		<div class="flex flex-col gap-8">
-			{#if data.phase === 'section_b'}
-				<!-- Section A summary while Section B is being scored: read-only
-				     total + per-criterion table so the judge has context. -->
+		<!-- Left column: criteria
+		     Design principle: one section visible at a time. The phase
+		     dictates what's on screen so the judge focuses on the task
+		     in front of them, not on what's NOT available yet. -->
+		<div class="flex flex-col gap-6">
+			<!-- Section A locked summary (only during Section B). Collapsed by
+			     default so the judge isn't visually competing with a 7-item
+			     table while scoring something else. -->
+			{#if data.phase === 'section_b' && sectionA.length > 0}
 				<div
-					class="rounded-lg border p-4"
+					class="rounded-lg border"
 					style="background: var(--color-bg-2); border-color: var(--border);"
 				>
-					<div class="mb-3 flex items-center justify-between">
-						<p
-							class="text-xs font-semibold tracking-[0.18em] uppercase"
-							style="color: var(--color-text-2);"
-						>
-							Section A · locked
-						</p>
-						<p class="text-sm" style="color: var(--color-text-1); font-family: var(--font-mono);">
-							{sectionATotal} / {sectionAMax}
-							<span class="ml-1 text-xs" style="color: var(--color-text-3);">
-								({sectionAScored}/{sectionA.length} scored)
+					<button
+						type="button"
+						class="flex w-full items-center justify-between gap-4 px-4 py-3 text-left"
+						onclick={() => (sectionASummaryOpen = !sectionASummaryOpen)}
+						aria-expanded={sectionASummaryOpen}
+					>
+						<div class="flex items-center gap-2 text-xs font-semibold tracking-[0.18em] uppercase" style="color: var(--color-text-2);">
+							<span class="inline-block h-1.5 w-1.5 rounded-full" style="background: var(--color-accent);"></span>
+							Section A — locked
+						</div>
+						<div class="flex items-center gap-3 text-sm" style="color: var(--color-text-1);">
+							<span style="font-family: var(--font-mono);">
+								{sectionATotal} / {sectionAMax}
 							</span>
-						</p>
-					</div>
-					<ul class="flex flex-col gap-1 text-xs" style="color: var(--color-text-2);">
-						{#each sectionA as c (c.id)}
-							<li class="flex justify-between">
-								<span class="truncate">{c.name}</span>
-								<span style="font-family: var(--font-mono);">
-									{scoreState[c.id]?.points ?? '—'} / {c.maxPoints}
-								</span>
-							</li>
-						{/each}
-					</ul>
+							<span class="text-xs" style="color: var(--color-text-3);">
+								{sectionASummaryOpen ? '−' : '+'}
+							</span>
+						</div>
+					</button>
+					{#if sectionASummaryOpen}
+						<ul class="flex flex-col border-t" style="border-color: var(--border);">
+							{#each sectionA as c (c.id)}
+								<li
+									class="flex items-center justify-between gap-3 px-4 py-2 text-xs"
+									style="color: var(--color-text-2);"
+								>
+									<span class="truncate">{c.name}</span>
+									<span style="font-family: var(--font-mono); color: var(--color-text-1);">
+										{scoreState[c.id]?.points ?? '—'} / {c.maxPoints}
+									</span>
+								</li>
+							{/each}
+						</ul>
+					{/if}
 				</div>
 			{/if}
 
-			{#if sectionA.length > 0 && data.phase !== 'section_b'}
-				<div>
-					<div class="mb-3 flex items-baseline gap-2">
-						<span
-							class="inline-block h-4 w-1 rounded-sm"
-							style="background: var(--color-accent);"
-						></span>
-						<h2
-							class="text-xs font-semibold tracking-[0.18em] uppercase"
-							style="color: var(--color-text-2);"
-						>
-							Section A · Phase 1 At-Home Build
-						</h2>
+			<!-- Active scoring area — exactly ONE section is rendered as cards.
+			     Section A during section_a/setup/finalised, Section B during
+			     section_b. The phase-mismatched section is hidden entirely. -->
+			{#if data.phase !== 'section_b' && sectionA.length > 0}
+				<section aria-label="Section A criteria">
+					<div
+						class="mb-4 flex items-baseline justify-between border-b pb-2"
+						style="border-color: var(--border);"
+					>
+						<div class="flex items-center gap-2">
+							<span
+								class="inline-block h-5 w-1 rounded-sm"
+								style="background: var(--color-accent);"
+							></span>
+							<h2
+								class="text-sm font-semibold tracking-[0.12em] uppercase"
+								style="color: var(--color-text-1);"
+							>
+								Section A · Phase 1 At-Home Build
+							</h2>
+						</div>
+						<span class="text-xs" style="color: var(--color-text-2); font-family: var(--font-mono);">
+							{sectionAScored} / {sectionA.length} scored
+						</span>
 					</div>
 					<div class="flex flex-col gap-4">
 						{#each sectionA as c (c.id)}
@@ -426,27 +482,30 @@
 							/>
 						{/each}
 					</div>
-				</div>
+				</section>
 			{/if}
 
-			{#if sectionB.length > 0}
-				<div>
-					<div class="mb-3 flex items-baseline gap-2">
-						<span
-							class="inline-block h-4 w-1 rounded-sm"
-							style="background: var(--color-accent-2);"
-						></span>
-						<h2
-							class="text-xs font-semibold tracking-[0.18em] uppercase"
-							style="color: var(--color-text-2);"
-						>
-							Section B · Live Sprint Mystery
-							{#if data.phase !== 'section_b'}
-								<span class="ml-2 text-[10px]" style="color: var(--color-text-3);">
-									(opens during event)
-								</span>
-							{/if}
-						</h2>
+			{#if data.phase === 'section_b' && sectionB.length > 0}
+				<section aria-label="Section B criteria">
+					<div
+						class="mb-4 flex items-baseline justify-between border-b pb-2"
+						style="border-color: var(--border);"
+					>
+						<div class="flex items-center gap-2">
+							<span
+								class="inline-block h-5 w-1 rounded-sm"
+								style="background: var(--color-accent-2);"
+							></span>
+							<h2
+								class="text-sm font-semibold tracking-[0.12em] uppercase"
+								style="color: var(--color-text-1);"
+							>
+								Section B · Live Sprint Mystery
+							</h2>
+						</div>
+						<span class="text-xs" style="color: var(--color-text-2); font-family: var(--font-mono);">
+							{sectionBScored} / {sectionB.length} scored
+						</span>
 					</div>
 					<div class="flex flex-col gap-4">
 						{#each sectionB as c (c.id)}
@@ -460,6 +519,19 @@
 							/>
 						{/each}
 					</div>
+				</section>
+			{/if}
+
+			<!-- Empty placeholder if neither section is in scope (setup / finalised
+			     phases). Keeps the column from collapsing in the layout. -->
+			{#if data.phase === 'setup' || data.phase === 'finalised'}
+				<div
+					class="rounded-lg border p-8 text-center text-sm"
+					style="background: var(--color-bg-2); border-color: var(--border); color: var(--color-text-2);"
+				>
+					{data.phase === 'setup'
+						? 'No section is open for scoring yet.'
+						: 'Scoring is finalised. View-only.'}
 				</div>
 			{/if}
 		</div>
