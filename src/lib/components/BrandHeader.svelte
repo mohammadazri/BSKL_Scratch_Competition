@@ -18,7 +18,7 @@
 </script>
 
 <header
-	class="flex h-14 w-full shrink-0 items-center justify-between gap-4 border-b px-4 sm:px-6"
+	class="relative z-30 flex h-14 w-full shrink-0 items-center justify-between gap-4 border-b px-4 sm:px-6"
 	style="background: var(--color-bg-1); border-color: var(--border, rgba(255,255,255,0.08));"
 >
 	<a href="/" class="flex items-center gap-3" aria-label="P3 Judging home">

@@ -110,7 +110,7 @@
 				aria-hidden="true"
 			></div>
 			<aside
-				class="fixed inset-y-0 left-0 z-50 w-64 border-r md:hidden"
+				class="fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r md:hidden"
 				style="background: var(--color-bg-1); border-color: var(--border);"
 			>
 				<div class="flex h-14 items-center px-4">
@@ -143,6 +143,21 @@
 						</li>
 					{/each}
 				</ul>
+				<!-- Sign out is also reachable from the top-right user menu, but on
+				     mobile the avatar dropdown can be easy to miss. Mirror it here
+				     so it's always one tap away from the drawer. -->
+				<div class="mt-auto border-t p-2" style="border-color: var(--border);">
+					<form method="POST" action="/logout" use:enhance>
+						<button
+							type="submit"
+							class="flex w-full items-center gap-3 rounded-[var(--radius-sm)] px-3 py-2.5 text-sm font-medium transition hover:bg-white/5"
+							style="color: var(--color-text-2);"
+						>
+							<LogOut size={18} strokeWidth={1.5} />
+							Sign out
+						</button>
+					</form>
+				</div>
 			</aside>
 		{/if}
 
