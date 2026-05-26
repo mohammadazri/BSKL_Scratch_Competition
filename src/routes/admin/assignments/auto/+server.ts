@@ -4,10 +4,15 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { supabaseAdmin } from '$lib/server/supabase';
+import { requireSuperAdmin } from '$lib/server/guards';
 import { autoAssign } from '$lib/server/auto-assign';
 import type { Category } from '$lib/types';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
+	// SECURITY: +server.ts handlers are NOT gated by parent +layout.server.ts
+	// guards. This endpoint uses the service-role client which bypasses RLS, so
+	// it MUST self-check the requesting role before touching any data.
+	await requireSuperAdmin(locals.user);
 	const body = (await request.json().catch(() => null)) as
 		| { category?: Category; maxPerSchool?: number }
 		| null;

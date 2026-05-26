@@ -8,7 +8,11 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { supabaseAdmin } from '$lib/server/supabase';
+import { requireSuperAdmin } from '$lib/server/guards';
 import type { Category, Theme } from '$lib/types';
+
+/** Hard cap on inbound import payload — protects against memory-exhaustion DoS. */
+const MAX_IMPORT_ROWS = 2000;
 
 interface RowIn {
 	full_name?: unknown;
@@ -22,11 +26,21 @@ const isTheme = (v: unknown): v is Theme =>
 	v === 'Eco-Warriors' || v === 'Smart Cities' || v === 'Space Pioneers';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
+	// SECURITY: +server.ts handlers don't run layout guards. Block non-admin
+	// callers before parsing the (potentially huge) body.
+	await requireSuperAdmin(locals.user);
+
 	const body = (await request.json().catch(() => null)) as
 		| { rows?: RowIn[]; commit?: boolean }
 		| null;
 	if (!body || !Array.isArray(body.rows)) {
 		return json({ ok: false, error: 'Missing or malformed rows[].' }, { status: 400 });
+	}
+	if (body.rows.length > MAX_IMPORT_ROWS) {
+		return json(
+			{ ok: false, error: `Too many rows (${body.rows.length}). Limit is ${MAX_IMPORT_ROWS}.` },
+			{ status: 413 }
+		);
 	}
 
 	// Parse + validate each row.

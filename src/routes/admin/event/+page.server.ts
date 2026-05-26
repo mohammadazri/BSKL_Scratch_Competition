@@ -5,6 +5,7 @@
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { supabaseAdmin } from '$lib/server/supabase';
+import { requireSuperAdmin } from '$lib/server/guards';
 
 export type EventStateRow = {
 	id: number;
@@ -51,7 +52,11 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	updateMeta: async ({ request }) => {
+	// SECURITY: All event_state mutations go through supabaseAdmin (service role)
+	// and bypass RLS. The parent layout's role guard does NOT run before form
+	// actions, so we MUST call requireSuperAdmin() inline on every action.
+	updateMeta: async ({ request, locals }) => {
+		await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const eventName = String(form.get('event_name') ?? '').trim();
 		const sprintMinutes = Number(form.get('sprint_minutes') ?? 45);
@@ -85,20 +90,21 @@ export const actions: Actions = {
 	},
 
 	lock: async ({ locals }) => {
-		if (!locals.user) return fail(401, { error: 'not authenticated' });
+		const session = await requireSuperAdmin(locals.user);
 		const { error: lockErr } = await supabaseAdmin
 			.from('event_state')
 			.update({
 				locked: true,
 				locked_at: new Date().toISOString(),
-				locked_by: locals.user.id
+				locked_by: session.user.id
 			})
 			.eq('id', 1);
 		if (lockErr) return fail(400, { error: lockErr.message });
 		return { ok: true, message: 'Event locked. All scoresheets are now read-only.' };
 	},
 
-	unlock: async () => {
+	unlock: async ({ locals }) => {
+		await requireSuperAdmin(locals.user);
 		const { error: unlockErr } = await supabaseAdmin
 			.from('event_state')
 			.update({

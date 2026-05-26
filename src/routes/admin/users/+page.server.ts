@@ -6,6 +6,7 @@
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { supabaseAdmin } from '$lib/server/supabase';
+import { requireSuperAdmin } from '$lib/server/guards';
 import { tempPassword } from '$lib/utils/random';
 import type { Category, Role } from '$lib/types';
 
@@ -67,7 +68,13 @@ function parseRole(form: FormData): Role {
 }
 
 export const actions: Actions = {
-	create: async ({ request }) => {
+	// SECURITY: Every action below uses the service-role Supabase client which
+	// bypasses RLS. The parent layout's role guard does NOT run before form
+	// actions, so each action MUST call requireSuperAdmin() inline. Without
+	// these checks, any authenticated user (or in some configs, anyone) could
+	// POST here and create/promote/reset arbitrary accounts.
+	create: async ({ request, locals }) => {
+		await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const email = String(form.get('email') ?? '').trim().toLowerCase();
 		const fullName = String(form.get('full_name') ?? '').trim();
@@ -122,7 +129,8 @@ export const actions: Actions = {
 		};
 	},
 
-	update: async ({ request }) => {
+	update: async ({ request, locals }) => {
+		await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const id = String(form.get('id') ?? '');
 		const fullName = String(form.get('full_name') ?? '').trim();
@@ -145,7 +153,8 @@ export const actions: Actions = {
 		return { ok: true, message: 'User updated.' };
 	},
 
-	setRole: async ({ request }) => {
+	setRole: async ({ request, locals }) => {
+		await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const id = String(form.get('id') ?? '');
 		const role = parseRole(form);
@@ -159,7 +168,8 @@ export const actions: Actions = {
 		return { ok: true, message: `Role set to ${role}.` };
 	},
 
-	setActive: async ({ request }) => {
+	setActive: async ({ request, locals }) => {
+		await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const id = String(form.get('id') ?? '');
 		const active = String(form.get('active') ?? 'true') === 'true';
@@ -176,7 +186,8 @@ export const actions: Actions = {
 		};
 	},
 
-	resetPassword: async ({ request }) => {
+	resetPassword: async ({ request, locals }) => {
+		await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const id = String(form.get('id') ?? '');
 		if (!id) return fail(400, { error: 'Missing id.' });

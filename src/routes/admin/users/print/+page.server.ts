@@ -15,6 +15,7 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { supabaseAdmin } from '$lib/server/supabase';
+import { requireSuperAdmin } from '$lib/server/guards';
 import { tempPassword } from '$lib/utils/random';
 import type { Category, Role } from '$lib/types';
 
@@ -64,7 +65,12 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	regenerate: async ({ request }) => {
+	// SECURITY: regenerate calls supabaseAdmin.auth.admin.updateUserById which
+	// can reset ANY user's password including super_admin accounts. The parent
+	// layout guard does NOT run before form actions — without this inline check
+	// any authenticated user could POST here and take over arbitrary accounts.
+	regenerate: async ({ request, locals }) => {
+		await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const ids = form.getAll('id').map((v) => String(v));
 		if (ids.length === 0) return fail(400, { error: 'No users selected.' });

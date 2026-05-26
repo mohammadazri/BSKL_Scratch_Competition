@@ -6,6 +6,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { requireSuperAdmin } from '$lib/server/guards';
 
 interface Bucket {
 	judge_id?: unknown;
@@ -13,6 +14,11 @@ interface Bucket {
 }
 
 export const POST: RequestHandler = async ({ request, locals }) => {
+	// SECURITY: +server.ts handlers don't run layout guards. Even though writes
+	// go through locals.supabase (RLS-protected), we still want a clean 401/403
+	// instead of letting an unauthenticated caller get RLS-flavoured errors,
+	// and we want consistent audit attribution.
+	await requireSuperAdmin(locals.user);
 	const body = (await request.json().catch(() => null)) as { buckets?: Bucket[] } | null;
 	if (!body || !Array.isArray(body.buckets)) {
 		return json({ ok: false, error: 'Missing buckets[].' }, { status: 400 });
