@@ -83,7 +83,9 @@ export const actions: Actions = {
 			reason: 'First-login password change.'
 		});
 
-		// Redirect to their role-aware home.
+		// Redirect to their role-aware home. Unknown roles fall through to /
+		// which routes them itself; / now handles every valid role and sends
+		// anything broken to /login?error=... (no loops).
 		const role = profile?.role as string | undefined;
 		const dest =
 			role === 'super_admin'
@@ -92,7 +94,9 @@ export const actions: Actions = {
 					? '/judge'
 					: role === 'viewer'
 						? '/viewer'
-						: '/';
+						: role === 'registration_committee'
+							? '/registration'
+							: '/';
 		throw redirect(303, dest);
 	}
 };

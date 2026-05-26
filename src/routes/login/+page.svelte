@@ -49,13 +49,13 @@
 			Future Coders Challenge 2026
 		</p>
 
-		{#if form?.error}
+		{#if form?.error || data?.flash}
 			<div
 				class="mb-4 rounded-[var(--radius-sm)] border px-3 py-2 text-sm"
 				style="border-color: var(--color-danger); color: var(--color-danger); background: rgba(239, 68, 68, 0.08);"
 				role="alert"
 			>
-				{form.error}
+				{form?.error ?? data.flash}
 			</div>
 		{/if}
 		{#if form?.info}

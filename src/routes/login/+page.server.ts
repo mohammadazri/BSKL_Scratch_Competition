@@ -7,26 +7,46 @@ import { supabaseAdmin } from '$lib/server/supabase';
 import { safeNextPath } from '$lib/server/guards';
 import { appUrl } from '$lib/app-url';
 
-async function homeForUserId(userId: string): Promise<string> {
+type HomeResult =
+	| { kind: 'redirect'; to: string }
+	| { kind: 'signout'; message: string };
+
+async function homeForUserId(userId: string): Promise<HomeResult> {
 	const { data } = await supabaseAdmin
 		.from('profiles')
 		.select('role, is_active')
 		.eq('id', userId)
 		.single();
-	if (!data || !data.is_active) return '/';
-	if (data.role === 'super_admin') return '/admin';
-	if (data.role === 'judge') return '/judge';
-	if (data.role === 'viewer') return '/viewer';
-	return '/';
+
+	// No profile or disabled account → sign them out so they don't get stuck
+	// in a redirect loop where /login keeps bouncing them somewhere broken.
+	if (!data) return { kind: 'signout', message: 'Profile not found.' };
+	if (!data.is_active) return { kind: 'signout', message: 'Account is disabled.' };
+
+	if (data.role === 'super_admin') return { kind: 'redirect', to: '/admin' };
+	if (data.role === 'judge') return { kind: 'redirect', to: '/judge' };
+	if (data.role === 'viewer') return { kind: 'redirect', to: '/viewer' };
+	if (data.role === 'registration_committee') return { kind: 'redirect', to: '/registration' };
+
+	return { kind: 'signout', message: 'Unknown role.' };
 }
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (locals.user) {
-		const dest = await homeForUserId(locals.user.id);
-		throw redirect(303, dest);
+		const home = await homeForUserId(locals.user.id);
+		if (home.kind === 'signout') {
+			// Tear down the session BEFORE re-rendering /login so we never loop.
+			await locals.supabase.auth.signOut();
+			return {
+				next: url.searchParams.get('next') ?? null,
+				flash: home.message
+			};
+		}
+		throw redirect(303, home.to);
 	}
 	return {
-		next: url.searchParams.get('next') ?? null
+		next: url.searchParams.get('next') ?? null,
+		flash: url.searchParams.get('error') === 'account-disabled' ? 'Account is disabled.' : null
 	};
 };
 
@@ -48,8 +68,14 @@ export const actions: Actions = {
 		// and any other open-redirect tricks. A bare `startsWith('/')` is not
 		// enough — `//evil.com/x` also starts with `/`.
 		const next = safeNextPath(url.searchParams.get('next'));
-		const dest = next ?? (await homeForUserId(data.user.id));
-		throw redirect(303, dest);
+		if (next) throw redirect(303, next);
+
+		const home = await homeForUserId(data.user.id);
+		if (home.kind === 'signout') {
+			await locals.supabase.auth.signOut();
+			return fail(403, { error: home.message, email });
+		}
+		throw redirect(303, home.to);
 	},
 
 	magic: async ({ request, locals, url }) => {
