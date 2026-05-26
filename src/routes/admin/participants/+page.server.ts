@@ -10,6 +10,8 @@
 import { fail, error } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { supabaseAdmin } from '$lib/server/supabase';
+import { requireSuperAdmin } from '$lib/server/guards';
+import { appendAudit } from '$lib/server/audit-local';
 import type { Category, DqReason, Theme } from '$lib/types';
 
 export type ParticipantRow = {
@@ -99,8 +101,18 @@ function parseDqReason(v: FormDataEntryValue | null): DqReason | null {
 	return (set as string[]).includes(s) ? (s as DqReason) : null;
 }
 
+// Every action below uses `supabaseAdmin` (service role, bypasses RLS) AND
+// inline-guards with `requireSuperAdmin`. Layout guards don't run before form
+// actions, so the inline check is the real security boundary. Without it,
+// any authenticated user could POST here and edit participants.
+//
+// Why supabaseAdmin and not locals.supabase: when a row doesn't match the
+// caller's RLS policy, supabase-js returns `{ error: null, data: [] }` — no
+// rows affected, no error. That's how the "delete shows success but row
+// stays" bug happened. Using the service role removes that footgun.
 export const actions: Actions = {
-	create: async ({ request, locals }) => {
+	create: async ({ request, locals, getClientAddress }) => {
+		const session = await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const fullName = String(form.get('full_name') ?? '').trim();
 		const schoolId = String(form.get('school_id') ?? '');
@@ -110,14 +122,35 @@ export const actions: Actions = {
 			return fail(400, { error: 'Name, school and category are required.' });
 		}
 
-		const { error: insErr } = await locals.supabase
+		const { data: inserted, error: insErr } = await supabaseAdmin
 			.from('participants')
-			.insert({ full_name: fullName, school_id: schoolId, category, theme });
+			.insert({ full_name: fullName, school_id: schoolId, category, theme })
+			.select('id')
+			.single();
 		if (insErr) return fail(400, { error: insErr.message });
+
+		await appendAudit({
+			actor: {
+				id: session.user.id,
+				role: session.role,
+				fullName: session.fullName,
+				email: session.email
+			},
+			actorIp: getClientAddress(),
+			actorUa: request.headers.get('user-agent'),
+			action: 'participant_create',
+			targetType: 'participant',
+			targetId: (inserted?.id as string) ?? null,
+			before: null,
+			after: { full_name: fullName, school_id: schoolId, category, theme },
+			reason: null
+		});
+
 		return { ok: true, message: `Added ${fullName}.` };
 	},
 
-	update: async ({ request, locals }) => {
+	update: async ({ request, locals, getClientAddress }) => {
+		const session = await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const id = String(form.get('id') ?? '');
 		const fullName = String(form.get('full_name') ?? '').trim();
@@ -128,30 +161,90 @@ export const actions: Actions = {
 			return fail(400, { error: 'Missing required fields.' });
 		}
 
-		const { error: updErr } = await locals.supabase
+		const { data: before } = await supabaseAdmin
+			.from('participants')
+			.select('full_name, school_id, category, theme')
+			.eq('id', id)
+			.single();
+
+		const { error: updErr } = await supabaseAdmin
 			.from('participants')
 			.update({ full_name: fullName, school_id: schoolId, category, theme })
 			.eq('id', id);
 		if (updErr) return fail(400, { error: updErr.message });
+
+		await appendAudit({
+			actor: {
+				id: session.user.id,
+				role: session.role,
+				fullName: session.fullName,
+				email: session.email
+			},
+			actorIp: getClientAddress(),
+			actorUa: request.headers.get('user-agent'),
+			action: 'participant_update',
+			targetType: 'participant',
+			targetId: id,
+			before: (before as Record<string, unknown>) ?? null,
+			after: { full_name: fullName, school_id: schoolId, category, theme },
+			reason: null
+		});
+
 		return { ok: true, message: 'Participant updated.' };
 	},
 
-	delete: async ({ request, locals }) => {
+	delete: async ({ request, locals, getClientAddress }) => {
+		const session = await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const id = String(form.get('id') ?? '');
 		if (!id) return fail(400, { error: 'Missing id.' });
 
-		const { error: delErr } = await locals.supabase.from('participants').delete().eq('id', id);
+		// Capture snapshot for audit before the row vanishes.
+		const { data: before } = await supabaseAdmin
+			.from('participants')
+			.select('full_name, school_id, category, theme, qualified, notes')
+			.eq('id', id)
+			.single();
+
+		// .select() forces Supabase to return the deleted rows so we can verify
+		// the delete actually happened (vs silently affecting 0 rows).
+		const { data: deletedRows, error: delErr } = await supabaseAdmin
+			.from('participants')
+			.delete()
+			.eq('id', id)
+			.select('id');
+
 		if (delErr) return fail(400, { error: delErr.message });
+		if (!deletedRows || deletedRows.length === 0) {
+			return fail(404, { error: 'Participant not found (already deleted?).' });
+		}
+
+		await appendAudit({
+			actor: {
+				id: session.user.id,
+				role: session.role,
+				fullName: session.fullName,
+				email: session.email
+			},
+			actorIp: getClientAddress(),
+			actorUa: request.headers.get('user-agent'),
+			action: 'participant_delete',
+			targetType: 'participant',
+			targetId: id,
+			before: (before as Record<string, unknown>) ?? null,
+			after: null,
+			reason: null
+		});
+
 		return { ok: true, message: 'Participant deleted.' };
 	},
 
-	setDq: async ({ request, locals }) => {
+	setDq: async ({ request, locals, getClientAddress }) => {
+		const session = await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const id = String(form.get('id') ?? '');
 		const dq = String(form.get('dq') ?? 'true') === 'true';
 		const reason = parseDqReason(form.get('reason'));
-		// SECURITY: cap input length to bound work and storage.
 		const notes = String(form.get('notes') ?? '').slice(0, 2000).trim();
 
 		if (!id) return fail(400, { error: 'Missing id.' });
@@ -161,10 +254,9 @@ export const actions: Actions = {
 			});
 		}
 
-		// Fetch existing notes to preserve non-DQ context when re-qualifying.
 		const { data: existing } = await supabaseAdmin
 			.from('participants')
-			.select('notes')
+			.select('notes, qualified')
 			.eq('id', id)
 			.single();
 
@@ -175,11 +267,29 @@ export const actions: Actions = {
 			? `[DQ: ${reason}] ${notes}${baseNotes ? `\n${baseNotes}` : ''}`
 			: baseNotes || null;
 
-		const { error: updErr } = await locals.supabase
+		const { error: updErr } = await supabaseAdmin
 			.from('participants')
 			.update({ qualified: !dq, notes: newNotes })
 			.eq('id', id);
 		if (updErr) return fail(400, { error: updErr.message });
+
+		await appendAudit({
+			actor: {
+				id: session.user.id,
+				role: session.role,
+				fullName: session.fullName,
+				email: session.email
+			},
+			actorIp: getClientAddress(),
+			actorUa: request.headers.get('user-agent'),
+			action: dq ? 'dq_flag_raise' : 'dq_flag_clear',
+			targetType: 'participant',
+			targetId: id,
+			before: { qualified: existing?.qualified, notes: existing?.notes },
+			after: { qualified: !dq, notes: newNotes },
+			reason: dq ? `${reason}: ${notes}` : null
+		});
+
 		return {
 			ok: true,
 			message: dq ? 'Participant disqualified.' : 'Participant re-qualified.'

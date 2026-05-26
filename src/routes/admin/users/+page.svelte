@@ -17,7 +17,7 @@
 	import RolePill from '$lib/components/RolePill.svelte';
 	import CategoryChip from '$lib/components/CategoryChip.svelte';
 	import { toasts } from '$lib/stores/toast';
-	import { Plus, Pencil, Power, KeyRound, Printer } from '@lucide/svelte';
+	import { Plus, Pencil, Power, KeyRound, Printer, Trash2 } from '@lucide/svelte';
 	import type { ActionData, PageData } from './$types';
 	import type { UserRow } from './+page.server';
 	import type { Category, Role } from '$lib/types';
@@ -96,18 +96,40 @@
 		confirmOpen = true;
 	}
 
+	function confirmDelete(row: UserRow) {
+		confirmConfig = {
+			title: 'Delete user permanently?',
+			message: `${row.fullName} (${row.email}) will be permanently removed. This cannot be undone. If they have any assignments or scoresheets on record, the delete will be blocked — deactivate instead to preserve scoring history.`,
+			action: '?/deleteUser',
+			fields: { id: row.id },
+			danger: true
+		};
+		confirmOpen = true;
+	}
+
 	async function submitConfirm() {
 		if (!confirmConfig) return;
 		const fd = new FormData();
 		for (const [k, v] of Object.entries(confirmConfig.fields)) fd.set(k, v);
-		const res = await fetch(confirmConfig.action, { method: 'POST', body: fd });
+		const res = await fetch(confirmConfig.action, {
+			method: 'POST',
+			body: fd,
+			headers: { 'x-sveltekit-action': 'true' }
+		});
+		// SvelteKit action envelope: `{ type: 'success' | 'failure' | 'redirect', ... }`.
+		// On `failure`, the action data is a devalue-encoded string. We only need
+		// the .error field so a quick regex pulls it out without needing the
+		// `deserialize` helper (which is overkill for one field).
+		const text = await res.text();
+		const isFailure = /"type":"failure"/.test(text);
 		await invalidateAll();
 		confirmOpen = false;
 		confirmConfig = null;
-		if (res.ok) {
-			toasts.success('Done.');
+		if (isFailure) {
+			const m = text.match(/"error":"((?:[^"\\]|\\.)*)"/);
+			toasts.error(m ? m[1].replace(/\\"/g, '"') : 'Action failed.');
 		} else {
-			toasts.error('Action failed. Check the server log.');
+			toasts.success('Done.');
 		}
 	}
 
@@ -304,6 +326,16 @@
 								title={row.isActive ? 'Deactivate' : 'Reactivate'}
 							>
 								<Power size={16} strokeWidth={1.5} />
+							</button>
+							<button
+								type="button"
+								class="grid h-9 w-9 place-items-center rounded-[var(--radius-sm)] transition hover:bg-white/5"
+								style="color: var(--color-danger);"
+								onclick={() => confirmDelete(row)}
+								aria-label="Delete permanently"
+								title="Delete permanently"
+							>
+								<Trash2 size={16} strokeWidth={1.5} />
 							</button>
 						</div>
 					</td>

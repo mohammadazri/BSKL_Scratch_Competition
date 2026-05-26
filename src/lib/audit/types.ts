@@ -8,6 +8,7 @@ export type AuditAction =
 	| 'user_update'
 	| 'user_role_change'
 	| 'user_disable'
+	| 'user_delete'
 	| 'school_create'
 	| 'school_update'
 	| 'school_delete'
@@ -23,13 +24,16 @@ export type AuditAction =
 	| 'scoresheet_update'
 	| 'scoresheet_submit'
 	| 'scoresheet_unlock'
+	| 'scoresheet_delete'
 	| 'score_create'
 	| 'score_update'
 	| 'score_override'
+	| 'score_delete'
 	| 'dq_flag_raise'
 	| 'dq_flag_clear'
 	| 'event_lock'
 	| 'event_unlock'
+	| 'event_phase_change'
 	| 'export_csv'
 	| 'export_pdf';
 
@@ -40,6 +44,7 @@ export const ALL_AUDIT_ACTIONS: AuditAction[] = [
 	'user_update',
 	'user_role_change',
 	'user_disable',
+	'user_delete',
 	'school_create',
 	'school_update',
 	'school_delete',
@@ -55,13 +60,16 @@ export const ALL_AUDIT_ACTIONS: AuditAction[] = [
 	'scoresheet_update',
 	'scoresheet_submit',
 	'scoresheet_unlock',
+	'scoresheet_delete',
 	'score_create',
 	'score_update',
 	'score_override',
+	'score_delete',
 	'dq_flag_raise',
 	'dq_flag_clear',
 	'event_lock',
 	'event_unlock',
+	'event_phase_change',
 	'export_csv',
 	'export_pdf'
 ];
@@ -97,7 +105,7 @@ export const DQ_ACTIONS: ReadonlySet<AuditAction> = new Set([
 
 // Human-readable labels for action enum values.
 export function actionLabel(a: AuditAction): string {
-	return a.replace(/_/g, ' ');
+	return a.replaceAll('_', ' ');
 }
 
 // Fields hidden from the before/after JSON diff display — they always differ

@@ -1,14 +1,19 @@
-// /admin/schools — list, create, update, delete (when empty). All mutations
-// flow through supabaseAdmin so the audit trigger captures actor_id via
-// auth.uid() — which is unavailable to service-role tokens. To keep audit
-// rows attributed correctly, we'd ideally use locals.supabase, but the
-// schools_super_all policy already requires super_admin so either client
-// works. We use locals.supabase (request-scoped) so the actor_id ends up
-// in audit_log instead of being NULL.
+// /admin/schools — list, create, update, delete (when empty).
+//
+// Every action below uses `supabaseAdmin` (service role, bypasses RLS) AND
+// inline-guards with `requireSuperAdmin`. Why both:
+//   • Layout guards don't run before form actions, so the inline check is
+//     the real security boundary.
+//   • Using `locals.supabase` for mutations silently returns
+//     `{ error: null, data: [] }` when 0 rows match the RLS policy — that's
+//     the bug behind "delete shows success but the row stays". Service role
+//     removes the footgun.
 
 import { fail, error } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { supabaseAdmin } from '$lib/server/supabase';
+import { requireSuperAdmin } from '$lib/server/guards';
+import { appendAudit } from '$lib/server/audit-local';
 
 export type SchoolRow = {
 	id: string;
@@ -43,48 +48,132 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	create: async ({ request, locals }) => {
+	create: async ({ request, locals, getClientAddress }) => {
+		const session = await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const name = String(form.get('name') ?? '').trim();
 		const shortCode = String(form.get('short_code') ?? '').trim() || null;
 		if (!name) return fail(400, { error: 'School name is required.' });
 
-		const { error: insErr } = await locals.supabase
+		const { data: inserted, error: insErr } = await supabaseAdmin
 			.from('schools')
-			.insert({ name, short_code: shortCode });
+			.insert({ name, short_code: shortCode })
+			.select('id')
+			.single();
 		if (insErr) return fail(400, { error: insErr.message });
+
+		await appendAudit({
+			actor: {
+				id: session.user.id,
+				role: session.role,
+				fullName: session.fullName,
+				email: session.email
+			},
+			actorIp: getClientAddress(),
+			actorUa: request.headers.get('user-agent'),
+			action: 'school_create',
+			targetType: 'school',
+			targetId: (inserted?.id as string) ?? null,
+			before: null,
+			after: { name, short_code: shortCode },
+			reason: null
+		});
+
 		return { ok: true, message: `Added ${name}.` };
 	},
 
-	update: async ({ request, locals }) => {
+	update: async ({ request, locals, getClientAddress }) => {
+		const session = await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const id = String(form.get('id') ?? '');
 		const name = String(form.get('name') ?? '').trim();
 		const shortCode = String(form.get('short_code') ?? '').trim() || null;
 		if (!id || !name) return fail(400, { error: 'Missing id or name.' });
 
-		const { error: updErr } = await locals.supabase
+		const { data: before } = await supabaseAdmin
+			.from('schools')
+			.select('name, short_code')
+			.eq('id', id)
+			.single();
+
+		const { error: updErr } = await supabaseAdmin
 			.from('schools')
 			.update({ name, short_code: shortCode })
 			.eq('id', id);
 		if (updErr) return fail(400, { error: updErr.message });
+
+		await appendAudit({
+			actor: {
+				id: session.user.id,
+				role: session.role,
+				fullName: session.fullName,
+				email: session.email
+			},
+			actorIp: getClientAddress(),
+			actorUa: request.headers.get('user-agent'),
+			action: 'school_update',
+			targetType: 'school',
+			targetId: id,
+			before: (before as Record<string, unknown>) ?? null,
+			after: { name, short_code: shortCode },
+			reason: null
+		});
+
 		return { ok: true, message: 'School updated.' };
 	},
 
-	delete: async ({ request, locals }) => {
+	delete: async ({ request, locals, getClientAddress }) => {
+		const session = await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const id = String(form.get('id') ?? '');
 		if (!id) return fail(400, { error: 'Missing id.' });
 
-		// Verify no participants reference this school (RESTRICT FK).
-		const { data: parts } = await supabaseAdmin
+		// participants → schools is `ON DELETE RESTRICT`, so block early with
+		// a clear message instead of letting Postgres raise.
+		const { count } = await supabaseAdmin
 			.from('participants')
 			.select('id', { count: 'exact', head: true })
 			.eq('school_id', id);
-		void parts;
+		if (count && count > 0) {
+			return fail(409, {
+				error: `Cannot delete: this school has ${count} participant(s). Move or delete them first.`
+			});
+		}
 
-		const { error: delErr } = await locals.supabase.from('schools').delete().eq('id', id);
+		const { data: before } = await supabaseAdmin
+			.from('schools')
+			.select('name, short_code')
+			.eq('id', id)
+			.single();
+
+		const { data: deletedRows, error: delErr } = await supabaseAdmin
+			.from('schools')
+			.delete()
+			.eq('id', id)
+			.select('id');
+
 		if (delErr) return fail(400, { error: delErr.message });
+		if (!deletedRows || deletedRows.length === 0) {
+			return fail(404, { error: 'School not found (already deleted?).' });
+		}
+
+		await appendAudit({
+			actor: {
+				id: session.user.id,
+				role: session.role,
+				fullName: session.fullName,
+				email: session.email
+			},
+			actorIp: getClientAddress(),
+			actorUa: request.headers.get('user-agent'),
+			action: 'school_delete',
+			targetType: 'school',
+			targetId: id,
+			before: (before as Record<string, unknown>) ?? null,
+			after: null,
+			reason: null
+		});
+
 		return { ok: true, message: 'School deleted.' };
 	}
 };

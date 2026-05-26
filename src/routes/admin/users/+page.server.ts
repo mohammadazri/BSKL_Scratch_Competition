@@ -267,6 +267,72 @@ export const actions: Actions = {
 		};
 	},
 
+	deleteUser: async ({ request, locals, getClientAddress }) => {
+		const session = await requireSuperAdmin(locals.user);
+		const form = await request.formData();
+		const id = String(form.get('id') ?? '');
+		if (!id) return fail(400, { error: 'Missing id.' });
+
+		// You can't delete your own account — that would lock you out.
+		if (id === locals.user!.id) {
+			return fail(400, {
+				error: 'You cannot delete your own account. Ask another super_admin to do it.'
+			});
+		}
+
+		// Capture profile snapshot for the audit log BEFORE the delete cascades it.
+		const { data: target } = await supabaseAdmin
+			.from('profiles')
+			.select('email, full_name, role, categories, is_active')
+			.eq('id', id)
+			.single();
+
+		if (!target) return fail(404, { error: 'User not found.' });
+
+		// Block delete if the user owns any FK-restricted rows. assignments and
+		// scoresheets both `ON DELETE RESTRICT` to profiles, so the cascade from
+		// auth.users → profiles would fail anyway. Surfacing a clean message is
+		// better than letting Postgres complain.
+		const { count: aCount } = await supabaseAdmin
+			.from('assignments')
+			.select('*', { count: 'exact', head: true })
+			.eq('judge_id', id);
+		if (aCount && aCount > 0) {
+			return fail(409, {
+				error: `Cannot delete: ${target.full_name} has ${aCount} assignment(s). Remove the assignments first, or deactivate the account instead.`
+			});
+		}
+
+		const { count: sCount } = await supabaseAdmin
+			.from('scoresheets')
+			.select('*', { count: 'exact', head: true })
+			.eq('judge_id', id);
+		if (sCount && sCount > 0) {
+			return fail(409, {
+				error: `Cannot delete: ${target.full_name} has ${sCount} scoresheet(s) on record. Deactivate instead to preserve scoring history.`
+			});
+		}
+
+		// Delete the auth user. profiles cascades via ON DELETE CASCADE from the
+		// profiles.id → auth.users(id) FK defined in 003_tables.sql.
+		const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(id);
+		if (delErr) return fail(500, { error: delErr.message });
+
+		await appendAudit({
+			actor: guardActor(session),
+			actorIp: getClientAddress(),
+			actorUa: request.headers.get('user-agent'),
+			action: 'user_delete',
+			targetType: 'user',
+			targetId: id,
+			before: target as Record<string, unknown>,
+			after: null,
+			reason: null
+		});
+
+		return { ok: true, message: `Deleted ${target.email}.` };
+	},
+
 	resetPassword: async ({ request, locals, getClientAddress }) => {
 		const session = await requireSuperAdmin(locals.user);
 		const form = await request.formData();
