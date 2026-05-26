@@ -45,17 +45,31 @@
 	}: Props = $props();
 
 	const roleLabel = (r: Role) =>
-		r === 'super_admin' ? 'Super admin' : r === 'judge' ? 'Judge' : 'Viewer';
+		r === 'super_admin'
+			? 'Super admin'
+			: r === 'judge'
+				? 'Judge'
+				: r === 'registration_committee'
+					? 'Registration'
+					: 'Viewer';
 
 	const roleAccent = (r: Role) =>
-		r === 'super_admin' ? '#7c3aed' : r === 'judge' ? '#0891b2' : '#d97706';
+		r === 'super_admin'
+			? '#7c3aed'
+			: r === 'judge'
+				? '#0891b2'
+				: r === 'registration_committee'
+					? '#d97706'
+					: '#475569';
 
 	const roleTip = (r: Role) =>
 		r === 'super_admin'
 			? 'You can manage users, schools, participants, assignments, and override scores. Use it sparingly — every action is audit-logged.'
 			: r === 'judge'
 				? 'You will only see the participants assigned to you. Each scoresheet auto-saves while you work; submit when done. Tap the timer button right when the sprint starts.'
-				: 'Read-only access. You can watch the live leaderboard and inspect any submitted scoresheet, but you cannot change anything.';
+				: r === 'registration_committee'
+					? 'You can register schools and participants before the event. Use the Schools page to add the venues, then Participants to register the students. You will not see scoresheets, results, or the audit log — those are for judges and admins.'
+					: 'Read-only access. You can watch the live leaderboard and inspect any submitted scoresheet, but you cannot change anything.';
 
 	const fmtDate = (iso: string | null | undefined): string | null => {
 		if (!iso) return null;

@@ -48,11 +48,15 @@ async function svgQr(text: string): Promise<string> {
 export const load: PageServerLoad = async ({ url }) => {
 	// On initial load we show a "click to generate" pre-print screen — we
 	// don't auto-reset every active user just because someone navigated here.
+	// Include every non-admin role so the super_admin can also hand a slip
+	// to registration_committee users they create. Super admins are excluded
+	// because they're expected to set their own passwords during bootstrap
+	// (scripts/seed-superadmin.ts).
 	const { data: rows } = await supabaseAdmin
 		.from('profiles')
 		.select('id, email, full_name, role, categories, pin_label')
 		.eq('is_active', true)
-		.in('role', ['judge', 'viewer'])
+		.in('role', ['judge', 'viewer', 'registration_committee'])
 		.order('role')
 		.order('full_name');
 

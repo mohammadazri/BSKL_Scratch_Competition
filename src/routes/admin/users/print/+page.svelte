@@ -60,7 +60,7 @@
 <div class="print-hide">
 	<PageHeader
 		title="Print login slips"
-		subtitle="Generate temporary passwords for active judges + viewers and print one slip per user (4 to an A4 page)."
+		subtitle="Generate temporary passwords for active judges, viewers, and registration committee, then print one slip per user."
 	>
 		{#snippet actions()}
 			<Button variant="ghost" href="/admin/users">Back to users</Button>
