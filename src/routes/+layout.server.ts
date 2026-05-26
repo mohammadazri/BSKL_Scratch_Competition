@@ -8,10 +8,11 @@ import { supabaseAdmin } from '$lib/server/supabase';
 
 // Paths exempted from the must-change-password gate so users can actually
 // reach the change-password page (and sign out / log back in).
-const EXEMPT_PREFIXES = ['/auth/', '/login', '/logout'];
+// Prefixes must NOT end with `/` — matching is `=== p` OR startsWith(`p + '/'`).
+const EXEMPT_PREFIXES = ['/auth', '/login', '/logout'];
 
 function isExempt(pathname: string): boolean {
-	return EXEMPT_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/') || pathname === p.replace(/\/$/, ''));
+	return EXEMPT_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
 }
 
 export const load: LayoutServerLoad = async ({ locals, url }) => {
