@@ -133,16 +133,24 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 		}
 	}
 
-	// 4. Event lock — judges can't edit when the super_admin has locked the event.
+	// 4. Event lock + phase. Judges can only edit criteria belonging to the
+	//    currently-open section. Setup and finalised phases lock everything.
 	const { data: ev } = await locals.supabase
 		.from('event_state')
-		.select('locked')
+		.select('locked, phase')
 		.eq('id', 1)
 		.maybeSingle();
 	const eventLocked = Boolean(ev?.locked);
+	const phase = ((ev?.phase as string | null) ?? 'setup') as
+		| 'setup'
+		| 'section_a'
+		| 'section_b'
+		| 'finalised';
 
 	const readOnly =
 		eventLocked ||
+		phase === 'setup' ||
+		phase === 'finalised' ||
 		sheet?.status === 'submitted' ||
 		sheet?.status === 'finalised';
 
@@ -168,6 +176,7 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 		scores,
 		dq,
 		eventLocked,
+		phase,
 		readOnly
 	};
 };
@@ -285,9 +294,53 @@ function parsePayload(form: FormData): {
 // Actions
 // ──────────────────────────────────────────────────────────────────────────────
 
+// Returns the current event phase, normalised. Anywhere we use it we treat
+// 'setup' and 'finalised' as "no scoring allowed".
+async function getPhase(locals: App.Locals): Promise<'setup' | 'section_a' | 'section_b' | 'finalised'> {
+	const { data } = await locals.supabase
+		.from('event_state')
+		.select('phase')
+		.eq('id', 1)
+		.maybeSingle();
+	const p = (data?.phase as string | null) ?? 'setup';
+	if (p === 'section_a' || p === 'section_b' || p === 'finalised') return p;
+	return 'setup';
+}
+
+// Returns the set of criterion ids that belong to a given section, scoped to
+// the participant's category. Used to reject scores for the wrong phase.
+async function criterionIdsForSection(
+	locals: App.Locals,
+	participantId: string,
+	section: 'A' | 'B'
+): Promise<Set<string>> {
+	const { data: p } = await locals.supabase
+		.from('participants')
+		.select('category')
+		.eq('id', participantId)
+		.maybeSingle();
+	if (!p) return new Set();
+	const { data } = await locals.supabase
+		.from('criteria')
+		.select('id')
+		.eq('category', p.category as string)
+		.eq('section', section);
+	return new Set((data ?? []).map((c) => c.id as string));
+}
+
 export const actions: Actions = {
 	save: async ({ request, locals, params }) => {
 		const profile = await loadActorProfile(locals);
+
+		const phase = await getPhase(locals);
+		if (phase === 'setup' || phase === 'finalised') {
+			return fail(409, {
+				saveError:
+					phase === 'setup'
+						? 'Scoring has not opened yet. Wait for the admin to open Section A.'
+						: 'Scoring is finalised. No further changes allowed.'
+			});
+		}
 
 		const sheet = await getOrCreateScoresheet(locals, params.participantId, profile.id);
 		if (!sheet) {
@@ -300,9 +353,19 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const { scores, sprintTimeSeconds } = parsePayload(form);
 
-		// Idempotent per-row upsert on (scoresheet_id, criterion_id).
-		if (scores.length > 0) {
-			const rows = scores.map((s) => ({
+		// Reject scores belonging to a section other than the current phase's.
+		// This is the locking mechanism: once the admin closes Section A by
+		// moving to Section B, judges can no longer save Section A scores.
+		const currentSection: 'A' | 'B' = phase === 'section_a' ? 'A' : 'B';
+		const allowedIds = await criterionIdsForSection(
+			locals,
+			params.participantId,
+			currentSection
+		);
+		const inPhaseScores = scores.filter((s) => allowedIds.has(s.criterionId));
+
+		if (inPhaseScores.length > 0) {
+			const rows = inPhaseScores.map((s) => ({
 				scoresheet_id: sheet.id,
 				criterion_id: s.criterionId,
 				level: s.level,
@@ -317,7 +380,8 @@ export const actions: Actions = {
 			}
 		}
 
-		if (sprintTimeSeconds !== undefined) {
+		// Sprint time is a Section B concept (event-day metric).
+		if (sprintTimeSeconds !== undefined && phase === 'section_b') {
 			const { error: stErr } = await locals.supabase
 				.from('scoresheets')
 				.update({ live_sprint_time_seconds: sprintTimeSeconds })
@@ -337,6 +401,21 @@ export const actions: Actions = {
 	submit: async ({ request, locals, params }) => {
 		const profile = await loadActorProfile(locals);
 
+		// Final submission only makes sense once Section B is open — that's when
+		// every criterion is in scope. During Section A judges only "save"; the
+		// admin closes Section A by switching the phase, not by per-judge submit.
+		const phase = await getPhase(locals);
+		if (phase !== 'section_b') {
+			return fail(409, {
+				submitError:
+					phase === 'section_a'
+						? 'Submitting is disabled during Section A. Save your scores; the admin will open Section B on event day.'
+						: phase === 'finalised'
+							? 'Scoring is finalised. No further changes allowed.'
+							: 'Scoring has not opened yet.'
+			});
+		}
+
 		// Always re-save first so a click-to-submit also commits the latest values.
 		const form = await request.formData();
 		const { scores, sprintTimeSeconds } = parsePayload(form);
@@ -349,11 +428,15 @@ export const actions: Actions = {
 			return fail(409, { submitError: 'Scoresheet already submitted.' });
 		}
 
-		if (scores.length > 0) {
+		// During Section B submission, only the Section B scores in the payload
+		// are written — Section A is locked from the previous phase.
+		const bIds = await criterionIdsForSection(locals, params.participantId, 'B');
+		const scoresToUpsert = scores.filter((s) => bIds.has(s.criterionId));
+		if (scoresToUpsert.length > 0) {
 			const { error: upErr } = await locals.supabase
 				.from('scores')
 				.upsert(
-					scores.map((s) => ({
+					scoresToUpsert.map((s) => ({
 						scoresheet_id: sheet.id,
 						criterion_id: s.criterionId,
 						level: s.level,

@@ -70,6 +70,7 @@
 	let dqRaised = $derived(data.dq !== null);
 	let canSubmit = $derived(
 		!data.readOnly &&
+			data.phase === 'section_b' &&
 			allScored &&
 			(sprintSeconds !== null || dqRaised)
 	);
@@ -162,6 +163,23 @@
 	// ── Section grouping for the layout ───────────────────────────────────────
 	let sectionA = $derived(data.criteria.filter((c) => c.section === 'A'));
 	let sectionB = $derived(data.criteria.filter((c) => c.section === 'B'));
+
+	// ── Phase-aware editability ────────────────────────────────────────────────
+	// Section A inputs are read-only during Section B (and any later phase).
+	// Section B inputs are read-only during Section A (or earlier).
+	let sectionAEditable = $derived(!data.readOnly && data.phase === 'section_a');
+	let sectionBEditable = $derived(!data.readOnly && data.phase === 'section_b');
+
+	// Section A total — shown as a reference card while Section B is being scored.
+	let sectionATotal = $derived(
+		sectionA.reduce((sum, c) => sum + (scoreState[c.id]?.points ?? 0), 0)
+	);
+	let sectionAMax = $derived(sectionA.reduce((sum, c) => sum + c.maxPoints, 0));
+	let sectionAScored = $derived(
+		sectionA.filter(
+			(c) => scoreState[c.id]?.level !== null && scoreState[c.id]?.points !== null
+		).length
+	);
 
 	// ── Submit modal ──────────────────────────────────────────────────────────
 	let submitConfirmOpen = $state(false);
@@ -266,6 +284,40 @@
 		</div>
 	</header>
 
+	<!-- Phase banner — explains exactly which inputs are editable right now. -->
+	{#if data.phase === 'setup'}
+		<div
+			class="mb-4 rounded-md border p-3 text-sm"
+			style="background: var(--color-bg-2); border-color: var(--border-strong); color: var(--color-text-2);"
+		>
+			<strong style="color: var(--color-text-1);">Scoring has not opened yet.</strong>
+			Wait for the admin to open <em>Section A</em>. Your form is read-only.
+		</div>
+	{:else if data.phase === 'section_a'}
+		<div
+			class="mb-4 rounded-md border p-3 text-sm"
+			style="background: rgba(124, 58, 237, 0.08); border-color: var(--color-accent); color: var(--color-text-1);"
+		>
+			<strong>Section A is open</strong> — pre-event scoring. Save as you go. Section B is locked
+			until the event day.
+		</div>
+	{:else if data.phase === 'section_b'}
+		<div
+			class="mb-4 rounded-md border p-3 text-sm"
+			style="background: rgba(8, 145, 178, 0.08); border-color: var(--color-accent-2); color: var(--color-text-1);"
+		>
+			<strong>Section B is open</strong> — event-day scoring. Section A is now locked at the
+			values you saved earlier. Submit when you have scored every Section B criterion.
+		</div>
+	{:else}
+		<div
+			class="mb-4 rounded-md border p-3 text-sm"
+			style="background: rgba(239,68,68,0.08); border-color: var(--color-danger); color: var(--color-danger);"
+		>
+			<strong>Scoring is finalised.</strong> All scores are read-only.
+		</div>
+	{/if}
+
 	{#if data.dq}
 		<div
 			class="mb-4 rounded-md border p-3 text-sm"
@@ -314,7 +366,41 @@
 	>
 		<!-- Left column: criteria -->
 		<div class="flex flex-col gap-8">
-			{#if sectionA.length > 0}
+			{#if data.phase === 'section_b'}
+				<!-- Section A summary while Section B is being scored: read-only
+				     total + per-criterion table so the judge has context. -->
+				<div
+					class="rounded-lg border p-4"
+					style="background: var(--color-bg-2); border-color: var(--border);"
+				>
+					<div class="mb-3 flex items-center justify-between">
+						<p
+							class="text-xs font-semibold tracking-[0.18em] uppercase"
+							style="color: var(--color-text-2);"
+						>
+							Section A · locked
+						</p>
+						<p class="text-sm" style="color: var(--color-text-1); font-family: var(--font-mono);">
+							{sectionATotal} / {sectionAMax}
+							<span class="ml-1 text-xs" style="color: var(--color-text-3);">
+								({sectionAScored}/{sectionA.length} scored)
+							</span>
+						</p>
+					</div>
+					<ul class="flex flex-col gap-1 text-xs" style="color: var(--color-text-2);">
+						{#each sectionA as c (c.id)}
+							<li class="flex justify-between">
+								<span class="truncate">{c.name}</span>
+								<span style="font-family: var(--font-mono);">
+									{scoreState[c.id]?.points ?? '—'} / {c.maxPoints}
+								</span>
+							</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
+
+			{#if sectionA.length > 0 && data.phase !== 'section_b'}
 				<div>
 					<div class="mb-3 flex items-baseline gap-2">
 						<span
@@ -335,7 +421,7 @@
 								bind:level={scoreState[c.id].level}
 								bind:points={scoreState[c.id].points}
 								bind:comment={scoreState[c.id].comment}
-								disabled={data.readOnly}
+								disabled={!sectionAEditable}
 								onChange={onCriterionChange(c.id)}
 							/>
 						{/each}
@@ -355,6 +441,11 @@
 							style="color: var(--color-text-2);"
 						>
 							Section B · Live Sprint Mystery
+							{#if data.phase !== 'section_b'}
+								<span class="ml-2 text-[10px]" style="color: var(--color-text-3);">
+									(opens during event)
+								</span>
+							{/if}
 						</h2>
 					</div>
 					<div class="flex flex-col gap-4">
@@ -364,7 +455,7 @@
 								bind:level={scoreState[c.id].level}
 								bind:points={scoreState[c.id].points}
 								bind:comment={scoreState[c.id].comment}
-								disabled={data.readOnly}
+								disabled={!sectionBEditable}
 								onChange={onCriterionChange(c.id)}
 							/>
 						{/each}
@@ -395,11 +486,14 @@
 				<TimeInput
 					name="live_sprint_time_seconds"
 					value={sprintSeconds}
-					disabled={data.readOnly}
+					disabled={!sectionBEditable}
 					onValue={onSprintChange}
 				/>
 				<p class="mt-2 text-xs" style="color: var(--color-text-3);">
 					mm:ss · max 45:00 · used for tiebreaks
+					{#if data.phase !== 'section_b'}
+						<br /><span style="color: var(--color-warning);">Enabled during Section B.</span>
+					{/if}
 				</p>
 			</div>
 

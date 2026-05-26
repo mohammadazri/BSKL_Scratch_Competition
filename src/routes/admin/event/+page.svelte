@@ -37,6 +37,17 @@
 		if (!iso) return '';
 		return new Date(iso).toLocaleString();
 	}
+
+	const phase = $derived(data.event.phase);
+	const phaseLabel = $derived(
+		phase === 'setup'
+			? 'Setup'
+			: phase === 'section_a'
+				? 'Section A — pre-event scoring open'
+				: phase === 'section_b'
+					? 'Section B — event-day scoring open'
+					: 'Finalised'
+	);
 </script>
 
 <svelte:head>
@@ -60,6 +71,48 @@
 		{form.error}
 	</div>
 {/if}
+
+<!-- Phase control — the main super-admin lever. Section A is scored before
+     the event, Section B on event day, then finalised. Judges only see the
+     criteria for the currently-open phase. -->
+<div class="mb-4">
+	<Card label="Current phase: {phaseLabel}">
+		<p class="mb-3 text-sm" style="color: var(--color-text-2);">
+			Judges can only enter scores for the criteria belonging to the current section.
+			Section A scores remain visible (read-only) during Section B.
+		</p>
+
+		<div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+			<form method="POST" action="?/setPhase" use:enhance>
+				<input type="hidden" name="phase" value="section_a" />
+				<Button variant={phase === 'section_a' ? 'primary' : 'secondary'} type="submit">
+					Open Section A
+				</Button>
+			</form>
+			<form method="POST" action="?/setPhase" use:enhance>
+				<input type="hidden" name="phase" value="section_b" />
+				<Button variant={phase === 'section_b' ? 'primary' : 'secondary'} type="submit">
+					Open Section B
+				</Button>
+			</form>
+			<form method="POST" action="?/setPhase" use:enhance>
+				<input type="hidden" name="phase" value="finalised" />
+				<Button variant={phase === 'finalised' ? 'primary' : 'secondary'} type="submit">
+					Finalise scoring
+				</Button>
+			</form>
+			<form method="POST" action="?/setPhase" use:enhance>
+				<input type="hidden" name="phase" value="setup" />
+				<Button variant="ghost" type="submit">Back to setup</Button>
+			</form>
+		</div>
+
+		<p class="mt-3 text-xs" style="color: var(--color-text-3);">
+			Phase changes are audit-logged. Use <strong>Back to setup</strong> only if you need to
+			re-open scoring for everyone before the event.
+		</p>
+	</Card>
+</div>
 
 <div class="grid gap-4 lg:grid-cols-2">
 	<Card label="Event details">
