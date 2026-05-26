@@ -8,12 +8,22 @@ import { createServerClient } from '@supabase/ssr';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 
 const supabaseHandle: Handle = async ({ event, resolve }) => {
+	// Detect HTTPS — either direct or behind the Cloudflare tunnel (which
+	// terminates TLS and forwards HTTP to localhost with X-Forwarded-Proto).
+	const isHttps =
+		event.url.protocol === 'https:' ||
+		event.request.headers.get('x-forwarded-proto') === 'https';
+
 	event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
 		cookies: {
 			getAll: () => event.cookies.getAll(),
 			setAll: (cookies) => {
 				cookies.forEach(({ name, value, options }) => {
-					event.cookies.set(name, value, { ...options, path: '/' });
+					// Strip `secure` flag on plain-HTTP requests (LAN testing on
+					// the Pi at http://<ip>:5999) — otherwise browsers reject
+					// the Supabase session cookie and login appears to silently
+					// fail. Over HTTPS the flag stays on as required.
+					event.cookies.set(name, value, { ...options, path: '/', secure: isHttps });
 				});
 			}
 		}
