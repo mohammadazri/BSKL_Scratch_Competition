@@ -57,8 +57,13 @@ END $$;
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 2. Replace the noisy scoresheet trigger with one that only fires on real
 --    status transitions (draft → submitted → finalised, unlock).
+--    DROP both the old single name AND the new split names so this is safe
+--    to re-run.
 -- ─────────────────────────────────────────────────────────────────────────────
-DROP TRIGGER IF EXISTS trg_audit_scoresheets ON scoresheets;
+DROP TRIGGER IF EXISTS trg_audit_scoresheets         ON scoresheets;
+DROP TRIGGER IF EXISTS trg_audit_scoresheets_ins     ON scoresheets;
+DROP TRIGGER IF EXISTS trg_audit_scoresheets_del     ON scoresheets;
+DROP TRIGGER IF EXISTS trg_audit_scoresheets_status  ON scoresheets;
 
 CREATE TRIGGER trg_audit_scoresheets_ins
   AFTER INSERT ON scoresheets
@@ -79,7 +84,10 @@ CREATE TRIGGER trg_audit_scoresheets_status
 --    creation of a score row and on super_admin overrides.
 --    (Routine autosave edits by a judge on their own draft are not audited.)
 -- ─────────────────────────────────────────────────────────────────────────────
-DROP TRIGGER IF EXISTS trg_audit_scores ON scores;
+DROP TRIGGER IF EXISTS trg_audit_scores           ON scores;
+DROP TRIGGER IF EXISTS trg_audit_scores_ins       ON scores;
+DROP TRIGGER IF EXISTS trg_audit_scores_del       ON scores;
+DROP TRIGGER IF EXISTS trg_audit_scores_override  ON scores;
 
 CREATE TRIGGER trg_audit_scores_ins
   AFTER INSERT ON scores
