@@ -14,7 +14,7 @@
 	never sees a full reload during normal editing.
 -->
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { applyAction, deserialize, enhance } from '$app/forms';
 	import { goto, invalidateAll } from '$app/navigation';
 	// BrandHeader now provided by /judge/+layout.svelte's AppShell.
@@ -25,6 +25,8 @@
 	import type { SaveState } from '$lib/components/SaveStatusIndicator.svelte';
 	import StatusPill from '$lib/components/StatusPill.svelte';
 	import TimeInput from '$lib/components/TimeInput.svelte';
+	import { subscribeTable } from '$lib/realtime';
+	import { toasts } from '$lib/stores/toast';
 	import type { PerfLevel } from '$lib/types';
 	import type { ActionData, PageData } from './$types';
 
@@ -153,6 +155,37 @@
 			saveState = 'failed';
 		}
 	}
+
+	// Live realtime watch: when the admin approves OR denies the judge's
+	// pending edit request, refresh the page so the locked/unlocked state
+	// is correct without the judge having to refresh manually.
+	onMount(() => {
+		const sheetId = data.scoresheet?.id;
+		if (!sheetId) return;
+		return subscribeTable<{ id: string; status: string; resolved_note: string | null }>(
+			'edit_requests',
+			{
+				filter: `scoresheet_id=eq.${sheetId}`,
+				onUpdate: (row) => {
+					if (row.status === 'approved') {
+						toasts.success(
+							'Admin approved your edit request — the scoresheet is unlocked.',
+							'Edit access granted'
+						);
+						invalidateAll();
+					} else if (row.status === 'denied') {
+						toasts.error(
+							row.resolved_note
+								? `Reason: ${row.resolved_note}`
+								: 'Your edit request was denied.',
+							'Edit access denied'
+						);
+						invalidateAll();
+					}
+				}
+			}
+		);
+	});
 
 	$effect(() => {
 		// Hard interval as a safety net while there are unsaved changes.

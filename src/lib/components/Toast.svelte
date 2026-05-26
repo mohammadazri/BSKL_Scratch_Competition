@@ -35,6 +35,19 @@
 					<p class="text-sm font-semibold">{t.title}</p>
 				{/if}
 				<p class="text-xs" style="color: var(--color-text-2);">{t.message}</p>
+				{#if t.actionLabel && t.onAction}
+					<button
+						type="button"
+						class="mt-1 inline-flex items-center rounded-[var(--radius-sm)] px-2 py-1 text-xs font-medium hover:bg-white/5"
+						style="color: var(--color-accent-2);"
+						onclick={() => {
+							t.onAction?.();
+							toasts.dismiss(t.id);
+						}}
+					>
+						{t.actionLabel} ›
+					</button>
+				{/if}
 			</div>
 			<button
 				type="button"
