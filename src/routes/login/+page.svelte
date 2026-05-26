@@ -27,9 +27,9 @@
 	style="background: var(--color-bg-0);"
 >
 	<div class="mb-8 flex items-center gap-4">
-		<img src="/brand/p3-logo.svg" alt="P3 Robotics & Coding" class="h-9 w-auto" />
+		<img src="/brand/p3-logo.png" alt="P3 Robotics & Coding" class="h-9 w-auto" />
 		<span style="color: var(--color-text-3);">·</span>
-		<img src="/brand/bskl-logo.svg" alt="BSKL" class="h-9 w-auto" />
+		<img src="/brand/bskl-logo.png" alt="BSKL" class="h-9 w-auto" />
 	</div>
 
 	<div

@@ -22,7 +22,7 @@
 	style="background: var(--color-bg-1); border-color: var(--border, rgba(255,255,255,0.08));"
 >
 	<a href="/" class="flex items-center gap-3" aria-label="P3 Judging home">
-		<img src="/brand/p3-logo.svg" alt="P3 Robotics &amp; Coding" class="h-8 w-auto" />
+		<img src="/brand/p3-logo.png" alt="P3 Robotics &amp; Coding" class="h-8 w-auto" />
 		<div class="flex flex-col leading-tight">
 			<span
 				class="text-sm font-semibold"
@@ -38,7 +38,7 @@
 		<div class="hidden items-center gap-2 sm:flex">
 			<span class="text-[11px]" style="color: var(--color-text-2);">hosted at</span>
 			<img
-				src="/brand/bskl-logo.svg"
+				src="/brand/bskl-logo.png"
 				alt="British International School of Kuala Lumpur"
 				class="h-8 w-auto"
 			/>

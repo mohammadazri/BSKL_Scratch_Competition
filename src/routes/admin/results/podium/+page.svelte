@@ -35,12 +35,12 @@
 	{#each data.podiums as p (p.category)}
 		<section class="podium-page">
 			<header class="podium-head">
-				<img src="/brand/p3-logo.svg" alt="P3" class="podium-logo" />
+				<img src="/brand/p3-logo.png" alt="P3" class="podium-logo" />
 				<div>
 					<p class="podium-event">P3 Future Coders Challenge 2026</p>
 					<h1 class="podium-title">Category {p.category} Winners</h1>
 				</div>
-				<img src="/brand/bskl-logo.svg" alt="BSKL" class="podium-logo" />
+				<img src="/brand/bskl-logo.png" alt="BSKL" class="podium-logo" />
 			</header>
 
 			<div class="podium-grid">

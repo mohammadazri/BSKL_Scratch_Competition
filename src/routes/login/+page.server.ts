@@ -54,15 +54,17 @@ export const actions: Actions = {
 			return fail(400, { error: 'Email is required for a magic link.', email });
 		}
 		const redirectTo = `${url.origin}/auth/callback`;
-		const { error } = await locals.supabase.auth.signInWithOtp({
+		// Fire and forget. We DELIBERATELY ignore the result — surfacing the real
+		// error (e.g. "Signups not allowed for otp" when the email isn't a known
+		// user) would let an attacker probe which emails are registered judges.
+		// `signInWithOtp` with public signups disabled = no-op for unknown emails,
+		// magic link for known ones. Either way, same generic success message.
+		await locals.supabase.auth.signInWithOtp({
 			email,
-			options: { emailRedirectTo: redirectTo }
+			options: { emailRedirectTo: redirectTo, shouldCreateUser: false }
 		});
-		if (error) {
-			return fail(400, { error: error.message, email });
-		}
 		return {
-			info: `Magic link sent to ${email}. Check your inbox.`,
+			info: `If an account exists for ${email}, a magic link has been sent. Check your inbox (and spam folder).`,
 			email
 		};
 	}

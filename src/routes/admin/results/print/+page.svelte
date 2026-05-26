@@ -61,12 +61,12 @@
 {#each data.groups as group, gi (group.category)}
 	<section class="podium" class:break={gi < data.groups.length - 1}>
 		<header class="podium-header">
-			<img src="/brand/p3-logo.svg" alt="P3" class="logo" />
+			<img src="/brand/p3-logo.png" alt="P3" class="logo" />
 			<div class="title">
 				<p class="event">P3 Future Coders Challenge 2026</p>
 				<h2>Category {group.category} Winners</h2>
 			</div>
-			<img src="/brand/bskl-logo.svg" alt="BSKL" class="logo" />
+			<img src="/brand/bskl-logo.png" alt="BSKL" class="logo" />
 		</header>
 
 		{#if group.winners.length === 0}
