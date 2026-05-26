@@ -151,7 +151,7 @@ echo "       sudo \$EDITOR /etc/cloudflared/config.yml   # replace UUID + hostna
 echo "       sudo cp ~/.cloudflared/<UUID>.json /etc/cloudflared/"
 echo
 echo "  5. Add DNS in Cloudflare dashboard:"
-echo "       judging.<your-domain>.com  CNAME  <UUID>.cfargotunnel.com  (proxied / orange cloud)"
+echo "       p3scratch.sentri.zk  CNAME  <UUID>.cfargotunnel.com  (proxied / orange cloud)"
 echo
 echo "  6. Install cloudflared as a system service and start everything:"
 echo "       sudo cloudflared service install"
