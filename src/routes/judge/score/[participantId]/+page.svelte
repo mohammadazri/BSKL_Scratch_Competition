@@ -227,6 +227,20 @@
 	// when they need to refresh memory.
 	let sectionASummaryOpen = $state(false);
 
+	// ── Request-edit flow ─────────────────────────────────────────────────────
+	let requestEditModalOpen = $state(false);
+	let requestEditReason = $state('');
+	let requestEditSubmitting = $state(false);
+	let pendingRequest = $derived(data.pendingEditRequest);
+	// A scoresheet is "locked" from the judge's perspective if they've
+	// submitted Section A OR the whole sheet is submitted/finalised. These are
+	// the cases where requesting edit access makes sense.
+	let isLockedForJudge = $derived(
+		sectionASubmittedByJudge ||
+			data.scoresheet?.status === 'submitted' ||
+			data.scoresheet?.status === 'finalised'
+	);
+
 	// ── Submit modal ──────────────────────────────────────────────────────────
 	let submitConfirmOpen = $state(false);
 	let dqModalOpen = $state(false);
@@ -345,14 +359,33 @@
 		</div>
 	{:else if data.phase === 'section_a' && sectionASubmittedByJudge}
 		<div
-			class="mb-4 flex items-center gap-2 rounded-md border px-3 py-2 text-xs"
+			class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs"
 			style="background: rgba(16, 185, 129, 0.10); border-color: var(--color-success); color: var(--color-text-1);"
 		>
-			<span class="inline-block h-2 w-2 rounded-full" style="background: var(--color-success);"></span>
-			<strong style="color: var(--color-success);">Section A submitted.</strong>
-			<span style="color: var(--color-text-2);">
-				Locked until the admin opens Section B. Ask the admin if you need to edit.
-			</span>
+			<div class="flex items-center gap-2">
+				<span
+					class="inline-block h-2 w-2 rounded-full"
+					style="background: var(--color-success);"
+				></span>
+				<strong style="color: var(--color-success);">Section A submitted.</strong>
+				<span style="color: var(--color-text-2);">
+					Locked until admin opens Section B.
+				</span>
+			</div>
+			{#if pendingRequest}
+				<span class="text-[11px]" style="color: var(--color-warning); font-style: italic;">
+					Edit access requested · awaiting admin
+				</span>
+			{:else if !data.readOnly}
+				<button
+					type="button"
+					class="rounded px-2 py-1 text-[11px] underline-offset-4 hover:underline"
+					style="color: var(--color-accent-2);"
+					onclick={() => (requestEditModalOpen = true)}
+				>
+					Request edit access
+				</button>
+			{/if}
 		</div>
 	{:else if data.phase === 'section_a'}
 		<div
@@ -381,6 +414,39 @@
 		>
 			<span class="inline-block h-2 w-2 rounded-full" style="background: var(--color-danger);"></span>
 			Scoring is finalised. All scores are read-only.
+		</div>
+	{/if}
+
+	<!-- Final-submission banner: sheet status is 'submitted'/'finalised', no
+	     more editing possible. Offer a "Request edit access" button so the
+	     judge isn't stuck. -->
+	{#if data.scoresheet && (data.scoresheet.status === 'submitted' || data.scoresheet.status === 'finalised')}
+		<div
+			class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs"
+			style="background: rgba(16, 185, 129, 0.10); border-color: var(--color-success); color: var(--color-text-1);"
+		>
+			<div class="flex items-center gap-2">
+				<span
+					class="inline-block h-2 w-2 rounded-full"
+					style="background: var(--color-success);"
+				></span>
+				<strong style="color: var(--color-success);">Scoresheet submitted.</strong>
+				<span style="color: var(--color-text-2);">Locked. Spotted a mistake?</span>
+			</div>
+			{#if pendingRequest}
+				<span class="text-[11px]" style="color: var(--color-warning); font-style: italic;">
+					Edit access requested · awaiting admin
+				</span>
+			{:else}
+				<button
+					type="button"
+					class="rounded px-2 py-1 text-[11px] underline-offset-4 hover:underline"
+					style="color: var(--color-accent-2);"
+					onclick={() => (requestEditModalOpen = true)}
+				>
+					Request edit access
+				</button>
+			{/if}
 		</div>
 	{/if}
 
@@ -838,6 +904,82 @@
 				style="background: var(--color-danger); color: #fff;"
 			>
 				Confirm
+			</button>
+		</div>
+	</form>
+</Modal>
+
+<!-- Request edit access modal -->
+<Modal
+	open={requestEditModalOpen}
+	title="Request edit access"
+	onClose={() => (requestEditModalOpen = false)}
+>
+	<form
+		method="POST"
+		action="?/requestEdit"
+		use:enhance={() => {
+			requestEditSubmitting = true;
+			return async ({ update }) => {
+				await update({ reset: false });
+				requestEditSubmitting = false;
+				if (form?.requestSent) {
+					requestEditModalOpen = false;
+					requestEditReason = '';
+					await invalidateAll();
+				}
+			};
+		}}
+		class="flex flex-col gap-4"
+	>
+		<p class="text-sm" style="color: var(--color-text-2);">
+			Tell the super admin what you need to change and why. Once they approve, this
+			scoresheet becomes editable again until you re-submit.
+		</p>
+		{#if form?.requestError}
+			<div
+				class="rounded-md border p-2 text-xs"
+				style="border-color: var(--color-danger); color: var(--color-danger); background: rgba(239, 68, 68, 0.08);"
+			>
+				{form.requestError}
+			</div>
+		{/if}
+		<label class="block">
+			<span
+				class="mb-1 block text-xs font-medium tracking-wider uppercase"
+				style="color: var(--color-text-2);">Reason</span
+			>
+			<textarea
+				name="reason"
+				required
+				minlength="10"
+				maxlength="1000"
+				rows="4"
+				bind:value={requestEditReason}
+				placeholder="e.g. I marked criterion 3 wrong — meant to give Excellent not Proficient."
+				class="w-full rounded-md border p-2 text-sm"
+				style="background: var(--color-bg-3); border-color: var(--border); color: var(--color-text-1);"
+			></textarea>
+			<p class="mt-1 text-[11px]" style="color: var(--color-text-3);">
+				At least 10 characters. The reason is logged in the audit trail.
+			</p>
+		</label>
+		<div class="flex justify-end gap-2">
+			<button
+				type="button"
+				onclick={() => (requestEditModalOpen = false)}
+				class="inline-flex h-11 items-center justify-center rounded-md border px-4 text-sm"
+				style="background: var(--color-bg-1); border-color: var(--border); color: var(--color-text-1);"
+			>
+				Cancel
+			</button>
+			<button
+				type="submit"
+				disabled={requestEditSubmitting || requestEditReason.trim().length < 10}
+				class="inline-flex h-11 items-center justify-center rounded-md px-4 text-sm font-semibold uppercase disabled:opacity-40"
+				style="background: var(--color-accent); color: #fff;"
+			>
+				{requestEditSubmitting ? 'Sending…' : 'Send request'}
 			</button>
 		</div>
 	</form>

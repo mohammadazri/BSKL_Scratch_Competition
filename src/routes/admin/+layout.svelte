@@ -15,7 +15,8 @@
 		Settings2,
 		ListChecks,
 		ScrollText,
-		Trophy
+		Trophy,
+		Inbox
 	} from '@lucide/svelte';
 
 	let { data, children } = $props();
@@ -28,6 +29,7 @@
 				{ href: '/admin/schools', label: 'Schools', icon: School },
 				{ href: '/admin/participants', label: 'Participants', icon: UserSquare2 },
 				{ href: '/admin/assignments', label: 'Assignments', icon: ClipboardList },
+				{ href: '/admin/requests', label: 'Edit requests', icon: Inbox },
 				{ href: '/admin/results', label: 'Results', icon: Trophy },
 				{ href: '/admin/event', label: 'Event', icon: Settings2 }
 			];

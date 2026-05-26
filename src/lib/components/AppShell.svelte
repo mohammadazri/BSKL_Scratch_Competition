@@ -33,10 +33,12 @@
 </script>
 
 <div class="flex min-h-screen flex-col" style="background: var(--color-bg-0);">
-	<!-- Top bar -->
-	<div class="relative">
-		<BrandHeader />
-		<div class="absolute inset-y-0 right-4 flex items-center gap-2 md:right-6">
+	<!-- Top bar: BrandHeader carries the P3 logo + title on the left and the
+	     BSKL logo + user menu on the right. We pass the user menu / hamburger
+	     into the `right` snippet so they share the same flex row as the BSKL
+	     logo — no more absolute-positioned overlay sitting on top of the logo. -->
+	<BrandHeader>
+		{#snippet right()}
 			<button
 				type="button"
 				class="grid h-10 w-10 place-items-center rounded-[var(--radius-sm)] md:hidden"
@@ -56,9 +58,14 @@
 					aria-expanded={menuOpen}
 				>
 					<UserAvatar name={user.fullName} size={28} />
-					<span class="hidden flex-col text-left leading-tight sm:flex">
-						<span class="text-xs font-semibold">{user.fullName}</span>
-						<span class="text-[10px]" style="color: var(--color-text-3);">{user.email}</span>
+					<span class="hidden flex-col text-left leading-tight md:flex">
+						<span class="max-w-[10rem] truncate text-xs font-semibold">{user.fullName}</span>
+						<span
+							class="max-w-[10rem] truncate text-[10px]"
+							style="color: var(--color-text-3);"
+						>
+							{user.email}
+						</span>
 					</span>
 					<ChevronDown size={14} strokeWidth={1.5} />
 				</button>
@@ -88,8 +95,8 @@
 					</div>
 				{/if}
 			</div>
-		</div>
-	</div>
+		{/snippet}
+	</BrandHeader>
 
 	<div class="flex flex-1 min-h-0">
 		<Sidebar items={nav} {activeHref} />

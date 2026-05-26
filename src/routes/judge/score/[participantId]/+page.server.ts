@@ -178,7 +178,24 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 		dq,
 		eventLocked,
 		phase,
-		readOnly
+		readOnly,
+		pendingEditRequest: sheet
+			? await (async () => {
+					const { data } = await locals.supabase
+						.from('edit_requests')
+						.select('id, reason, created_at')
+						.eq('scoresheet_id', sheet.id)
+						.eq('status', 'pending')
+						.maybeSingle();
+					return data
+						? {
+								id: data.id as string,
+								reason: data.reason as string,
+								createdAt: data.created_at as string
+							}
+						: null;
+				})()
+			: null
 	};
 };
 
@@ -586,6 +603,57 @@ export const actions: Actions = {
 		if (upStatusErr) return fail(400, { submitError: upStatusErr.message });
 
 		throw redirect(303, `/judge/done/${sheet.id}`);
+	},
+
+	requestEdit: async ({ request, locals, params }) => {
+		const profile = await loadActorProfile(locals);
+
+		const { data: sheet } = await locals.supabase
+			.from('scoresheets')
+			.select('id, status, section_a_submitted_at')
+			.eq('participant_id', params.participantId)
+			.eq('judge_id', profile.id)
+			.maybeSingle();
+		if (!sheet) {
+			return fail(404, { requestError: 'No scoresheet to request edit on.' });
+		}
+		// Only meaningful when something IS locked.
+		const isLocked =
+			sheet.status === 'submitted' ||
+			sheet.status === 'finalised' ||
+			!!sheet.section_a_submitted_at;
+		if (!isLocked) {
+			return fail(409, { requestError: 'Scoresheet is not locked — no need to request edit.' });
+		}
+
+		const form = await request.formData();
+		const reason = String(form.get('reason') ?? '').trim().slice(0, 1000);
+		if (reason.length < 10) {
+			return fail(400, {
+				requestError: 'Tell the admin in at least 10 characters what you need to change.'
+			});
+		}
+
+		// Block duplicate pending requests. The DB has a partial unique index
+		// (one pending per scoresheet) so this is also a hard guarantee.
+		const { data: existing } = await locals.supabase
+			.from('edit_requests')
+			.select('id')
+			.eq('scoresheet_id', sheet.id)
+			.eq('status', 'pending')
+			.maybeSingle();
+		if (existing) {
+			return fail(409, {
+				requestError: 'A request is already pending for this scoresheet. Wait for the admin.'
+			});
+		}
+
+		const { error: insErr } = await locals.supabase
+			.from('edit_requests')
+			.insert({ scoresheet_id: sheet.id, requested_by: profile.id, reason });
+		if (insErr) return fail(400, { requestError: insErr.message });
+
+		return { requestSent: true };
 	},
 
 	flagDq: async ({ request, locals, params }) => {

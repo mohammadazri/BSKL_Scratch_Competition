@@ -62,6 +62,12 @@ export const dqReasonEnum = pgEnum('dq_reason', [
 // audit_action enum + audit_log table removed in migration 013 — audit data
 // now lives in a JSONL file on the Pi (see src/lib/server/audit-local.ts).
 
+export const editRequestStatusEnum = pgEnum('edit_request_status', [
+	'pending',
+	'approved',
+	'denied'
+]);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // profiles
 // (id references auth.users(id); we don't model the auth schema here.)
@@ -272,6 +278,35 @@ export const disqualifications = pgTable('disqualifications', {
 	clearedReason: text('cleared_reason'),
 	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// edit_requests
+// Judges can request edit access on a locked scoresheet; super_admin approves.
+// ─────────────────────────────────────────────────────────────────────────────
+export const editRequests = pgTable(
+	'edit_requests',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		scoresheetId: uuid('scoresheet_id')
+			.notNull()
+			.references(() => scoresheets.id, { onDelete: 'cascade' }),
+		requestedBy: uuid('requested_by')
+			.notNull()
+			.references(() => profiles.id, { onDelete: 'cascade' }),
+		reason: text('reason').notNull(),
+		status: editRequestStatusEnum('status').notNull().default('pending'),
+		resolvedBy: uuid('resolved_by').references(() => profiles.id),
+		resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+		resolvedNote: text('resolved_note'),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(t) => ({
+		scoresheetIdx: index('edit_requests_scoresheet_idx').on(t.scoresheetId),
+		statusIdx: index('edit_requests_status_idx').on(t.status),
+		requestedByIdx: index('edit_requests_requested_by_idx').on(t.requestedBy)
+	})
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // event_state (singleton row, id = 1)

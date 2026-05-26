@@ -35,7 +35,12 @@
 	</a>
 
 	<div class="flex items-center gap-3">
-		<div class="hidden items-center gap-2 sm:flex">
+		<!-- Hide "hosted at BSKL" on screens under lg because the user menu +
+		     hamburger compete for the same right side and the labels overlap.
+		     The BSKL logo still appears as the second avatar in the header on
+		     desktop (lg+); on tablet/mobile we drop it to keep the user info
+		     legible. -->
+		<div class="hidden items-center gap-2 lg:flex">
 			<span class="text-[11px]" style="color: var(--color-text-2);">hosted at</span>
 			<img
 				src="/brand/bskl-logo.png"
