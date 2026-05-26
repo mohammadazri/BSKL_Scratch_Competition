@@ -55,7 +55,7 @@ credentials-file: /etc/cloudflared/<YOUR-TUNNEL-UUID>.json
 ingress:
   # Public hostname → local SvelteKit/Node server (systemd unit p3-judging).
   - hostname: p3scratch.sentri.zk
-    service: http://localhost:3000
+    service: http://localhost:5999
     originRequest:
       connectTimeout: 30s
       noTLSVerify: false
