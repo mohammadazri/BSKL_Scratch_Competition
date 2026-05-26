@@ -6,6 +6,7 @@
 
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { appUrl } from '$lib/app-url';
 
 export const load: PageServerLoad = async () => ({});
 
@@ -20,7 +21,9 @@ export const actions: Actions = {
 		// After clicking the email link the user lands at /auth/callback with the
 		// PKCE code; callback exchanges it for a session and forwards to
 		// /auth/update-password where they pick a new password.
-		const redirectTo = `${url.origin}/auth/callback?next=${encodeURIComponent('/auth/update-password')}`;
+		// Use PUBLIC_APP_URL (production domain) so the email link points at
+		// https://p3scratch.sentri.zk regardless of where the request came from.
+		const redirectTo = `${appUrl(url.origin)}/auth/callback?next=${encodeURIComponent('/auth/update-password')}`;
 
 		// Ignore success/failure deliberately — never confirm whether the email
 		// exists. Supabase returns no error for unknown emails by default anyway,

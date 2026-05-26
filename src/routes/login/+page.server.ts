@@ -5,6 +5,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { supabaseAdmin } from '$lib/server/supabase';
 import { safeNextPath } from '$lib/server/guards';
+import { appUrl } from '$lib/app-url';
 
 async function homeForUserId(userId: string): Promise<string> {
 	const { data } = await supabaseAdmin
@@ -57,7 +58,10 @@ export const actions: Actions = {
 		if (!email) {
 			return fail(400, { error: 'Email is required for a magic link.', email });
 		}
-		const redirectTo = `${url.origin}/auth/callback`;
+		// Use the configured PUBLIC_APP_URL (production domain) so the magic
+		// link in the email points at https://p3scratch.sentri.zk even when
+		// the request came from dev/Tailscale.
+		const redirectTo = `${appUrl(url.origin)}/auth/callback`;
 		// Fire and forget. We DELIBERATELY ignore the result — surfacing the real
 		// error (e.g. "Signups not allowed for otp" when the email isn't a known
 		// user) would let an attacker probe which emails are registered judges.
