@@ -84,11 +84,24 @@
 			)
 	);
 	let dqRaised = $derived(data.dq !== null);
+	// Submit eligibility, branching on the active phase.
+	//   Section A: enabled when all Section A criteria are scored AND the
+	//              judge hasn't already submitted Section A for this sheet.
+	//   Section B: enabled when ALL criteria are scored AND (sprint time set
+	//              OR a DQ flag is raised).
+	let sectionAAllScored = $derived(
+		sectionA.length > 0 &&
+			sectionA.every(
+				(c) => scoreState[c.id]?.level !== null && scoreState[c.id]?.points !== null
+			)
+	);
 	let canSubmit = $derived(
 		!data.readOnly &&
-			data.phase === 'section_b' &&
-			allScored &&
-			(sprintSeconds !== null || dqRaised)
+			((data.phase === 'section_a' && sectionAAllScored && !sectionASubmittedByJudge) ||
+				(data.phase === 'section_b' && allScored && (sprintSeconds !== null || dqRaised)))
+	);
+	let submitLabel = $derived(
+		data.phase === 'section_a' ? 'Submit Section A ›' : 'Submit final ›'
 	);
 
 	// ── Autosave state machine ────────────────────────────────────────────────
@@ -181,7 +194,15 @@
 	let sectionB = $derived(data.criteria.filter((c) => c.section === 'B'));
 
 	// ── Phase-aware editability ────────────────────────────────────────────────
-	let sectionAEditable = $derived(!data.readOnly && data.phase === 'section_a');
+	// Per-judge soft-lock: when the judge has submitted Section A for this
+	// participant, Section A becomes read-only for them even if the event
+	// phase is still 'section_a'.
+	let sectionASubmittedByJudge = $derived(
+		!!data.scoresheet?.sectionASubmittedAt
+	);
+	let sectionAEditable = $derived(
+		!data.readOnly && data.phase === 'section_a' && !sectionASubmittedByJudge
+	);
 	let sectionBEditable = $derived(!data.readOnly && data.phase === 'section_b');
 
 	// Per-section totals and progress — used by both the active scoring header
@@ -245,8 +266,11 @@
 				submitting = false;
 				return;
 			}
-			// success without redirect — apply so `form` prop updates
+			// Success without redirect = Section A submit. The server stamped
+			// section_a_submitted_at; reload the data so the page reflects the
+			// new read-only state and the submit button stays disabled.
 			await applyAction(result);
+			await invalidateAll();
 			submitConfirmOpen = false;
 			submitting = false;
 		} catch (err) {
@@ -318,6 +342,17 @@
 		>
 			<span class="inline-block h-2 w-2 rounded-full" style="background: var(--color-text-3);"></span>
 			Scoring hasn't opened yet. Form is read-only until the admin opens Section A.
+		</div>
+	{:else if data.phase === 'section_a' && sectionASubmittedByJudge}
+		<div
+			class="mb-4 flex items-center gap-2 rounded-md border px-3 py-2 text-xs"
+			style="background: rgba(16, 185, 129, 0.10); border-color: var(--color-success); color: var(--color-text-1);"
+		>
+			<span class="inline-block h-2 w-2 rounded-full" style="background: var(--color-success);"></span>
+			<strong style="color: var(--color-success);">Section A submitted.</strong>
+			<span style="color: var(--color-text-2);">
+				Locked until the admin opens Section B. Ask the admin if you need to edit.
+			</span>
 		</div>
 	{:else if data.phase === 'section_a'}
 		<div
@@ -611,14 +646,18 @@
 					}}
 					disabled={!canSubmit || submitting}
 					title={canSubmit
-						? 'Submit this scoresheet'
-						: dqRaised
-							? 'Score every criterion'
-							: 'Score every criterion AND enter sprint time (or raise DQ)'}
+						? data.phase === 'section_a'
+							? 'Submit Section A scores'
+							: 'Submit this scoresheet'
+						: data.phase === 'section_a'
+							? 'Score every Section A criterion'
+							: dqRaised
+								? 'Score every criterion'
+								: 'Score every criterion AND enter sprint time (or raise DQ)'}
 					class="inline-flex h-11 items-center justify-center rounded-md text-sm font-semibold uppercase tracking-wide transition-colors disabled:cursor-not-allowed disabled:opacity-40"
 					style="background: var(--color-accent); color: #fff; min-height: 44px;"
 				>
-					Submit final ›
+					{submitLabel}
 				</button>
 			</div>
 		</aside>
@@ -660,7 +699,7 @@
 						class="inline-flex h-11 items-center justify-center rounded-md px-4 text-sm font-semibold uppercase disabled:opacity-40"
 						style="background: var(--color-accent); color: #fff; min-height: 44px;"
 					>
-						Submit
+						{data.phase === 'section_a' ? 'Submit A' : 'Submit'}
 					</button>
 				</div>
 			</div>
@@ -668,25 +707,41 @@
 	</form>
 </div>
 
-<!-- Submit confirmation modal -->
-<Modal open={submitConfirmOpen} title="Submit scoresheet?" onClose={() => (submitConfirmOpen = false)}>
+<!-- Submit confirmation modal — copy adapts to the active phase. -->
+<Modal
+	open={submitConfirmOpen}
+	title={data.phase === 'section_a' ? 'Submit Section A?' : 'Submit final scoresheet?'}
+	onClose={() => (submitConfirmOpen = false)}
+>
 	<div class="flex flex-col gap-4">
 		<p class="text-sm" style="color: var(--color-text-2);">
-			Submit <strong style="color: var(--color-text-1);">{data.participant.fullName}'s</strong>
-			scoresheet? Once submitted you cannot edit. Only the super admin can unlock it.
+			{#if data.phase === 'section_a'}
+				Submit Section A for
+				<strong style="color: var(--color-text-1);">{data.participant.fullName}</strong>?
+				You won't be able to edit Section A again unless the admin unlocks it. Section B
+				stays available on event day.
+			{:else}
+				Submit
+				<strong style="color: var(--color-text-1);">{data.participant.fullName}'s</strong>
+				scoresheet? Once submitted you cannot edit. Only the super admin can unlock it.
+			{/if}
 		</p>
 		<dl class="grid grid-cols-2 gap-2 text-sm">
-			<dt style="color: var(--color-text-2);">Final total</dt>
+			<dt style="color: var(--color-text-2);">
+				{data.phase === 'section_a' ? 'Section A total' : 'Final total'}
+			</dt>
 			<dd style="font-family: var(--font-mono); color: var(--color-text-1);">
 				{total} / {maxTotal}
 			</dd>
-			<dt style="color: var(--color-text-2);">Sprint time</dt>
-			<dd style="font-family: var(--font-mono); color: var(--color-text-1);">
-				{dqRaised && sprintSeconds === null ? '— (DQ)' : formattedSprint}
-			</dd>
-			{#if dqRaised}
-				<dt style="color: var(--color-danger);">DQ flag</dt>
-				<dd style="color: var(--color-danger);">raised</dd>
+			{#if data.phase === 'section_b'}
+				<dt style="color: var(--color-text-2);">Sprint time</dt>
+				<dd style="font-family: var(--font-mono); color: var(--color-text-1);">
+					{dqRaised && sprintSeconds === null ? '— (DQ)' : formattedSprint}
+				</dd>
+				{#if dqRaised}
+					<dt style="color: var(--color-danger);">DQ flag</dt>
+					<dd style="color: var(--color-danger);">raised</dd>
+				{/if}
 			{/if}
 		</dl>
 		<div class="flex justify-end gap-2">
@@ -705,7 +760,11 @@
 				class="inline-flex h-11 items-center justify-center rounded-md px-4 text-sm font-semibold uppercase disabled:opacity-40"
 				style="background: var(--color-accent); color: #fff;"
 			>
-				{submitting ? 'Submitting…' : 'Submit ›'}
+				{submitting
+					? 'Submitting…'
+					: data.phase === 'section_a'
+						? 'Submit Section A ›'
+						: 'Submit ›'}
 			</button>
 		</div>
 	</div>

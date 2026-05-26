@@ -97,7 +97,7 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 	const { data: sheet } = await locals.supabase
 		.from('scoresheets')
 		.select(
-			'id, status, live_sprint_time_seconds, submitted_at, finalised_at, judge_notes'
+			'id, status, live_sprint_time_seconds, submitted_at, finalised_at, judge_notes, section_a_submitted_at'
 		)
 		.eq('participant_id', participantId)
 		.eq('judge_id', profile.id)
@@ -170,7 +170,8 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 					id: sheet.id as string,
 					status: sheet.status as 'draft' | 'submitted' | 'finalised',
 					liveSprintTimeSeconds: (sheet.live_sprint_time_seconds as number | null) ?? null,
-					submittedAt: (sheet.submitted_at as string | null) ?? null
+					submittedAt: (sheet.submitted_at as string | null) ?? null,
+					sectionASubmittedAt: (sheet.section_a_submitted_at as string | null) ?? null
 				}
 			: null,
 		scores,
@@ -350,12 +351,26 @@ export const actions: Actions = {
 			return fail(409, { saveError: 'Scoresheet is locked (already submitted).' });
 		}
 
+		// Per-judge Section A soft-lock: once they've submitted Section A,
+		// they can't keep editing it even though the event is still in
+		// section_a phase.
+		const { data: sheetState } = await locals.supabase
+			.from('scoresheets')
+			.select('section_a_submitted_at')
+			.eq('id', sheet.id)
+			.maybeSingle();
+		const judgeSubmittedA = !!sheetState?.section_a_submitted_at;
+		if (phase === 'section_a' && judgeSubmittedA) {
+			return fail(409, {
+				saveError:
+					"You've already submitted Section A. Ask the admin to unlock if you need to change something."
+			});
+		}
+
 		const form = await request.formData();
 		const { scores, sprintTimeSeconds } = parsePayload(form);
 
 		// Reject scores belonging to a section other than the current phase's.
-		// This is the locking mechanism: once the admin closes Section A by
-		// moving to Section B, judges can no longer save Section A scores.
 		const currentSection: 'A' | 'B' = phase === 'section_a' ? 'A' : 'B';
 		const allowedIds = await criterionIdsForSection(
 			locals,
@@ -400,23 +415,17 @@ export const actions: Actions = {
 
 	submit: async ({ request, locals, params }) => {
 		const profile = await loadActorProfile(locals);
-
-		// Final submission only makes sense once Section B is open — that's when
-		// every criterion is in scope. During Section A judges only "save"; the
-		// admin closes Section A by switching the phase, not by per-judge submit.
 		const phase = await getPhase(locals);
-		if (phase !== 'section_b') {
+
+		if (phase !== 'section_a' && phase !== 'section_b') {
 			return fail(409, {
 				submitError:
-					phase === 'section_a'
-						? 'Submitting is disabled during Section A. Save your scores; the admin will open Section B on event day.'
-						: phase === 'finalised'
-							? 'Scoring is finalised. No further changes allowed.'
-							: 'Scoring has not opened yet.'
+					phase === 'finalised'
+						? 'Scoring is finalised. No further changes allowed.'
+						: 'Scoring has not opened yet.'
 			});
 		}
 
-		// Always re-save first so a click-to-submit also commits the latest values.
 		const form = await request.formData();
 		const { scores, sprintTimeSeconds } = parsePayload(form);
 
@@ -428,10 +437,75 @@ export const actions: Actions = {
 			return fail(409, { submitError: 'Scoresheet already submitted.' });
 		}
 
-		// During Section B submission, only the Section B scores in the payload
-		// are written — Section A is locked from the previous phase.
-		const bIds = await criterionIdsForSection(locals, params.participantId, 'B');
-		const scoresToUpsert = scores.filter((s) => bIds.has(s.criterionId));
+		// Which section is this submission for? Determined by the current phase.
+		const currentSection: 'A' | 'B' = phase === 'section_a' ? 'A' : 'B';
+		const sectionIds = await criterionIdsForSection(
+			locals,
+			params.participantId,
+			currentSection
+		);
+		const scoresToUpsert = scores.filter((s) => sectionIds.has(s.criterionId));
+
+		// SECTION A submit path: re-save section A scores, validate complete,
+		// stamp section_a_submitted_at, then return success (no redirect — the
+		// judge stays on the page in a "Section A submitted" read-only state).
+		if (phase === 'section_a') {
+			// Block re-submission if section A was already marked done.
+			const { data: sheetState } = await locals.supabase
+				.from('scoresheets')
+				.select('section_a_submitted_at')
+				.eq('id', sheet.id)
+				.maybeSingle();
+			if (sheetState?.section_a_submitted_at) {
+				return fail(409, {
+					submitError: 'Section A is already submitted. Ask the admin to unlock if you need to change something.'
+				});
+			}
+
+			if (scoresToUpsert.length > 0) {
+				const { error: upErr } = await locals.supabase.from('scores').upsert(
+					scoresToUpsert.map((s) => ({
+						scoresheet_id: sheet.id,
+						criterion_id: s.criterionId,
+						level: s.level,
+						points: s.points,
+						comment: s.comment
+					})),
+					{ onConflict: 'scoresheet_id,criterion_id' }
+				);
+				if (upErr) return fail(400, { submitError: upErr.message });
+			}
+
+			// Confirm every Section A criterion has a score.
+			const { data: scoreRows } = await locals.supabase
+				.from('scores')
+				.select('criterion_id')
+				.eq('scoresheet_id', sheet.id);
+			const scored = new Set((scoreRows ?? []).map((r) => r.criterion_id as string));
+			const missing = [...sectionIds].filter((id) => !scored.has(id));
+			if (missing.length > 0) {
+				return fail(400, {
+					submitError: `Score every Section A criterion before submitting (${
+						sectionIds.size - missing.length
+					} / ${sectionIds.size} done).`
+				});
+			}
+
+			const { error: stampErr } = await locals.supabase
+				.from('scoresheets')
+				.update({ section_a_submitted_at: new Date().toISOString() })
+				.eq('id', sheet.id);
+			if (stampErr) return fail(400, { submitError: stampErr.message });
+
+			return {
+				saved: true,
+				sectionASubmitted: true,
+				at: new Date().toISOString(),
+				scoresheetId: sheet.id
+			};
+		}
+
+		// SECTION B submit path — the original "final submission" flow.
 		if (scoresToUpsert.length > 0) {
 			const { error: upErr } = await locals.supabase
 				.from('scores')

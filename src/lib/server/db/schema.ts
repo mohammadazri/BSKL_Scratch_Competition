@@ -204,6 +204,7 @@ export const scoresheets = pgTable(
 		themeSelected: themeEnum('theme_selected'),
 		liveSprintTimeSeconds: integer('live_sprint_time_seconds'),
 		startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+		sectionASubmittedAt: timestamp('section_a_submitted_at', { withTimezone: true }),
 		submittedAt: timestamp('submitted_at', { withTimezone: true }),
 		finalisedAt: timestamp('finalised_at', { withTimezone: true }),
 		judgeNotes: text('judge_notes'),
