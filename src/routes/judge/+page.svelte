@@ -5,7 +5,6 @@
 	not-started first so judges always see what's still to do.
 -->
 <script lang="ts">
-	import BrandHeader from '$lib/components/BrandHeader.svelte';
 	import StatusPill from '$lib/components/StatusPill.svelte';
 	import type { PageData } from './$types';
 	import type { QueueRow } from './+page.server';
@@ -43,9 +42,7 @@
 	];
 </script>
 
-<BrandHeader />
-
-<main class="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
+<div class="mx-auto max-w-5xl px-0 py-2">
 	<div class="mb-6 flex flex-col gap-1">
 		<p
 			class="text-xs font-medium tracking-[0.15em] uppercase"
@@ -222,4 +219,4 @@
 			{/each}
 		</ul>
 	{/if}
-</main>
+</div>

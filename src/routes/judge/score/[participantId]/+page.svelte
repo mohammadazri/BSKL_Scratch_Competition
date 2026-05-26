@@ -17,7 +17,7 @@
 	import { untrack } from 'svelte';
 	import { applyAction, deserialize, enhance } from '$app/forms';
 	import { goto, invalidateAll } from '$app/navigation';
-	import BrandHeader from '$lib/components/BrandHeader.svelte';
+	// BrandHeader now provided by /judge/+layout.svelte's AppShell.
 	import CriterionCard from '$lib/components/CriterionCard.svelte';
 	import LiveTotalCard from '$lib/components/LiveTotalCard.svelte';
 	import Modal from '$lib/components/Modal.svelte';
@@ -303,9 +303,7 @@
 	);
 </script>
 
-<BrandHeader />
-
-<div class="mx-auto max-w-7xl px-4 pt-6 pb-32 sm:px-6 lg:pb-10">
+<div class="mx-auto max-w-7xl px-0 pb-32 lg:pb-10">
 	<!-- Breadcrumb -->
 	<a
 		href="/judge"

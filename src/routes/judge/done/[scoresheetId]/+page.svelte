@@ -6,7 +6,7 @@
 	jump to the next unfinished participant in the queue.
 -->
 <script lang="ts">
-	import BrandHeader from '$lib/components/BrandHeader.svelte';
+	// BrandHeader now provided by /judge/+layout.svelte's AppShell.
 	import StatusPill from '$lib/components/StatusPill.svelte';
 	import { formatMmSs } from '$lib/scoring';
 	import type { PageData } from './$types';
@@ -20,9 +20,7 @@
 	let sectionB = $derived(data.lineItems.filter((l) => l.section === 'B'));
 </script>
 
-<BrandHeader />
-
-<main class="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+<div class="mx-auto max-w-3xl px-0 py-2">
 	<a
 		href="/judge"
 		class="mb-3 inline-flex items-center gap-1 text-sm underline"
@@ -208,4 +206,4 @@
 			Score the next one ›
 		</a>
 	</div>
-</main>
+</div>
