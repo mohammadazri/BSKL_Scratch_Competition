@@ -4,7 +4,7 @@
 	destructive actions.
 -->
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { deserialize, enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import Button from '$lib/components/Button.svelte';
@@ -116,18 +116,15 @@
 			body: fd,
 			headers: { 'x-sveltekit-action': 'true' }
 		});
-		// SvelteKit action envelope: `{ type: 'success' | 'failure' | 'redirect', ... }`.
-		// On `failure`, the action data is a devalue-encoded string. We only need
-		// the .error field so a quick regex pulls it out without needing the
-		// `deserialize` helper (which is overkill for one field).
-		const text = await res.text();
-		const isFailure = /"type":"failure"/.test(text);
+		const result = deserialize(await res.text());
 		await invalidateAll();
 		confirmOpen = false;
 		confirmConfig = null;
-		if (isFailure) {
-			const m = text.match(/"error":"((?:[^"\\]|\\.)*)"/);
-			toasts.error(m ? m[1].replace(/\\"/g, '"') : 'Action failed.');
+		if (result.type === 'failure') {
+			const data = result.data as { error?: string } | undefined;
+			toasts.error(data?.error ?? 'Action failed.');
+		} else if (result.type === 'error') {
+			toasts.error(result.error?.message ?? 'Server error.');
 		} else {
 			toasts.success('Done.');
 		}
