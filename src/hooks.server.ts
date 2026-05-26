@@ -8,23 +8,30 @@ import { createServerClient } from '@supabase/ssr';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 
 const supabaseHandle: Handle = async ({ event, resolve }) => {
-	// Detect HTTPS — either direct or behind the Cloudflare tunnel (which
-	// terminates TLS and forwards HTTP to localhost with X-Forwarded-Proto).
-	const isHttps =
-		event.url.protocol === 'https:' ||
-		event.request.headers.get('x-forwarded-proto') === 'https';
+	// Detect HTTPS via X-Forwarded-Proto only. SvelteKit's adapter-node
+	// defaults `event.url.protocol` to `https:` regardless of the real
+	// request scheme, so it can't be trusted. Cloudflare tunnel sets
+	// `x-forwarded-proto: https`; direct LAN HTTP requests don't.
+	const isHttps = event.request.headers.get('x-forwarded-proto') === 'https';
+
+	const incomingCookies = event.cookies.getAll();
+	console.log(`[req] ${event.request.method} ${event.url.pathname} cookies=${incomingCookies.map((c) => c.name).join(',') || 'none'}`);
 
 	event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
 		cookies: {
 			getAll: () => event.cookies.getAll(),
 			setAll: (cookies) => {
 				cookies.forEach(({ name, value, options }) => {
-					// Strip `secure` flag on plain-HTTP requests (LAN testing on
-					// the Pi at http://<ip>:5999) — otherwise browsers reject
-					// the Supabase session cookie and login appears to silently
-					// fail. Over HTTPS the flag stays on as required.
-					console.log(`[cookie] set ${name} secure=${isHttps} protocol=${event.url.protocol} xfp=${event.request.headers.get('x-forwarded-proto')}`);
-					event.cookies.set(name, value, { ...options, path: '/', secure: isHttps });
+					// Force secure=false on plain HTTP — browsers reject Secure
+					// cookies over HTTP and the session is lost on the next request.
+					console.log(`[cookie] set ${name} secure=${isHttps}`);
+					event.cookies.set(name, value, {
+						...options,
+						path: '/',
+						secure: isHttps,
+						sameSite: 'lax',
+						httpOnly: true
+					});
 				});
 			}
 		}
@@ -34,16 +41,21 @@ const supabaseHandle: Handle = async ({ event, resolve }) => {
 		const {
 			data: { session }
 		} = await event.locals.supabase.auth.getSession();
-		if (!session) return { session: null, user: null };
+		if (!session) {
+			console.log(`[session] NULL (no session from cookies)`);
+			return { session: null, user: null };
+		}
 
-		// Validate the JWT against the auth server — getSession() trusts the cookie blindly,
-		// getUser() re-checks with Supabase. This is the secure pattern.
 		const {
 			data: { user },
 			error
 		} = await event.locals.supabase.auth.getUser();
-		if (error) return { session: null, user: null };
+		if (error) {
+			console.log(`[session] getUser error: ${error.message}`);
+			return { session: null, user: null };
+		}
 
+		console.log(`[session] OK user=${user?.email}`);
 		return { session, user };
 	};
 
@@ -110,17 +122,10 @@ const securityHeaders: Handle = async ({ event, resolve }) => {
 	response.headers.set('X-Frame-Options', 'DENY');
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-	// Only set HSTS on HTTPS requests — sending it on the Pi's plain-HTTP LAN
-	// endpoint can cache "this host wants HTTPS" in the browser and break
-	// subsequent HTTP testing.
-	if (
-		event.url.protocol === 'https:' ||
-		event.request.headers.get('x-forwarded-proto') === 'https'
-	) {
-		response.headers.set(
-			'Strict-Transport-Security',
-			'max-age=31536000; includeSubDomains'
-		);
+	// Only set HSTS when the request was actually over HTTPS (Cloudflare tunnel).
+	// Sending it on plain HTTP poisons the browser for direct LAN access.
+	if (event.request.headers.get('x-forwarded-proto') === 'https') {
+		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 	}
 	response.headers.set(
 		'Permissions-Policy',
