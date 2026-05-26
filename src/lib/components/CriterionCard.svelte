@@ -1,24 +1,32 @@
 <!--
 	CriterionCard — fast scoring for one rubric criterion.
 
-	Redesigned for the event-day judge psychology:
-	  • Recognition over recall — all four bands visible at all times as
-	    horizontal pills, no clicking to reveal descriptors.
-	  • Reduced cognitive load — descriptor of the SELECTED band shows
-	    inline beneath the pills, others are summarised by their range only.
-	  • Compact: ~80-160px tall (vs 350-450px in the old vertical radio
-	    list), so 7 criteria fit on a single screen with minimal scrolling.
-	  • Auto-collapses to a one-line summary after scoring, expand to edit.
+	Design philosophy for fast event-day judging:
+	  • Recognition over recall — when EXPANDED, ALL four band descriptors
+	    are visible so the judge can compare without clicking. No hidden
+	    information.
+	  • Accordion behaviour — only ONE criterion expanded at a time,
+	    the rest collapse to a 50px summary row. So 7 criteria fit in
+	    ≈ 500-600px (= one screen) instead of ≈ 2500px of scroll.
+	  • Color-coded band cards (green / cyan / amber / red) for instant
+	    scanning when reviewing a column of scored cards.
+	  • Auto-advances activation to the next unscored card after picking
+	    a level — judge keeps their eyes on the screen, fingers on the
+	    same area.
 
-	Hidden inputs keep no-JS submit working: criterion_id, level__<id>,
-	points__<id>, comment__<id>.
+	Parent controls activation via `isActive` + `onActivate`. If `isActive`
+	is undefined the card falls back to local self-managed open/close so
+	the component is still drop-in usable in tests or other contexts.
+
+	Hidden inputs (criterion_id, level__<id>, points__<id>, comment__<id>)
+	are always rendered so the form posts cleanly without JS.
 -->
 <script lang="ts">
 	import type { RubricCriterion, RubricLevel } from '$lib/scoring';
 	import { midpoint, levelForPoints, clampToLevel } from '$lib/scoring';
 	import type { PerfLevel } from '$lib/types';
 	import NumberStepper from './NumberStepper.svelte';
-	import { Check, MessageSquare, Pencil } from '@lucide/svelte';
+	import { Check, MessageSquare } from '@lucide/svelte';
 
 	interface Props {
 		criterion: RubricCriterion;
@@ -26,6 +34,8 @@
 		points: number | null;
 		comment: string | null;
 		disabled?: boolean;
+		isActive?: boolean;
+		onActivate?: (id: string) => void;
 		onChange?: (next: {
 			level: PerfLevel | null;
 			points: number | null;
@@ -39,14 +49,16 @@
 		points = $bindable(null),
 		comment = $bindable(null),
 		disabled = false,
+		isActive,
+		onActivate,
 		onChange
 	}: Props = $props();
 
 	let scored = $derived(level !== null && points !== null);
 
-	// Default: unscored = expanded, scored = collapsed.
-	let manualOpen = $state<boolean | null>(null);
-	let expanded = $derived(manualOpen ?? !scored);
+	// If the parent didn't pass isActive, fall back to local state.
+	let localOpen = $state<boolean>(false);
+	let expanded = $derived(isActive ?? localOpen ?? !scored);
 
 	let commentOpen = $state(false);
 	$effect(() => {
@@ -88,8 +100,14 @@
 		emit();
 	}
 
-	// Visual accent per level so judges can scan a long list quickly:
-	// green = best, red = worst, intuitive at a glance.
+	function toggleOpen() {
+		if (disabled) return;
+		if (onActivate) onActivate(criterion.id);
+		else localOpen = !localOpen;
+	}
+
+	// Green = best, red = worst — maps to the universal traffic-light mental
+	// model so judges can read a column of scored cards in one glance.
 	function levelColor(lvl: PerfLevel): string {
 		if (lvl === 'Excellent') return '#10b981';
 		if (lvl === 'Proficient') return '#0891b2';
@@ -99,79 +117,73 @@
 </script>
 
 <section
-	class="overflow-hidden rounded-lg border"
+	class="overflow-hidden rounded-lg border transition-colors"
 	style="background: var(--color-bg-2); border-color: {scored && selectedLevel
 		? levelColor(selectedLevel.level) + '55'
 		: 'var(--border)'};"
 	data-criterion-id={criterion.id}
 >
-	<!-- Header (always visible) — name + score chip + edit/collapse button -->
+	<!-- Header — clickable to expand/collapse. Always visible. -->
 	<header
-		class="flex items-center gap-3 px-4 py-2.5"
+		class="flex w-full items-center gap-3 px-4 py-2.5 text-left"
 		style="border-bottom: {expanded ? '1px solid var(--border)' : 'none'};"
 	>
-		<div class="min-w-0 flex-1">
-			<h3
-				class="truncate text-sm font-semibold sm:text-base"
-				style="color: var(--color-text-1);"
-			>
-				{criterion.name}
-			</h3>
-		</div>
-		{#if scored && selectedLevel}
-			<div class="flex items-center gap-2 text-xs">
-				<span
-					class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium"
-					style="background: {levelColor(selectedLevel.level)}22; color: {levelColor(
-						selectedLevel.level
-					)};"
+		<button
+			type="button"
+			onclick={toggleOpen}
+			disabled={disabled}
+			class="flex min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-not-allowed"
+			aria-expanded={expanded}
+		>
+			<div class="min-w-0 flex-1">
+				<h3
+					class="truncate text-sm font-semibold sm:text-base"
+					style="color: var(--color-text-1);"
 				>
-					<Check size={12} strokeWidth={2.5} />
-					{selectedLevel.level}
-				</span>
-				<span
-					class="text-sm font-semibold tabular-nums"
-					style="color: var(--color-text-1); font-family: var(--font-mono);"
-				>
-					{points} / {criterion.maxPoints}
-				</span>
+					{criterion.name}
+				</h3>
 			</div>
-		{:else}
-			<span
-				class="rounded-full px-2 py-0.5 text-[11px] font-medium"
-				style="background: var(--color-bg-3); color: var(--color-text-3); font-family: var(--font-mono);"
-			>
-				/ {criterion.maxPoints}
+			{#if scored && selectedLevel}
+				<div class="flex items-center gap-2 text-xs">
+					<span
+						class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium"
+						style="background: {levelColor(selectedLevel.level)}22; color: {levelColor(
+							selectedLevel.level
+						)};"
+					>
+						<Check size={12} strokeWidth={2.5} />
+						{selectedLevel.level}
+					</span>
+					<span
+						class="text-sm font-semibold tabular-nums"
+						style="color: var(--color-text-1); font-family: var(--font-mono);"
+					>
+						{points} / {criterion.maxPoints}
+					</span>
+				</div>
+			{:else}
+				<span
+					class="rounded-full px-2 py-0.5 text-[11px] font-medium"
+					style="background: var(--color-bg-3); color: var(--color-text-3); font-family: var(--font-mono);"
+				>
+					/ {criterion.maxPoints}
+				</span>
+			{/if}
+			<span class="ml-1 text-xs" style="color: var(--color-text-3);">
+				{expanded ? '▴' : '▾'}
 			</span>
-		{/if}
-		{#if !disabled}
-			<button
-				type="button"
-				onclick={() => (manualOpen = !expanded)}
-				aria-expanded={expanded}
-				aria-label={expanded ? 'Collapse' : 'Edit'}
-				class="grid h-9 w-9 place-items-center rounded-md hover:bg-white/5"
-				style="color: var(--color-text-2);"
-			>
-				{#if expanded}
-					<span class="text-xs">▴</span>
-				{:else}
-					<Pencil size={14} strokeWidth={1.5} />
-				{/if}
-			</button>
-		{/if}
+		</button>
 	</header>
 
 	{#if expanded}
 		<div class="flex flex-col gap-3 px-4 py-3">
-			<!-- 4 horizontal pills — single row, recognition over recall.
-			     Each pill carries the band range so the judge sees the full
-			     rubric without clicking. -->
+			<!-- All four band cards visible at once. Each card shows the
+			     descriptor in full so the judge has the guidance they need to
+			     pick correctly — no hidden information, no second tap. -->
 			<div
 				role="radiogroup"
 				aria-label="Performance level"
-				class="grid gap-1.5 sm:gap-2"
-				style="grid-template-columns: repeat({criterion.levels.length}, minmax(0, 1fr));"
+				class="grid gap-2 sm:grid-cols-2 lg:grid-cols-{criterion.levels.length}"
 			>
 				{#each criterion.levels as opt (opt.id)}
 					{@const isSelected = level === opt.level}
@@ -181,44 +193,40 @@
 						onclick={() => pickLevel(opt)}
 						{disabled}
 						aria-pressed={isSelected}
-						class="flex h-auto min-h-[44px] flex-col items-center justify-center gap-0.5 rounded-md border px-2 py-2 transition-colors disabled:opacity-50"
-						style="background: {isSelected ? c + '22' : 'var(--color-bg-1)'}; border-color: {isSelected
-							? c
-							: 'var(--border)'};"
+						class="flex h-full flex-col gap-1.5 rounded-md border p-3 text-left transition-colors disabled:opacity-50"
+						style="background: {isSelected
+							? c + '12'
+							: 'var(--color-bg-1)'}; border-color: {isSelected ? c : 'var(--border)'};"
 					>
-						<span
-							class="text-[11px] font-semibold sm:text-xs"
-							style="color: {isSelected ? c : 'var(--color-text-1)'};"
+						<div class="flex items-baseline justify-between gap-2">
+							<span
+								class="text-sm font-semibold"
+								style="color: {isSelected ? c : 'var(--color-text-1)'};"
+							>
+								{opt.level}
+							</span>
+							<span
+								class="shrink-0 text-[11px] font-medium tabular-nums"
+								style="color: var(--color-text-3); font-family: var(--font-mono);"
+							>
+								{opt.minPts === opt.maxPts ? opt.minPts : `${opt.minPts}–${opt.maxPts}`}
+							</span>
+						</div>
+						<p
+							class="text-[11px] leading-snug sm:text-xs"
+							style="color: var(--color-text-2);"
 						>
-							{opt.level}
-						</span>
-						<span
-							class="text-[10px] tabular-nums"
-							style="color: var(--color-text-3); font-family: var(--font-mono);"
-						>
-							{opt.minPts === opt.maxPts ? opt.minPts : `${opt.minPts}–${opt.maxPts}`}
-						</span>
+							{opt.descriptor}
+						</p>
 					</button>
 				{/each}
 			</div>
 
-			<!-- Inline descriptor of the SELECTED band only — judges focus on
-			     the one band they're choosing, not all four at once. -->
-			{#if selectedLevel}
-				<p
-					class="rounded-md border-l-2 px-3 py-2 text-xs leading-snug"
-					style="border-color: {levelColor(selectedLevel.level)}; background: var(--color-bg-1); color: var(--color-text-2);"
-				>
-					{selectedLevel.descriptor}
-				</p>
-			{:else}
-				<p class="text-xs" style="color: var(--color-text-3);">
-					Tap a level to score this criterion.
-				</p>
-			{/if}
-
-			<!-- Points stepper + note toggle on a single compact row. -->
+			<!-- Points stepper + note toggle on one compact row -->
 			<div class="flex flex-wrap items-center gap-3">
+				<span class="text-[11px] tracking-wider uppercase" style="color: var(--color-text-2);">
+					Points
+				</span>
 				<NumberStepper
 					name={`points__${criterion.id}`}
 					bind:value={points}
@@ -227,6 +235,20 @@
 					disabled={disabled || !selectedLevel}
 					onValue={onPointsChange}
 				/>
+				{#if selectedLevel}
+					<span
+						class="text-[11px]"
+						style="color: var(--color-text-3); font-family: var(--font-mono);"
+					>
+						band {selectedLevel.minPts === selectedLevel.maxPts
+							? selectedLevel.minPts
+							: `${selectedLevel.minPts}–${selectedLevel.maxPts}`}
+					</span>
+				{:else}
+					<span class="text-[11px]" style="color: var(--color-text-3);">
+						Tap a level above first.
+					</span>
+				{/if}
 				<button
 					type="button"
 					onclick={() => (commentOpen = !commentOpen)}
@@ -259,7 +281,7 @@
 			<input type="hidden" name={`level__${criterion.id}`} value={level ?? ''} />
 		</div>
 	{:else}
-		<!-- Collapsed — preserve all hidden inputs so the form still submits. -->
+		<!-- Collapsed: hidden inputs only. The header stays clickable. -->
 		<input type="hidden" name={`level__${criterion.id}`} value={level ?? ''} />
 		<input type="hidden" name={`points__${criterion.id}`} value={points ?? ''} />
 		<input type="hidden" name={`comment__${criterion.id}`} value={comment ?? ''} />
