@@ -7,6 +7,19 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { createServerClient } from '@supabase/ssr';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 
+// @supabase/auth-js 2.106+ logs a long, scary warning every time you touch
+// `session.user` from a session that wasn't first validated via getUser().
+// In safeGetSession() below we DO validate immediately after — but the
+// warning fires on the read inside the original getSession() destructure,
+// so it spams the log on every request. Filter it out once at module load.
+const _origWarn = console.warn.bind(console);
+console.warn = (...args: unknown[]) => {
+	if (typeof args[0] === 'string' && args[0].includes('Using the user object as returned from supabase.auth.getSession()')) {
+		return;
+	}
+	_origWarn(...args);
+};
+
 const supabaseHandle: Handle = async ({ event, resolve }) => {
 	// Detect HTTPS via X-Forwarded-Proto only. SvelteKit's adapter-node
 	// defaults `event.url.protocol` to `https:` regardless of the real
