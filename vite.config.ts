@@ -5,6 +5,8 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
+	server: { host: '0.0.0.0' },
+	preview: { host: '0.0.0.0' },
 	test: {
 		expect: { requireAssertions: true },
 		projects: [
