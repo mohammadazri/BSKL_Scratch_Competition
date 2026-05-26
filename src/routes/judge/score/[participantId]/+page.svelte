@@ -15,7 +15,7 @@
 -->
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { applyAction, enhance } from '$app/forms';
+	import { applyAction, deserialize, enhance } from '$app/forms';
 	import { goto, invalidateAll } from '$app/navigation';
 	import BrandHeader from '$lib/components/BrandHeader.svelte';
 	import CriterionCard from '$lib/components/CriterionCard.svelte';
@@ -177,15 +177,33 @@
 		formError = null;
 		const fd = new FormData(scoringForm);
 		try {
-			const res = await fetch('?/submit', { method: 'POST', body: fd });
-			if (res.redirected) {
-				goto(res.url);
+			const res = await fetch('?/submit', {
+				method: 'POST',
+				body: fd,
+				headers: { 'x-sveltekit-action': 'true' }
+			});
+			// SvelteKit returns a devalue-encoded action envelope. `deserialize`
+			// + `applyAction` handle every type (success, failure, redirect,
+			// error) correctly — including action redirects, which come back as
+			// HTTP 200 with `{ type: 'redirect', location: '/...' }` in the body.
+			const result = deserialize(await res.text());
+			if (result.type === 'redirect') {
+				await goto(result.location);
 				return;
 			}
-			// On fail, parse the SvelteKit JSON envelope.
-			const payload = await res.json().catch(() => null);
-			const msg = payload?.data?.submitError ?? `Submit failed (HTTP ${res.status}).`;
-			formError = String(msg);
+			if (result.type === 'failure' || result.type === 'error') {
+				const data = (result.type === 'failure' ? result.data : null) as
+					| { submitError?: string }
+					| null;
+				formError =
+					data?.submitError ??
+					(result.type === 'error' ? (result.error?.message ?? 'Submit failed.') : 'Submit failed.');
+				submitConfirmOpen = false;
+				submitting = false;
+				return;
+			}
+			// success without redirect — apply so `form` prop updates
+			await applyAction(result);
 			submitConfirmOpen = false;
 			submitting = false;
 		} catch (err) {
