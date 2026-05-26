@@ -1,8 +1,8 @@
 <!--
-	/admin/users/print — printable A4 login slips (TRACK_2_ADMIN.md gotchas).
+	/admin/users/print — printable A4 login slips.
 	Mohammad selects which active users to issue slips for, server regenerates
 	a temp password per user (audit-logged), then the printable sheet is shown
-	and `window.print()` is triggered.
+	as a preview. The operator clicks the "Print now" button when ready.
 -->
 <script lang="ts">
 	import { untrack } from 'svelte';
@@ -45,12 +45,10 @@
 		}))
 	);
 
-	$effect(() => {
-		if (form?.ok && form.slips && form.slips.length > 0) {
-			// Auto-trigger print once slips are ready.
-			queueMicrotask(() => window.print());
-		}
-	});
+	// Note: we used to auto-trigger window.print() the moment slips were ready,
+	// but that meant the operator never got a chance to visually verify the
+	// slips before the print dialog stole focus. Now the user clicks the
+	// "Print now" button below when they're ready.
 </script>
 
 <svelte:head>
@@ -146,8 +144,7 @@
 		<Card label="Ready to print">
 			<div class="flex items-center justify-between gap-3">
 				<p class="text-sm" style="color: var(--color-text-1);">
-					Generated {form.count} slip{form.count === 1 ? '' : 's'}. Print should open
-					automatically — if not, click the button.
+					Generated {form.count} slip{form.count === 1 ? '' : 's'}. Review the preview below, then click <strong>Print now</strong> when you're ready.
 				</p>
 				<Button variant="primary" onclick={() => window.print()}>
 					{#snippet icon()}<Printer size={16} strokeWidth={1.5} />{/snippet}

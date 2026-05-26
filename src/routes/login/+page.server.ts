@@ -44,9 +44,22 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}
 		throw redirect(303, home.to);
 	}
+	const errParam = url.searchParams.get('error');
+	const infoParam = url.searchParams.get('info');
+	let flash: string | null = null;
+	let flashKind: 'error' | 'success' = 'error';
+	if (errParam === 'account-disabled') flash = 'Account is disabled.';
+	else if (errParam === 'reset_link_expired')
+		flash = 'That password-reset link has expired. Request a new one below.';
+	else if (errParam === 'profile-not-found') flash = 'Profile not found — contact the event admin.';
+	else if (infoParam === 'password_updated') {
+		flash = 'Password updated. Sign in with your new password.';
+		flashKind = 'success';
+	}
 	return {
 		next: url.searchParams.get('next') ?? null,
-		flash: url.searchParams.get('error') === 'account-disabled' ? 'Account is disabled.' : null
+		flash,
+		flashKind
 	};
 };
 
