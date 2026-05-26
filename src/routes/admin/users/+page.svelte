@@ -107,11 +107,35 @@
 		confirmOpen = true;
 	}
 
+	// New-credentials modal — opened after create or reset password so the
+	// admin sees the temp password ONCE (it's never stored anywhere it can
+	// be retrieved later — they need to copy it now or print the slip).
+	let credsModal = $state<{
+		email: string;
+		password: string;
+		fullName: string;
+		mode: 'created' | 'reset';
+	} | null>(null);
+	let copyState = $state<'idle' | 'copied'>('idle');
+
+	async function copyPassword() {
+		if (!credsModal) return;
+		try {
+			await navigator.clipboard.writeText(credsModal.password);
+			copyState = 'copied';
+			setTimeout(() => (copyState = 'idle'), 1500);
+		} catch {
+			toasts.error('Could not copy. Long-press the password to select it manually.');
+		}
+	}
+
 	async function submitConfirm() {
 		if (!confirmConfig) return;
 		const fd = new FormData();
 		for (const [k, v] of Object.entries(confirmConfig.fields)) fd.set(k, v);
-		const res = await fetch(confirmConfig.action, {
+		const action = confirmConfig.action;
+		const targetUserId = confirmConfig.fields.id;
+		const res = await fetch(action, {
 			method: 'POST',
 			body: fd,
 			headers: { 'x-sveltekit-action': 'true' }
@@ -121,13 +145,34 @@
 		confirmOpen = false;
 		confirmConfig = null;
 		if (result.type === 'failure') {
-			const data = result.data as { error?: string } | undefined;
-			toasts.error(data?.error ?? 'Action failed.');
-		} else if (result.type === 'error') {
-			toasts.error(result.error?.message ?? 'Server error.');
-		} else {
-			toasts.success('Done.');
+			const failureData = result.data as { error?: string } | undefined;
+			toasts.error(failureData?.error ?? 'Action failed.');
+			return;
 		}
+		if (result.type === 'error') {
+			toasts.error(result.error?.message ?? 'Server error.');
+			return;
+		}
+
+		// Success. If this was a password reset, surface the new temp password
+		// in a modal so the admin can copy / print it. Otherwise just toast.
+		if (action === '?/resetPassword') {
+			const successData = result.data as
+				| { created?: { password?: string }; message?: string }
+				| undefined;
+			const newPassword = successData?.created?.password;
+			if (newPassword) {
+				const row = data.rows.find((r) => r.id === targetUserId);
+				credsModal = {
+					email: row?.email ?? '',
+					fullName: row?.fullName ?? 'this user',
+					password: newPassword,
+					mode: 'reset'
+				};
+				return;
+			}
+		}
+		toasts.success('Done.');
 	}
 
 	function fmtLastSeen(iso: string | null): string {
@@ -428,7 +473,9 @@
 		method="POST"
 		action="?/create"
 		use:enhance={() => {
-			return async ({ update }) => {
+			const submittedEmail = newEmail;
+			const submittedName = newFullName;
+			return async ({ result, update }) => {
 				await update();
 				createOpen = false;
 				newEmail = '';
@@ -436,6 +483,22 @@
 				newRole = 'judge';
 				newCategories = new Set(['A', 'B', 'C']);
 				newPinLabel = '';
+				// If the server returned a temp password (success path), surface
+				// it in the credentials modal so the admin can copy / print it.
+				if (result.type === 'success') {
+					const successData = result.data as
+						| { created?: { password?: string } }
+						| undefined;
+					const pw = successData?.created?.password;
+					if (pw) {
+						credsModal = {
+							email: submittedEmail,
+							fullName: submittedName,
+							password: pw,
+							mode: 'created'
+						};
+					}
+				}
 			};
 		}}
 		class="space-y-4"
@@ -521,4 +584,86 @@
 			confirmConfig = null;
 		}}
 	/>
+{/if}
+
+<!-- Credentials modal: shown ONCE after create-user or reset-password.
+     The temp password is never stored in retrievable form, so the admin
+     must copy / print it now. The target user has must_change_password=true
+     set server-side so they'll be redirected to /auth/change-password on
+     their next sign-in. -->
+{#if credsModal}
+	<Modal
+		open={!!credsModal}
+		title={credsModal.mode === 'created' ? 'User created' : 'Password reset'}
+		size="md"
+		onClose={() => {
+			credsModal = null;
+			copyState = 'idle';
+		}}
+	>
+		<div class="flex flex-col gap-4">
+			<p class="text-sm" style="color: var(--color-text-2);">
+				{#if credsModal.mode === 'created'}
+					Hand <strong style="color: var(--color-text-1);">{credsModal.fullName}</strong> the
+					credentials below. They'll be required to choose a new password on first sign-in.
+				{:else}
+					New temporary password for
+					<strong style="color: var(--color-text-1);">{credsModal.fullName}</strong>. Their old
+					password no longer works. They'll be required to choose a new password on next sign-in.
+				{/if}
+			</p>
+
+			<div
+				class="flex flex-col gap-2 rounded-md border p-3"
+				style="background: var(--color-bg-3); border-color: var(--border-strong);"
+			>
+				<div class="flex items-center justify-between gap-2">
+					<span class="text-[11px] tracking-wider uppercase" style="color: var(--color-text-2);">
+						Email
+					</span>
+					<span class="truncate text-sm" style="font-family: var(--font-mono); color: var(--color-text-1);">
+						{credsModal.email}
+					</span>
+				</div>
+				<div class="flex items-center justify-between gap-2 border-t pt-2" style="border-color: var(--border);">
+					<span class="text-[11px] tracking-wider uppercase" style="color: var(--color-text-2);">
+						Temp password
+					</span>
+					<span
+						class="select-all text-lg font-semibold"
+						style="font-family: var(--font-mono); color: var(--color-text-1); letter-spacing: 0.04em;"
+					>
+						{credsModal.password}
+					</span>
+				</div>
+			</div>
+
+			<div
+				class="rounded-md border-l-2 p-2 text-xs"
+				style="border-color: var(--color-warning); background: rgba(217, 119, 6, 0.08); color: var(--color-text-1);"
+			>
+				This password is only shown <strong>once</strong>. Copy it now or print the login slip —
+				you can't get it back later.
+			</div>
+
+			<div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
+				<Button variant="ghost" href="/admin/users/print">
+					{#snippet icon()}<Printer size={16} strokeWidth={1.5} />{/snippet}
+					Print login slips
+				</Button>
+				<Button variant="secondary" onclick={copyPassword}>
+					{copyState === 'copied' ? 'Copied ✓' : 'Copy password'}
+				</Button>
+				<Button
+					variant="primary"
+					onclick={() => {
+						credsModal = null;
+						copyState = 'idle';
+					}}
+				>
+					Done
+				</Button>
+			</div>
+		</div>
+	</Modal>
 {/if}
