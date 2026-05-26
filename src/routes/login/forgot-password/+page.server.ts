@@ -22,7 +22,7 @@ export const actions: Actions = {
 		// PKCE code; callback exchanges it for a session and forwards to
 		// /auth/update-password where they pick a new password.
 		// Use PUBLIC_APP_URL (production domain) so the email link points at
-		// https://p3scratch.sentrizk.me regardless of where the request came from.
+		// https://p3.sentrizk.me regardless of where the request came from.
 		const redirectTo = `${appUrl(url.origin)}/auth/callback?next=${encodeURIComponent('/auth/update-password')}`;
 
 		// Ignore success/failure deliberately — never confirm whether the email

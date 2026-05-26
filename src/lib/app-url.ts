@@ -9,7 +9,7 @@
 // link points at the production domain regardless of where the request came
 // from. Set it in `.env`:
 //
-//     PUBLIC_APP_URL=https://p3scratch.sentrizk.me
+//     PUBLIC_APP_URL=https://p3.sentrizk.me
 //
 // Falls back to `url.origin` only if the env var is unset (dev convenience).
 // In production, ALSO add the same URL to Supabase Dashboard →

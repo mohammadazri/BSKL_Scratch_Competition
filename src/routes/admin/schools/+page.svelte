@@ -67,7 +67,8 @@
 	async function commitImport(rows: Record<string, string>[]) {
 		committing = true;
 		try {
-			const res = await fetch('/admin/schools/import', {
+			// Relative path so the same component works under /admin and /registration.
+			const res = await fetch('./import', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ rows })

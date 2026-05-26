@@ -23,7 +23,7 @@
 #        Proxy:  Proxied (orange cloud)
 #
 #      Or from the CLI:
-#        cloudflared tunnel route dns p3-judging p3scratch.sentrizk.me
+#        cloudflared tunnel route dns p3-judging p3.sentrizk.me
 #
 #   5. Install cloudflared as a system service and start it:
 #        sudo cloudflared service install
@@ -34,7 +34,7 @@
 #
 #   Zero Trust dashboard → Access → Applications → Add an application
 #     Type:        Self-hosted
-#     Domain:      p3scratch.sentrizk.me
+#     Domain:      p3.sentrizk.me
 #     Session:     24 hours
 #   Policy:
 #     Action:      Allow
@@ -54,7 +54,7 @@ credentials-file: /etc/cloudflared/<YOUR-TUNNEL-UUID>.json
 
 ingress:
   # Public hostname → local SvelteKit/Node server (systemd unit p3-judging).
-  - hostname: p3scratch.sentrizk.me
+  - hostname: p3.sentrizk.me
     service: http://localhost:5999
     originRequest:
       connectTimeout: 30s

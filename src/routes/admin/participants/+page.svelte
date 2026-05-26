@@ -88,7 +88,7 @@
 		csvParsedRows = parsed.rows;
 
 		// Ask the server to preview (no write).
-		const res = await fetch('/admin/participants/import', {
+		const res = await fetch('./import', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ rows: parsed.rows, commit: false })
@@ -118,7 +118,7 @@
 	async function commitImport() {
 		csvCommitting = true;
 		try {
-			const res = await fetch('/admin/participants/import', {
+			const res = await fetch('./import', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ rows: csvParsedRows, commit: true })
@@ -239,7 +239,7 @@
 		description="Add at least one school before creating participants."
 	>
 		{#snippet action()}
-			<Button variant="primary" href="/admin/schools">Add schools</Button>
+			<Button variant="primary" href="../schools">Add schools</Button>
 		{/snippet}
 	</EmptyState>
 {:else}

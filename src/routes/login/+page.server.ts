@@ -85,7 +85,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Email is required for a magic link.', email });
 		}
 		// Use the configured PUBLIC_APP_URL (production domain) so the magic
-		// link in the email points at https://p3scratch.sentrizk.me even when
+		// link in the email points at https://p3.sentrizk.me even when
 		// the request came from dev/Tailscale.
 		const redirectTo = `${appUrl(url.origin)}/auth/callback`;
 		// Fire and forget. We DELIBERATELY ignore the result — surfacing the real
