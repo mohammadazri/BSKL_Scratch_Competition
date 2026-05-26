@@ -61,7 +61,6 @@
 	let previewOpen = $state(false);
 	let previewBuckets = $state<PreviewBucket[]>([]);
 	let previewEligible = $state<string[]>([]);
-	let previewMax = $state(3);
 	let applying = $state(false);
 	let runningAuto = $state(false);
 
@@ -71,14 +70,13 @@
 			const res = await fetch('/admin/assignments/auto', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ category: activeCategory, maxPerSchool: 3 })
+				body: JSON.stringify({ category: activeCategory })
 			});
 			const body = (await res.json()) as {
 				ok: boolean;
 				error?: string;
 				buckets?: PreviewBucket[];
 				eligibleJudgeNames?: string[];
-				maxPerSchool?: number;
 			};
 			if (!body.ok) {
 				toasts.error(body.error ?? 'Auto-assign failed.');
@@ -86,7 +84,6 @@
 			}
 			previewBuckets = body.buckets ?? [];
 			previewEligible = body.eligibleJudgeNames ?? [];
-			previewMax = body.maxPerSchool ?? 3;
 			previewOpen = true;
 		} finally {
 			runningAuto = false;
@@ -196,7 +193,6 @@
 	category={activeCategory}
 	eligibleJudgeNames={previewEligible}
 	buckets={previewBuckets}
-	maxPerSchool={previewMax}
 	{applying}
 	onapply={applyAuto}
 	oncancel={() => (previewOpen = false)}

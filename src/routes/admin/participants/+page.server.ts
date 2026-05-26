@@ -118,8 +118,8 @@ export const actions: Actions = {
 		const schoolId = String(form.get('school_id') ?? '');
 		const category = parseCategory(form.get('category'));
 		const theme = parseTheme(form.get('theme'));
-		if (!fullName || !schoolId || !category) {
-			return fail(400, { error: 'Name, school and category are required.' });
+		if (!fullName || !schoolId || !category || !theme) {
+			return fail(400, { error: 'Name, school, category and theme are all required.' });
 		}
 
 		const { data: inserted, error: insErr } = await supabaseAdmin
@@ -157,8 +157,8 @@ export const actions: Actions = {
 		const schoolId = String(form.get('school_id') ?? '');
 		const category = parseCategory(form.get('category'));
 		const theme = parseTheme(form.get('theme'));
-		if (!id || !fullName || !schoolId || !category) {
-			return fail(400, { error: 'Missing required fields.' });
+		if (!id || !fullName || !schoolId || !category || !theme) {
+			return fail(400, { error: 'Name, school, category and theme are all required.' });
 		}
 
 		const { data: before } = await supabaseAdmin

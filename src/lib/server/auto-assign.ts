@@ -1,11 +1,12 @@
-// Auto-assign algorithm — TRACK_2_ADMIN.md "Auto-assign algorithm".
-// Round-robins shuffled participants across qualified judges, capping the
-// number from any one school per judge (default 3). When the cap can't be
-// satisfied, falls back to the least-loaded judge — school-spread is
-// best-effort, not a hard guarantee.
+// Auto-assign algorithm — simple equal division.
 //
-// Determinism: uses `shuffle` from $lib/utils/random which is backed by
-// crypto.getRandomValues, so the result is non-predictable.
+// 30 students ÷ 3 judges = 10 students each. If the count doesn't divide
+// evenly the remainder is spread one-per-judge across the first N judges
+// (so 31/3 → 11, 10, 10 not 11, 11, 9).
+//
+// We still shuffle the participant order before slicing so the assignment
+// isn't biased by registration order (alphabetical, by school, etc).
+// `shuffle` is backed by crypto.getRandomValues so it's non-predictable.
 
 import { shuffle } from '$lib/utils/random';
 
@@ -21,8 +22,6 @@ export interface JudgeInput {
 export interface AutoAssignArgs {
 	participants: ParticipantInput[];
 	judges: JudgeInput[];
-	/** Soft cap — number of participants from one school assigned to one judge. */
-	maxPerSchoolPerJudge?: number;
 }
 
 export interface AutoAssignBucket {
@@ -30,36 +29,23 @@ export interface AutoAssignBucket {
 	participant_ids: string[];
 }
 
-/** Runs the round-robin auto-assignment. Pure (returns the plan, does not write to DB). */
+/** Pure: returns the planned buckets, does not write to the DB. */
 export function autoAssign(args: AutoAssignArgs): AutoAssignBucket[] {
-	const { participants, judges, maxPerSchoolPerJudge = 3 } = args;
+	const { participants, judges } = args;
 	if (judges.length === 0) throw new Error('no eligible judges');
 
-	const shuffled = shuffle(participants);
-	const buckets = new Map<string, ParticipantInput[]>();
-	judges.forEach((j) => buckets.set(j.id, []));
+	const order = shuffle(participants);
+	const buckets: AutoAssignBucket[] = judges.map((j) => ({
+		judge_id: j.id,
+		participant_ids: []
+	}));
 
-	let i = 0;
-	outer: for (const p of shuffled) {
-		// Try each judge starting from the round-robin pointer; skip any whose
-		// school-cap is already hit for this participant's school.
-		for (let tries = 0; tries < judges.length; tries++) {
-			const judge = judges[(i + tries) % judges.length];
-			const bucket = buckets.get(judge.id)!;
-			const fromSameSchool = bucket.filter((x) => x.school_id === p.school_id).length;
-			if (fromSameSchool < maxPerSchoolPerJudge) {
-				bucket.push(p);
-				i = (i + tries + 1) % judges.length;
-				continue outer;
-			}
-		}
-		// Fallback: no judge under cap → give to least-loaded.
-		const least = [...buckets.entries()].sort((a, b) => a[1].length - b[1].length)[0];
-		least[1].push(p);
+	// Round-robin: participant N goes to judge N % judges.length. With the
+	// shuffled order above, this produces an even split (within one of each
+	// other when the count doesn't divide evenly) with no school bias.
+	for (let i = 0; i < order.length; i++) {
+		buckets[i % judges.length].participant_ids.push(order[i].id);
 	}
 
-	return [...buckets.entries()].map(([judge_id, parts]) => ({
-		judge_id,
-		participant_ids: parts.map((p) => p.id)
-	}));
+	return buckets;
 }

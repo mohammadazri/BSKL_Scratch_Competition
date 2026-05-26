@@ -399,8 +399,8 @@
 			<option value="B">B</option>
 			<option value="C">C</option>
 		</Select>
-		<Select label="Theme (optional)" name="theme" bind:value={newTheme}>
-			<option value="">— none —</option>
+		<Select label="Theme" name="theme" bind:value={newTheme} required>
+			<option value="" disabled selected hidden>Pick a theme</option>
 			<option value="Eco-Warriors">Eco-Warriors</option>
 			<option value="Smart Cities">Smart Cities</option>
 			<option value="Space Pioneers">Space Pioneers</option>
@@ -438,8 +438,8 @@
 				<option value="B">B</option>
 				<option value="C">C</option>
 			</Select>
-			<Select label="Theme (optional)" name="theme" bind:value={editTheme}>
-				<option value="">— none —</option>
+			<Select label="Theme" name="theme" bind:value={editTheme} required>
+				<option value="" disabled hidden>Pick a theme</option>
 				<option value="Eco-Warriors">Eco-Warriors</option>
 				<option value="Smart Cities">Smart Cities</option>
 				<option value="Space Pioneers">Space Pioneers</option>

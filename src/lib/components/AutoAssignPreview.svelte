@@ -19,7 +19,6 @@
 		category: Category;
 		eligibleJudgeNames: string[];
 		buckets: PreviewBucket[];
-		maxPerSchool: number;
 		applying?: boolean;
 		onapply?: () => void;
 		oncancel?: () => void;
@@ -30,7 +29,6 @@
 		category,
 		eligibleJudgeNames,
 		buckets,
-		maxPerSchool,
 		applying = false,
 		onapply,
 		oncancel
@@ -46,8 +44,9 @@
 
 <Modal bind:open title="Auto-assign — Category {category}" size="lg" onclose={cancel}>
 	<p class="mb-1 text-sm" style="color: var(--color-text-2);">
-		Algorithm: shuffle → round-robin → school-spread constraint (max {maxPerSchool} per school per
-		judge)
+		Algorithm: shuffle the qualified participants, then deal them out one-by-one to the eligible
+		judges (round-robin). Each judge ends up with the same number of participants — within one of
+		each other if the total doesn't divide evenly.
 	</p>
 	<p class="mb-4 text-sm" style="color: var(--color-text-2);">
 		Eligible judges: <strong style="color: var(--color-text-1);"
@@ -70,15 +69,10 @@
 						class="px-3 py-2 text-right text-[11px] font-medium tracking-wider uppercase"
 						style="color: var(--color-text-2);">Participants</th
 					>
-					<th
-						class="px-3 py-2 text-right text-[11px] font-medium tracking-wider uppercase"
-						style="color: var(--color-text-2);">Max one school</th
-					>
 				</tr>
 			</thead>
 			<tbody>
 				{#each buckets as b (b.judge_id)}
-					{@const maxOne = b.school_breakdown.reduce((m, s) => Math.max(m, s.count), 0)}
 					<tr class="border-t" style="border-color: var(--border);">
 						<td class="px-3 py-2.5" style="color: var(--color-text-1);">{b.judge_name}</td>
 						<td
@@ -86,14 +80,6 @@
 							style="font-family: var(--font-mono); color: var(--color-text-1);"
 						>
 							{b.participant_ids.length}
-						</td>
-						<td
-							class="px-3 py-2.5 text-right"
-							style="font-family: var(--font-mono); color: {maxOne > maxPerSchool
-								? 'var(--color-warning)'
-								: 'var(--color-text-2)'};"
-						>
-							{maxOne}
 						</td>
 					</tr>
 				{/each}

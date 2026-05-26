@@ -1,5 +1,8 @@
 // POST /admin/assignments/auto — runs the auto-assign algorithm and returns
-// a preview (no DB writes). Body: { category: 'A'|'B'|'C', maxPerSchool?: number }.
+// a preview (no DB writes). Body: { category: 'A'|'B'|'C' }.
+//
+// As of the simplification request, the algorithm just divides participants
+// equally among judges (30 / 3 = 10 each). School-spread caps are gone.
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
@@ -9,18 +12,14 @@ import { autoAssign } from '$lib/server/auto-assign';
 import type { Category } from '$lib/types';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	// SECURITY: +server.ts handlers are NOT gated by parent +layout.server.ts
-	// guards. This endpoint uses the service-role client which bypasses RLS, so
-	// it MUST self-check the requesting role before touching any data.
 	await requireSuperAdmin(locals.user);
 	const body = (await request.json().catch(() => null)) as
-		| { category?: Category; maxPerSchool?: number }
+		| { category?: Category }
 		| null;
 	if (!body || !body.category) {
 		return json({ ok: false, error: 'Missing category.' }, { status: 400 });
 	}
 	const category = body.category;
-	const maxPerSchool = body.maxPerSchool ?? 3;
 
 	const { data: parts } = await supabaseAdmin
 		.from('participants')
@@ -56,11 +55,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			id: p.id as string,
 			school_id: p.school_id as string
 		})),
-		judges: eligible.map((j) => ({ id: j.id as string })),
-		maxPerSchoolPerJudge: maxPerSchool
+		judges: eligible.map((j) => ({ id: j.id as string }))
 	});
 
-	// Decorate with judge names + per-school breakdowns.
 	const judgeName = new Map<string, string>();
 	for (const j of eligible) judgeName.set(j.id as string, j.full_name as string);
 
@@ -87,7 +84,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		ok: true,
 		category,
 		eligibleJudgeNames: eligible.map((j) => j.full_name as string),
-		maxPerSchool,
 		buckets: decorated
 	});
 };

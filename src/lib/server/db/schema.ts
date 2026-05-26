@@ -105,7 +105,7 @@ export const participants = pgTable(
 			.references(() => schools.id, { onDelete: 'restrict' }),
 		fullName: text('full_name').notNull(),
 		category: categoryEnum('category').notNull(),
-		theme: themeEnum('theme'),
+		theme: themeEnum('theme').notNull(),
 		qualified: boolean('qualified').notNull().default(true),
 		notes: text('notes'),
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

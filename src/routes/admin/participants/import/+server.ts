@@ -1,6 +1,7 @@
 // POST /admin/participants/import — bulk-insert participants from a parsed CSV.
 //
-// Body: { rows: [{ full_name, school_name, category, theme? }], commit?: boolean }
+// Body: { rows: [{ full_name, school_name, category, theme }], commit?: boolean }
+// `theme` is required as of migration 016.
 // On commit=false (default): returns a preview summary { newSchools, participants,
 //   errors } without writing anything.
 // On commit=true: creates missing schools first, then inserts participants.
@@ -45,7 +46,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	// Parse + validate each row.
 	const errors: { line: number; message: string }[] = [];
-	type CleanRow = { full_name: string; school_name: string; category: Category; theme: Theme | null };
+	type CleanRow = { full_name: string; school_name: string; category: Category; theme: Theme };
 	const clean: CleanRow[] = [];
 	let i = 0;
 	for (const r of body.rows) {
@@ -53,7 +54,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const full_name = typeof r.full_name === 'string' ? r.full_name.trim() : '';
 		const school_name = typeof r.school_name === 'string' ? r.school_name.trim() : '';
 		const cat = r.category;
-		const theme = r.theme === '' || r.theme == null ? null : r.theme;
+		const theme = typeof r.theme === 'string' ? r.theme.trim() : '';
 		if (!full_name) {
 			errors.push({ line: i, message: 'missing full_name' });
 			continue;
@@ -66,15 +67,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			errors.push({ line: i, message: `invalid category "${String(cat)}"` });
 			continue;
 		}
-		if (theme !== null && !isTheme(theme)) {
-			errors.push({ line: i, message: `invalid theme "${String(theme)}"` });
+		if (!theme) {
+			errors.push({ line: i, message: 'missing theme (Eco-Warriors / Smart Cities / Space Pioneers)' });
+			continue;
+		}
+		if (!isTheme(theme)) {
+			errors.push({ line: i, message: `invalid theme "${theme}"` });
 			continue;
 		}
 		clean.push({
 			full_name,
 			school_name,
 			category: cat,
-			theme: theme === null ? null : (theme as Theme)
+			theme
 		});
 	}
 
