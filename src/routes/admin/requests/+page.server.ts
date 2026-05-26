@@ -28,9 +28,23 @@ export type EditRequestRow = {
 	createdAt: string;
 	resolvedAt: string | null;
 	resolvedNote: string | null;
-	// Which lock the sheet is sitting under right now (informs the approve UX
-	// copy: "Approve unlocks Section A" vs "Approve reopens the whole sheet").
 	currentLock: 'section_a' | 'submitted' | 'none';
+};
+
+export type DqRequestRow = {
+	id: string;
+	scoresheetId: string;
+	participantId: string;
+	participantName: string;
+	participantCategory: 'A' | 'B' | 'C';
+	judgeName: string;
+	reason: string;
+	notes: string;
+	status: 'pending' | 'approved' | 'denied' | 'cleared';
+	createdAt: string;
+	approvedAt: string | null;
+	deniedAt: string | null;
+	resolutionNote: string | null;
 };
 
 function actorFromSession(session: {
@@ -87,7 +101,49 @@ export const load: PageServerLoad = async () => {
 		};
 	});
 
-	return { rows: result };
+	// ── Pending disqualification requests ─────────────────────────────────
+	const { data: dqRows, error: dErr } = await supabaseAdmin
+		.from('disqualifications')
+		.select(
+			`
+			id, scoresheet_id, reason, notes, status, created_at, approved_at, denied_at, resolution_note,
+			scoresheets!inner (
+				participant_id,
+				participants!inner (full_name, category)
+			),
+			profiles!disqualifications_raised_by_fkey (full_name)
+		`
+		)
+		.in('status', ['pending', 'approved', 'denied'])
+		.order('status', { ascending: true })
+		.order('created_at', { ascending: false })
+		.limit(200);
+	if (dErr) throw error(500, dErr.message);
+
+	const dqResult: DqRequestRow[] = (dqRows ?? []).map((r) => {
+		const sheet = (r.scoresheets as unknown) as {
+			participant_id: string;
+			participants: { full_name: string; category: 'A' | 'B' | 'C' };
+		};
+		const judge = (r.profiles as unknown) as { full_name: string };
+		return {
+			id: r.id as string,
+			scoresheetId: r.scoresheet_id as string,
+			participantId: sheet.participant_id,
+			participantName: sheet.participants.full_name,
+			participantCategory: sheet.participants.category,
+			judgeName: judge?.full_name ?? '(unknown)',
+			reason: r.reason as string,
+			notes: r.notes as string,
+			status: r.status as DqRequestRow['status'],
+			createdAt: r.created_at as string,
+			approvedAt: (r.approved_at as string | null) ?? null,
+			deniedAt: (r.denied_at as string | null) ?? null,
+			resolutionNote: (r.resolution_note as string | null) ?? null
+		};
+	});
+
+	return { rows: result, dqRows: dqResult };
 };
 
 export const actions: Actions = {
@@ -206,5 +262,97 @@ export const actions: Actions = {
 		});
 
 		return { ok: true, message: 'Request denied.' };
+	},
+
+	approveDq: async ({ request, locals, getClientAddress }) => {
+		const session = await requireSuperAdmin(locals.user);
+		const form = await request.formData();
+		const id = String(form.get('id') ?? '');
+		const note = String(form.get('note') ?? '').trim().slice(0, 1000) || null;
+		if (!id) return fail(400, { error: 'Missing id.' });
+
+		const { data: dq } = await supabaseAdmin
+			.from('disqualifications')
+			.select('id, scoresheet_id, status, scoresheets!inner(participant_id)')
+			.eq('id', id)
+			.single();
+		if (!dq) return fail(404, { error: 'Disqualification not found.' });
+		if (dq.status !== 'pending') return fail(409, { error: `Already ${dq.status}.` });
+
+		const sheet = (dq.scoresheets as unknown) as { participant_id: string };
+
+		// Mark the participant as disqualified — the leaderboard / results
+		// queries filter on participants.qualified.
+		const { error: pErr } = await supabaseAdmin
+			.from('participants')
+			.update({ qualified: false })
+			.eq('id', sheet.participant_id);
+		if (pErr) return fail(400, { error: pErr.message });
+
+		const { error: stampErr } = await supabaseAdmin
+			.from('disqualifications')
+			.update({
+				status: 'approved',
+				approved_at: new Date().toISOString(),
+				approved_by: session.user.id,
+				resolution_note: note
+			})
+			.eq('id', id);
+		if (stampErr) return fail(400, { error: stampErr.message });
+
+		await appendAudit({
+			actor: actorFromSession(session),
+			actorIp: getClientAddress(),
+			actorUa: request.headers.get('user-agent'),
+			action: 'dq_flag_raise',
+			targetType: 'dq_flag',
+			targetId: id,
+			before: { status: 'pending' },
+			after: { status: 'approved', participant_qualified: false },
+			reason: `Approved disqualification: ${note ?? '(no note)'}`
+		});
+
+		return { ok: true, message: 'Disqualification approved.' };
+	},
+
+	denyDq: async ({ request, locals, getClientAddress }) => {
+		const session = await requireSuperAdmin(locals.user);
+		const form = await request.formData();
+		const id = String(form.get('id') ?? '');
+		const note = String(form.get('note') ?? '').trim().slice(0, 1000) || null;
+		if (!id) return fail(400, { error: 'Missing id.' });
+
+		const { data: dq } = await supabaseAdmin
+			.from('disqualifications')
+			.select('id, status')
+			.eq('id', id)
+			.single();
+		if (!dq) return fail(404, { error: 'Disqualification not found.' });
+		if (dq.status !== 'pending') return fail(409, { error: `Already ${dq.status}.` });
+
+		const { error: stampErr } = await supabaseAdmin
+			.from('disqualifications')
+			.update({
+				status: 'denied',
+				denied_at: new Date().toISOString(),
+				denied_by: session.user.id,
+				resolution_note: note
+			})
+			.eq('id', id);
+		if (stampErr) return fail(400, { error: stampErr.message });
+
+		await appendAudit({
+			actor: actorFromSession(session),
+			actorIp: getClientAddress(),
+			actorUa: request.headers.get('user-agent'),
+			action: 'dq_flag_clear',
+			targetType: 'dq_flag',
+			targetId: id,
+			before: { status: 'pending' },
+			after: { status: 'denied' },
+			reason: `Denied disqualification: ${note ?? '(no note)'}`
+		});
+
+		return { ok: true, message: 'Disqualification denied.' };
 	}
 };

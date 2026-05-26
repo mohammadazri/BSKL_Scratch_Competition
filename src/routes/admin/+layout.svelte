@@ -25,13 +25,35 @@
 
 	let { data, children } = $props();
 
-	// Priority toast for new edit-access requests. The admin gets pinged the
-	// moment a judge files one — they don't have to keep refreshing
-	// /admin/requests. Subscribed at the layout so the alert works from any
-	// admin page (Dashboard, Users, Results, etc).
+	// Audible chime for high-priority notifications. AudioContext requires a
+	// user gesture to unlock in some browsers — wrap in try/catch so it
+	// silently no-ops if blocked.
+	function chime() {
+		try {
+			const Ctx =
+				(window as unknown as { AudioContext?: typeof AudioContext }).AudioContext ??
+				(window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+			const ctx = new Ctx();
+			const osc = ctx.createOscillator();
+			const gain = ctx.createGain();
+			osc.frequency.value = 880;
+			osc.type = 'triangle';
+			gain.gain.value = 0.08;
+			osc.connect(gain).connect(ctx.destination);
+			osc.start();
+			osc.stop(ctx.currentTime + 0.18);
+		} catch {
+			// Audio context blocked. Toast still shows.
+		}
+	}
+
+	// Priority toasts for new edit-access AND disqualification requests so
+	// the admin doesn't have to keep refreshing /admin/requests. Subscribed
+	// at the layout level so the alerts work from any admin page.
 	onMount(() => {
 		if (data.profile.role !== 'super_admin') return;
-		return subscribeTable<{ id: string; reason: string; scoresheet_id: string }>(
+
+		const editUnsub = subscribeTable<{ id: string; reason: string; scoresheet_id: string }>(
 			'edit_requests',
 			{
 				filter: 'status=eq.pending',
@@ -44,37 +66,41 @@
 							onAction: () => goto('/admin/requests')
 						}
 					);
-					// Trigger an audible beep so the admin notices when they aren't
-					// looking at the screen. AudioContext is the most reliable way
-					// across browsers without an asset file.
-					try {
-						const Ctx =
-							(window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext })
-								.AudioContext ??
-							(window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-						const ctx = new Ctx();
-						const osc = ctx.createOscillator();
-						const gain = ctx.createGain();
-						osc.frequency.value = 880;
-						osc.type = 'triangle';
-						gain.gain.value = 0.08;
-						osc.connect(gain).connect(ctx.destination);
-						osc.start();
-						osc.stop(ctx.currentTime + 0.18);
-					} catch {
-						// AudioContext blocked (e.g. no user gesture yet) — silent fail.
-					}
-					// Refresh /admin/requests if the admin is on it so the new row
-					// shows up without a manual refresh.
+					chime();
 					if (page.url.pathname === '/admin/requests') invalidateAll();
 				},
 				onUpdate: () => {
-					// Other admins resolving requests in parallel — keep the page
-					// in sync regardless of who acted.
 					if (page.url.pathname === '/admin/requests') invalidateAll();
 				}
 			}
 		);
+
+		const dqUnsub = subscribeTable<{ id: string; reason: string; scoresheet_id: string }>(
+			'disqualifications',
+			{
+				filter: 'status=eq.pending',
+				onInsert: () => {
+					toasts.warning(
+						'A judge has requested a disqualification. Approve or reject.',
+						'Disqualification request',
+						{
+							actionLabel: 'Review now',
+							onAction: () => goto('/admin/requests')
+						}
+					);
+					chime();
+					if (page.url.pathname === '/admin/requests') invalidateAll();
+				},
+				onUpdate: () => {
+					if (page.url.pathname === '/admin/requests') invalidateAll();
+				}
+			}
+		);
+
+		return () => {
+			editUnsub();
+			dqUnsub();
+		};
 	});
 
 	const navByRole = $derived.by(() => {
@@ -85,7 +111,7 @@
 				{ href: '/admin/schools', label: 'Schools', icon: School },
 				{ href: '/admin/participants', label: 'Participants', icon: UserSquare2 },
 				{ href: '/admin/assignments', label: 'Assignments', icon: ClipboardList },
-				{ href: '/admin/requests', label: 'Edit requests', icon: Inbox },
+				{ href: '/admin/requests', label: 'Approvals', icon: Inbox },
 				{ href: '/admin/results', label: 'Results', icon: Trophy },
 				{ href: '/admin/event', label: 'Event', icon: Settings2 }
 			];

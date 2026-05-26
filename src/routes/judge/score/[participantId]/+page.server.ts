@@ -30,6 +30,7 @@ export type DqInfo = {
 	reason: string;
 	notes: string;
 	clearedBy: string | null;
+	status: 'pending' | 'approved';
 };
 
 export const load: PageServerLoad = async ({ locals, params, parent }) => {
@@ -119,16 +120,18 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 
 		const { data: dqRow } = await locals.supabase
 			.from('disqualifications')
-			.select('id, reason, notes, cleared_by')
+			.select('id, reason, notes, cleared_by, status')
 			.eq('scoresheet_id', sheet.id)
 			.is('cleared_by', null)
+			.in('status', ['pending', 'approved'])
 			.maybeSingle();
 		if (dqRow) {
 			dq = {
 				id: dqRow.id as string,
 				reason: dqRow.reason as string,
 				notes: dqRow.notes as string,
-				clearedBy: (dqRow.cleared_by as string | null) ?? null
+				clearedBy: (dqRow.cleared_by as string | null) ?? null,
+				status: (dqRow.status as 'pending' | 'approved') ?? 'pending'
 			};
 		}
 	}
@@ -638,6 +641,7 @@ export const actions: Actions = {
 			.select('id')
 			.eq('scoresheet_id', sheet.id)
 			.is('cleared_by', null)
+			.in('status', ['pending', 'approved'])
 			.maybeSingle();
 
 		const { data: latestSheet } = await locals.supabase
@@ -651,7 +655,8 @@ export const actions: Actions = {
 			latestSheet?.live_sprint_time_seconds !== undefined;
 		if (!sprintOk && !dqRow) {
 			return fail(400, {
-				submitError: 'Enter sprint time (mm:ss) or raise a DQ flag before submitting.'
+				submitError:
+					'Enter sprint time (mm:ss) or raise a disqualification request before submitting.'
 			});
 		}
 
@@ -726,6 +731,9 @@ export const actions: Actions = {
 		return { requestSent: true };
 	},
 
+	// Renamed from "flag DQ" → "request disqualification" because every
+	// request is now pending until super_admin reviews. The participant
+	// stays qualified until approval.
 	flagDq: async ({ request, locals, params }) => {
 		const profile = await loadActorProfile(locals);
 
@@ -747,26 +755,28 @@ export const actions: Actions = {
 		if (!allowed.includes(reason)) {
 			return fail(400, { dqError: 'Pick a valid reason.' });
 		}
-		// Require a substantive note. A single "." or "n/a" leaves no audit
-		// trail for what justified a DQ — every DQ is consequential, the
-		// note must read like a sentence.
+		// Require a substantive note. Every disqualification is consequential
+		// — the note must read like a sentence the admin can act on.
 		if (notes.length < 10) {
-			return fail(400, { dqError: 'DQ note must be at least 10 characters explaining what happened.' });
+			return fail(400, {
+				dqError:
+					'Disqualification note must be at least 10 characters explaining what happened.'
+			});
 		}
 
-		// Check whether an unresolved DQ already exists — if so, update its notes
-		// rather than insert a duplicate.
+		// Reuse a still-pending request from this judge if one exists. Only
+		// counts as "still active" if it isn't denied and isn't cleared.
 		const { data: existing } = await locals.supabase
 			.from('disqualifications')
-			.select('id')
+			.select('id, status')
 			.eq('scoresheet_id', sheet.id)
 			.is('cleared_by', null)
 			.maybeSingle();
 
-		if (existing) {
+		if (existing && existing.status !== 'denied') {
 			const { error: upErr } = await locals.supabase
 				.from('disqualifications')
-				.update({ reason, notes })
+				.update({ reason, notes, status: 'pending' })
 				.eq('id', existing.id);
 			if (upErr) return fail(400, { dqError: upErr.message });
 		} else {
@@ -776,7 +786,8 @@ export const actions: Actions = {
 					scoresheet_id: sheet.id,
 					reason,
 					notes,
-					raised_by: profile.id
+					raised_by: profile.id,
+					status: 'pending'
 				});
 			if (insErr) return fail(400, { dqError: insErr.message });
 		}

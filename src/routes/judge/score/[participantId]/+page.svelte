@@ -156,35 +156,67 @@
 		}
 	}
 
-	// Live realtime watch: when the admin approves OR denies the judge's
-	// pending edit request, refresh the page so the locked/unlocked state
-	// is correct without the judge having to refresh manually.
+	// Live realtime watch: when the admin approves OR denies a judge-raised
+	// request on this scoresheet, refresh so locks / DQ status are correct
+	// without the judge having to refresh manually.
 	onMount(() => {
 		const sheetId = data.scoresheet?.id;
 		if (!sheetId) return;
-		return subscribeTable<{ id: string; status: string; resolved_note: string | null }>(
-			'edit_requests',
-			{
-				filter: `scoresheet_id=eq.${sheetId}`,
-				onUpdate: (row) => {
-					if (row.status === 'approved') {
-						toasts.success(
-							'Admin approved your edit request — the scoresheet is unlocked.',
-							'Edit access granted'
-						);
-						invalidateAll();
-					} else if (row.status === 'denied') {
-						toasts.error(
-							row.resolved_note
-								? `Reason: ${row.resolved_note}`
-								: 'Your edit request was denied.',
-							'Edit access denied'
-						);
-						invalidateAll();
-					}
+
+		const editUnsub = subscribeTable<{
+			id: string;
+			status: string;
+			resolved_note: string | null;
+		}>('edit_requests', {
+			filter: `scoresheet_id=eq.${sheetId}`,
+			onUpdate: (row) => {
+				if (row.status === 'approved') {
+					toasts.success(
+						'Admin approved your edit request — the scoresheet is unlocked.',
+						'Edit access granted'
+					);
+					invalidateAll();
+				} else if (row.status === 'denied') {
+					toasts.error(
+						row.resolved_note
+							? `Reason: ${row.resolved_note}`
+							: 'Your edit request was denied.',
+						'Edit access denied'
+					);
+					invalidateAll();
 				}
 			}
-		);
+		});
+
+		const dqUnsub = subscribeTable<{
+			id: string;
+			status: string;
+			resolution_note: string | null;
+		}>('disqualifications', {
+			filter: `scoresheet_id=eq.${sheetId}`,
+			onUpdate: (row) => {
+				if (row.status === 'approved') {
+					toasts.success(
+						'Admin approved the disqualification.',
+						'Disqualification confirmed'
+					);
+					invalidateAll();
+				} else if (row.status === 'denied') {
+					toasts.info(
+						row.resolution_note
+							? `Reason: ${row.resolution_note}`
+							: 'Admin rejected the disqualification — participant stays qualified.',
+						'Disqualification rejected'
+					);
+					invalidateAll();
+				}
+			}
+		});
+
+		return () => {
+			editUnsub();
+			dqUnsub();
+		};
 	});
 
 	$effect(() => {
@@ -486,7 +518,13 @@
 			class="mb-4 rounded-md border p-3 text-sm"
 			style="background: rgba(239,68,68,0.08); border-color: var(--color-danger); color: var(--color-danger);"
 		>
-			<strong>DQ flag raised:</strong>
+			<strong>
+				{#if data.dq.status === 'pending'}
+					Disqualification request — awaiting admin approval:
+				{:else}
+					Disqualification approved:
+				{/if}
+			</strong>
 			{data.dq.reason.replaceAll('_', ' ')} — {data.dq.notes}
 		</div>
 	{/if}
@@ -720,7 +758,7 @@
 				class="inline-flex h-11 items-center justify-center rounded-md border text-sm font-medium transition-colors disabled:opacity-40"
 				style="background: var(--color-bg-2); border-color: var(--color-danger); color: var(--color-danger); min-height: 44px;"
 			>
-				{data.dq ? 'Update DQ flag' : 'Raise DQ flag'}
+				{data.dq ? 'Update disqualification' : 'Request disqualification'}
 			</button>
 
 			<div
@@ -750,7 +788,7 @@
 							? 'Score every Section A criterion'
 							: dqRaised
 								? 'Score every criterion'
-								: 'Score every criterion AND enter sprint time (or raise DQ)'}
+								: 'Score every criterion AND enter sprint time (or request a disqualification)'}
 					class="inline-flex h-11 items-center justify-center rounded-md text-sm font-semibold uppercase tracking-wide transition-colors disabled:cursor-not-allowed disabled:opacity-40"
 					style="background: var(--color-accent); color: #fff; min-height: 44px;"
 				>
@@ -833,11 +871,11 @@
 			{#if data.phase === 'section_b'}
 				<dt style="color: var(--color-text-2);">Sprint time</dt>
 				<dd style="font-family: var(--font-mono); color: var(--color-text-1);">
-					{dqRaised && sprintSeconds === null ? '— (DQ)' : formattedSprint}
+					{dqRaised && sprintSeconds === null ? '— (disqualified)' : formattedSprint}
 				</dd>
 				{#if dqRaised}
-					<dt style="color: var(--color-danger);">DQ flag</dt>
-					<dd style="color: var(--color-danger);">raised</dd>
+					<dt style="color: var(--color-danger);">Disqualification</dt>
+					<dd style="color: var(--color-danger);">requested</dd>
 				{/if}
 			{/if}
 		</dl>
@@ -868,7 +906,11 @@
 </Modal>
 
 <!-- DQ modal -->
-<Modal open={dqModalOpen} title={data.dq ? 'Update DQ flag' : 'Raise DQ flag'} onClose={() => (dqModalOpen = false)}>
+<Modal
+	open={dqModalOpen}
+	title={data.dq ? 'Update disqualification request' : 'Request disqualification'}
+	onClose={() => (dqModalOpen = false)}
+>
 	<form
 		method="POST"
 		action="?/flagDq"

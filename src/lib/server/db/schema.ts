@@ -67,6 +67,12 @@ export const editRequestStatusEnum = pgEnum('edit_request_status', [
 	'approved',
 	'denied'
 ]);
+export const disqualificationStatusEnum = pgEnum('disqualification_status', [
+	'pending',
+	'approved',
+	'denied',
+	'cleared'
+]);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // profiles
@@ -276,6 +282,12 @@ export const disqualifications = pgTable('disqualifications', {
 		.references(() => profiles.id),
 	clearedBy: uuid('cleared_by').references(() => profiles.id),
 	clearedReason: text('cleared_reason'),
+	status: disqualificationStatusEnum('status').notNull().default('pending'),
+	approvedBy: uuid('approved_by').references(() => profiles.id),
+	approvedAt: timestamp('approved_at', { withTimezone: true }),
+	deniedBy: uuid('denied_by').references(() => profiles.id),
+	deniedAt: timestamp('denied_at', { withTimezone: true }),
+	resolutionNote: text('resolution_note'),
 	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 });
 
