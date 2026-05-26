@@ -1,18 +1,13 @@
 <!--
 	LiveTotalCard — the right-column live total + progress for the scoring form.
+	Big mono number for the total, horizontal bar for points-vs-max, second
+	bar for criteria-scored progress.
 
-	Big mono number for the total, a horizontal progress bar showing total
-	points as a fraction of `maxTotal`, then a separate "scored N of M
-	criteria" progress for completion.
-
-	Animates the count-up over ~200ms when the total changes (DESIGN.md § 2.6).
-	Respects prefers-reduced-motion via the global rule in app.css that wipes
-	out long transitions; we additionally skip the JS interpolation when it's
-	set.
+	(We used to JS-animate the number count-up but it was racey when props
+	updated mid-tween — keeping the value pure $derived avoids the bug at
+	the cost of an instant number flip, which is fine for a judging UI.)
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
-
 	interface Props {
 		total: number;
 		maxTotal: number;
@@ -21,49 +16,6 @@
 	}
 
 	let { total, maxTotal, scoredCount, totalCriteria }: Props = $props();
-
-	let display = $state(0);
-	let mounted = $state(false);
-	let prefersReducedMotion = $state(false);
-
-	onMount(() => {
-		mounted = true;
-		display = total;
-		if (typeof window !== 'undefined') {
-			prefersReducedMotion = window.matchMedia(
-				'(prefers-reduced-motion: reduce)'
-			).matches;
-		}
-	});
-
-	// Tween display → total whenever total changes (skip on initial mount).
-	let lastTarget = $state(0);
-	$effect(() => {
-		const target = total;
-		if (!mounted) {
-			display = target;
-			lastTarget = target;
-			return;
-		}
-		if (target === lastTarget) return;
-		lastTarget = target;
-		if (prefersReducedMotion) {
-			display = target;
-			return;
-		}
-		const start = display;
-		const delta = target - start;
-		const duration = 200;
-		const t0 = performance.now();
-		let raf = 0;
-		const step = (t: number) => {
-			const p = Math.min(1, (t - t0) / duration);
-			display = Math.round(start + delta * p);
-			if (p < 1) raf = requestAnimationFrame(step);
-		};
-		raf = requestAnimationFrame(step);
-		return () => cancelAnimationFrame(raf);
-	});
 
 	let pct = $derived(maxTotal > 0 ? Math.round((total / maxTotal) * 100) : 0);
 	let progressPct = $derived(
@@ -86,7 +38,7 @@
 			class="text-4xl font-semibold tabular-nums sm:text-5xl"
 			style="font-family: var(--font-mono); color: var(--color-text-1);"
 		>
-			{display}
+			{total}
 		</span>
 		<span
 			class="text-base"
