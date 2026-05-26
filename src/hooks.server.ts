@@ -23,6 +23,7 @@ const supabaseHandle: Handle = async ({ event, resolve }) => {
 					// the Pi at http://<ip>:5999) — otherwise browsers reject
 					// the Supabase session cookie and login appears to silently
 					// fail. Over HTTPS the flag stays on as required.
+					console.log(`[cookie] set ${name} secure=${isHttps} protocol=${event.url.protocol} xfp=${event.request.headers.get('x-forwarded-proto')}`);
 					event.cookies.set(name, value, { ...options, path: '/', secure: isHttps });
 				});
 			}
@@ -109,10 +110,18 @@ const securityHeaders: Handle = async ({ event, resolve }) => {
 	response.headers.set('X-Frame-Options', 'DENY');
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-	response.headers.set(
-		'Strict-Transport-Security',
-		'max-age=31536000; includeSubDomains'
-	);
+	// Only set HSTS on HTTPS requests — sending it on the Pi's plain-HTTP LAN
+	// endpoint can cache "this host wants HTTPS" in the browser and break
+	// subsequent HTTP testing.
+	if (
+		event.url.protocol === 'https:' ||
+		event.request.headers.get('x-forwarded-proto') === 'https'
+	) {
+		response.headers.set(
+			'Strict-Transport-Security',
+			'max-age=31536000; includeSubDomains'
+		);
+	}
 	response.headers.set(
 		'Permissions-Policy',
 		'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=()'
