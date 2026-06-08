@@ -56,18 +56,38 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		totalCount: Number(r.total_criteria_count ?? 0)
 	}));
 
-	// Sort: not_started → draft → submitted → finalised, then by name.
 	const statusOrder: Record<QueueRow['status'], number> = {
 		not_started: 0,
 		draft: 1,
 		submitted: 2,
 		finalised: 3
 	};
-	rows.sort((a, b) => {
+
+	// The judge_queue view LEFT JOINs scoresheets, so a participant appears in
+	// more than one row if the DB holds duplicate scoresheets (or assignments)
+	// for the same participant+judge+section — e.g. rows left over from before
+	// the unique index in migration 022. A keyed {#each} by participantId then
+	// throws each_key_duplicate and the WHOLE queue fails to render. Collapse to
+	// one row per participant, keeping the most-progressed (then most-scored) one.
+	const bestByParticipant = new Map<string, QueueRow>();
+	for (const r of rows) {
+		const prev = bestByParticipant.get(r.participantId);
+		if (
+			!prev ||
+			statusOrder[r.status] > statusOrder[prev.status] ||
+			(statusOrder[r.status] === statusOrder[prev.status] && r.scoredCount > prev.scoredCount)
+		) {
+			bestByParticipant.set(r.participantId, r);
+		}
+	}
+	const deduped = [...bestByParticipant.values()];
+
+	// Sort: not_started → draft → submitted → finalised, then by name.
+	deduped.sort((a, b) => {
 		const s = statusOrder[a.status] - statusOrder[b.status];
 		if (s !== 0) return s;
 		return a.fullName.localeCompare(b.fullName);
 	});
 
-	return { rows, loadError: null as string | null, flash };
+	return { rows: deduped, loadError: null as string | null, flash };
 };

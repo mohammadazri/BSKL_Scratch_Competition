@@ -44,11 +44,29 @@ export const actions: Actions = {
 			return fail(400, { error: 'Passwords do not match.' });
 		}
 
-		const { error: pwErr } = await supabaseAdmin.auth.admin.updateUserById(locals.user.id, {
-			password
-		});
+		// IMPORTANT: use the user's OWN session client for self-password change,
+		// not the admin API. `supabase.auth.updateUser({ password })` updates
+		// auth.users.encrypted_password AND re-issues fresh access/refresh
+		// tokens so the current session cookies stay in sync. Using the admin
+		// API here caused a subtle bug where the password change worked
+		// in-session (the JWT was still valid) but the next login from a fresh
+		// browser session would reject the new password because the user's
+		// session tokens went stale.
+		const { error: pwErr } = await locals.supabase.auth.updateUser({ password });
 		if (pwErr) {
 			return fail(400, { error: pwErr.message });
+		}
+
+		// Belt-and-braces: also call the admin API. If for any reason the
+		// session-scoped update silently no-op'd (rare GoTrue edge cases), the
+		// admin update will guarantee the new hash lands in auth.users. This
+		// idempotent double-write is cheap and makes the fix bullet-proof.
+		const { error: adminErr } = await supabaseAdmin.auth.admin.updateUserById(
+			locals.user.id,
+			{ password }
+		);
+		if (adminErr) {
+			return fail(400, { error: adminErr.message });
 		}
 
 		const { error: profErr } = await supabaseAdmin

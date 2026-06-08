@@ -15,7 +15,14 @@
 
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { sortLevels, type RubricCriterion, type RubricLevel } from '$lib/scoring';
+import {
+	sortLevels,
+	deriveLevelFromPoints,
+	pointsFromCheckpoints,
+	type RubricCheckpoint,
+	type RubricCriterion,
+	type RubricLevel
+} from '$lib/scoring';
 import type { Category, PerfLevel } from '$lib/types';
 
 export type ScoreRow = {
@@ -23,6 +30,7 @@ export type ScoreRow = {
 	level: PerfLevel;
 	points: number;
 	comment: string | null;
+	checkpointIds: string[];
 };
 
 export type DqInfo = {
@@ -54,9 +62,11 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 		.single();
 
 	// 2. Rubric — criteria + their levels for this participant's category.
+	//    `checkpoints` is a JSONB column that may be null (criteria still on the
+	//    legacy 4-level UI) or an array (criteria converted to checklist mode).
 	const { data: criteriaRows, error: cErr } = await locals.supabase
 		.from('criteria')
-		.select('id, category, section, name, max_points, sort_order')
+		.select('id, category, section, name, max_points, sort_order, checkpoints')
 		.eq('category', participant.category)
 		.order('section', { ascending: true })
 		.order('sort_order', { ascending: true });
@@ -84,24 +94,59 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 		levelsByCriterion.set(l.criterion_id as string, arr);
 	});
 
-	const criteria: RubricCriterion[] = criteriaRows.map((c) => ({
-		id: c.id as string,
-		category: c.category as Category,
-		section: c.section as 'A' | 'B',
-		name: c.name as string,
-		maxPoints: c.max_points as number,
-		sortOrder: c.sort_order as number,
-		levels: sortLevels(levelsByCriterion.get(c.id as string) ?? [])
-	}));
+	const criteria: RubricCriterion[] = criteriaRows.map((c) => {
+		const rawCheckpoints = c.checkpoints as
+			| Array<{ id?: string; sort_order?: number; points: number; label: string }>
+			| null;
+		const checkpoints: RubricCheckpoint[] | undefined = rawCheckpoints
+			? [...rawCheckpoints]
+					.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+					// Stable fallback id. Databases seeded before checkpoints had ids
+					// store id-less checkpoint objects; without a unique key the keyed
+					// {#each} in CriterionCard throws each_key_duplicate and the whole
+					// scoring page fails to render — which presents as the judge's
+					// "Start/Continue" doing nothing. The index is unique and stable
+					// (same source + same sort here and in checkpointsByCriterion), so
+					// render, tick-state and server scoring all agree on the same ids.
+					.map((cp, i) => ({
+						id: cp.id ?? `cp-${i}`,
+						sortOrder: cp.sort_order ?? i,
+						points: cp.points,
+						label: cp.label
+					}))
+			: undefined;
+		return {
+			id: c.id as string,
+			category: c.category as Category,
+			section: c.section as 'A' | 'B',
+			name: c.name as string,
+			maxPoints: c.max_points as number,
+			sortOrder: c.sort_order as number,
+			levels: sortLevels(levelsByCriterion.get(c.id as string) ?? []),
+			checkpoints
+		};
+	});
 
-	// 3. Existing scoresheet (may be null on first visit).
+	// 3. Existing scoresheet for THIS judge in THIS section (may be null on first
+	//    visit). Now that scoresheets are section-scoped a judge can have up to
+	//    TWO sheets per participant (A and B) when both assignments hit them; we
+	//    pick the one matching the current event phase so the page always shows
+	//    the relevant work.
+	const { data: ev0 } = await locals.supabase
+		.from('event_state')
+		.select('phase')
+		.eq('id', 1)
+		.maybeSingle();
+	const currentSection: 'A' | 'B' = ev0?.phase === 'section_b' ? 'B' : 'A';
+
 	const { data: sheet } = await locals.supabase
 		.from('scoresheets')
 		.select(
-			'id, status, live_sprint_time_seconds, submitted_at, finalised_at, judge_notes, section_a_submitted_at'
+			'id, status, live_sprint_time_seconds, submitted_at, finalised_at, judge_notes, section_a_submitted_at, section'
 		)
 		.eq('participant_id', participantId)
 		.eq('judge_id', profile.id)
+		.eq('section', currentSection)
 		.maybeSingle();
 
 	let scores: ScoreRow[] = [];
@@ -109,13 +154,16 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 	if (sheet) {
 		const { data: scoreRows } = await locals.supabase
 			.from('scores')
-			.select('criterion_id, level, points, comment')
+			.select('criterion_id, level, points, comment, checkpoint_state')
 			.eq('scoresheet_id', sheet.id);
 		scores = (scoreRows ?? []).map((s) => ({
 			criterionId: s.criterion_id as string,
 			level: s.level as PerfLevel,
 			points: s.points as number,
-			comment: (s.comment as string | null) ?? null
+			comment: (s.comment as string | null) ?? null,
+			checkpointIds: Array.isArray(s.checkpoint_state)
+				? (s.checkpoint_state as string[])
+				: []
 		}));
 
 		const { data: dqRow } = await locals.supabase
@@ -206,22 +254,35 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 // Helpers
 // ──────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Find or create THIS judge's scoresheet for the given section. Scoresheets
+ * are now scoped to (participant, judge, section) — see migration 022. If
+ * `section` is omitted we fall back to the participant's section-A sheet so
+ * legacy callers (audit / done page) still resolve to something.
+ */
 async function getOrCreateScoresheet(
 	locals: App.Locals,
 	participantId: string,
-	judgeId: string
+	judgeId: string,
+	section: 'A' | 'B' = 'A'
 ): Promise<{ id: string; status: string; live_sprint_time_seconds: number | null } | null> {
 	const { data: existing } = await locals.supabase
 		.from('scoresheets')
 		.select('id, status, live_sprint_time_seconds')
 		.eq('participant_id', participantId)
 		.eq('judge_id', judgeId)
+		.eq('section', section)
 		.maybeSingle();
 	if (existing) return existing as any;
 
 	const { data: created, error: insErr } = await locals.supabase
 		.from('scoresheets')
-		.insert({ participant_id: participantId, judge_id: judgeId, status: 'draft' })
+		.insert({
+			participant_id: participantId,
+			judge_id: judgeId,
+			section,
+			status: 'draft'
+		})
 		.select('id, status, live_sprint_time_seconds')
 		.single();
 	if (insErr) return null;
@@ -258,13 +319,14 @@ function parsePayload(form: FormData): {
 		level: PerfLevel;
 		points: number;
 		comment: string | null;
+		checkpointIds: string[];
 	}>;
 	sprintTimeSeconds: number | null | undefined;
 } {
 	// The form sends one `criterion_id` per card, plus per-criterion fields
-	// keyed by id (`level__<id>`, `points__<id>`, `comment__<id>`). We assemble
-	// each (id, level, points, comment) tuple and drop cards that aren't fully
-	// scored yet.
+	// keyed by id (`level__<id>`, `points__<id>`, `comment__<id>`,
+	// `checkpoints__<id>` = JSON array of ticked checkpoint ids). We assemble
+	// each tuple and drop cards that aren't fully scored yet.
 	const ids = form.getAll('criterion_id').map(String);
 	const scores: ReturnType<typeof parsePayload>['scores'] = [];
 	const seen = new Set<string>();
@@ -280,11 +342,29 @@ function parsePayload(form: FormData): {
 		if (lvlRaw === '' || ptsRaw === '') continue; // not scored yet
 		const pts = Number(ptsRaw);
 		if (!Number.isFinite(pts)) continue;
+
+		// Checkpoint state — JSON array of ticked ids. Defensive parse: any
+		// malformed value is treated as "no checkpoints ticked" rather than
+		// blowing up the save. The points/level above remain canonical.
+		let checkpointIds: string[] = [];
+		const cpRaw = form.get(`checkpoints__${id}`);
+		if (typeof cpRaw === 'string' && cpRaw.length > 0) {
+			try {
+				const parsed = JSON.parse(cpRaw);
+				if (Array.isArray(parsed)) {
+					checkpointIds = parsed.filter((v): v is string => typeof v === 'string');
+				}
+			} catch {
+				/* ignore — keep empty */
+			}
+		}
+
 		scores.push({
 			criterionId: id,
 			level: lvlRaw as PerfLevel,
 			points: Math.round(pts),
-			comment: cmRaw.length === 0 ? null : cmRaw
+			comment: cmRaw.length === 0 ? null : cmRaw,
+			checkpointIds
 		});
 	}
 
@@ -340,31 +420,34 @@ async function nextParticipantForJudge(
 	currentParticipantId: string,
 	phase: 'section_a' | 'section_b'
 ): Promise<string | null> {
-	// 1. Every participant assigned to this judge (excluding the one we just
-	//    finished scoring).
+	const phaseSection: 'A' | 'B' = phase === 'section_b' ? 'B' : 'A';
+
+	// 1. Every participant assigned to this judge IN THE CURRENT SECTION
+	//    (excluding the one we just finished scoring). Multi-judge fairness
+	//    means a judge's Section A queue and Section B queue can be different.
 	const { data: asgns } = await locals.supabase
 		.from('assignments')
 		.select('participant_id')
 		.eq('judge_id', judgeId)
+		.eq('section', phaseSection)
 		.neq('participant_id', currentParticipantId);
 
 	const participantIds = (asgns ?? []).map((a) => a.participant_id as string);
 	if (participantIds.length === 0) return null;
 
-	// 2. This judge's scoresheets for those participants (may be empty for
-	//    participants they haven't started yet).
+	// 2. This judge's section-scoped scoresheets for those participants. Empty
+	//    when they haven't started a given participant yet.
 	const { data: sheets } = await locals.supabase
 		.from('scoresheets')
-		.select('participant_id, status, section_a_submitted_at')
+		.select('participant_id, status')
 		.eq('judge_id', judgeId)
+		.eq('section', phaseSection)
 		.in('participant_id', participantIds);
 
-	type Sheet = { status: string; section_a_submitted_at: string | null };
-	const sheetByParticipant = new Map<string, Sheet>();
+	const sheetByParticipant = new Map<string, { status: string }>();
 	for (const s of sheets ?? []) {
 		sheetByParticipant.set(s.participant_id as string, {
-			status: s.status as string,
-			section_a_submitted_at: (s.section_a_submitted_at as string | null) ?? null
+			status: s.status as string
 		});
 	}
 
@@ -379,15 +462,12 @@ async function nextParticipantForJudge(
 		nameById.set(p.id as string, (p.full_name as string) ?? '');
 	}
 
+	// A section is "done for this judge" when the section sheet exists and is
+	// submitted/finalised. With section-scoped sheets the rule is uniform —
+	// no more special-casing of section_a_submitted_at.
 	const candidates = participantIds
 		.filter((id) => {
 			const sheet = sheetByParticipant.get(id);
-			if (phase === 'section_a') {
-				// Section A done = the judge has submitted Section A for this
-				// participant. No sheet = also not done.
-				return !sheet?.section_a_submitted_at;
-			}
-			// Section B: skip anyone the judge has fully submitted.
 			return !sheet || (sheet.status !== 'submitted' && sheet.status !== 'finalised');
 		})
 		.sort((a, b) => (nameById.get(a) ?? '').localeCompare(nameById.get(b) ?? ''));
@@ -416,6 +496,70 @@ async function criterionIdsForSection(
 	return new Set((data ?? []).map((c) => c.id as string));
 }
 
+// Returns a map criterion_id → checkpoints for the participant's category.
+// Empty list when the criterion is still on the legacy 4-level UI.
+async function checkpointsByCriterion(
+	locals: App.Locals,
+	participantId: string
+): Promise<Map<string, RubricCheckpoint[]>> {
+	const { data: p } = await locals.supabase
+		.from('participants')
+		.select('category')
+		.eq('id', participantId)
+		.maybeSingle();
+	if (!p) return new Map();
+	const { data } = await locals.supabase
+		.from('criteria')
+		.select('id, max_points, checkpoints')
+		.eq('category', p.category as string);
+	const out = new Map<string, RubricCheckpoint[]>();
+	for (const c of data ?? []) {
+		const raw = c.checkpoints as
+			| Array<{ id?: string; sort_order?: number; points: number; label: string }>
+			| null;
+		if (!raw) {
+			out.set(c.id as string, []);
+			continue;
+		}
+		out.set(
+			c.id as string,
+			[...raw]
+				.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+				// Same stable fallback id as the page-load mapping above, so the
+				// server's checkpoint→points reconciliation matches the ids the
+				// client ticked even when the stored checkpoints have no id.
+				.map((cp, i) => ({
+					id: cp.id ?? `cp-${i}`,
+					sortOrder: cp.sort_order ?? i,
+					points: cp.points,
+					label: cp.label
+				}))
+		);
+	}
+	return out;
+}
+
+/**
+ * For a single parsed score row, recompute canonical (level, points) from the
+ * ticked checkpoints when the criterion has any. Mutates a copy and returns it.
+ * Falls through unchanged if the criterion is still on the legacy level UI.
+ * SECURITY: prevents a tampered form from submitting (level=Excellent, points=999)
+ * without the supporting ticks; the server always wins.
+ */
+function reconcileWithCheckpoints(
+	row: { criterionId: string; level: PerfLevel; points: number; checkpointIds: string[] },
+	checkpoints: RubricCheckpoint[] | undefined,
+	maxPoints: number
+): { level: PerfLevel; points: number } {
+	if (!checkpoints || checkpoints.length === 0) {
+		return { level: row.level, points: row.points };
+	}
+	const ticked = new Set(row.checkpointIds);
+	const points = pointsFromCheckpoints(checkpoints, ticked);
+	const clamped = Math.max(0, Math.min(maxPoints, points));
+	return { level: deriveLevelFromPoints(clamped, maxPoints), points: clamped };
+}
+
 export const actions: Actions = {
 	save: async ({ request, locals, params }) => {
 		const profile = await loadActorProfile(locals);
@@ -430,7 +574,13 @@ export const actions: Actions = {
 			});
 		}
 
-		const sheet = await getOrCreateScoresheet(locals, params.participantId, profile.id);
+		const currentSection: 'A' | 'B' = phase === 'section_b' ? 'B' : 'A';
+		const sheet = await getOrCreateScoresheet(
+			locals,
+			params.participantId,
+			profile.id,
+			currentSection
+		);
 		if (!sheet) {
 			return fail(500, { saveError: 'Could not create or load scoresheet.' });
 		}
@@ -457,8 +607,9 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const { scores, sprintTimeSeconds } = parsePayload(form);
 
-		// Reject scores belonging to a section other than the current phase's.
-		const currentSection: 'A' | 'B' = phase === 'section_a' ? 'A' : 'B';
+		// `currentSection` is already in scope from the getOrCreateScoresheet
+		// call above. Use it to reject scores belonging to a section other than
+		// the current phase's.
 		const allowedIds = await criterionIdsForSection(
 			locals,
 			params.participantId,
@@ -467,13 +618,32 @@ export const actions: Actions = {
 		const inPhaseScores = scores.filter((s) => allowedIds.has(s.criterionId));
 
 		if (inPhaseScores.length > 0) {
-			const rows = inPhaseScores.map((s) => ({
-				scoresheet_id: sheet.id,
-				criterion_id: s.criterionId,
-				level: s.level,
-				points: s.points,
-				comment: s.comment
-			}));
+			// Reconcile points/level from checkpoint state on the server so a
+			// tampered client can't smuggle in an inconsistent score.
+			const cpByCriterion = await checkpointsByCriterion(locals, params.participantId);
+			const { data: critRows } = await locals.supabase
+				.from('criteria')
+				.select('id, max_points')
+				.in('id', inPhaseScores.map((s) => s.criterionId));
+			const maxByCrit = new Map<string, number>(
+				(critRows ?? []).map((r) => [r.id as string, r.max_points as number])
+			);
+
+			const rows = inPhaseScores.map((s) => {
+				const reconciled = reconcileWithCheckpoints(
+					s,
+					cpByCriterion.get(s.criterionId),
+					maxByCrit.get(s.criterionId) ?? s.points
+				);
+				return {
+					scoresheet_id: sheet.id,
+					criterion_id: s.criterionId,
+					level: reconciled.level,
+					points: reconciled.points,
+					comment: s.comment,
+					checkpoint_state: s.checkpointIds.length > 0 ? s.checkpointIds : null
+				};
+			});
 			const { error: upErr } = await locals.supabase
 				.from('scores')
 				.upsert(rows, { onConflict: 'scoresheet_id,criterion_id' });
@@ -516,7 +686,13 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const { scores, sprintTimeSeconds } = parsePayload(form);
 
-		const sheet = await getOrCreateScoresheet(locals, params.participantId, profile.id);
+		const submitSection: 'A' | 'B' = phase === 'section_b' ? 'B' : 'A';
+		const sheet = await getOrCreateScoresheet(
+			locals,
+			params.participantId,
+			profile.id,
+			submitSection
+		);
 		if (!sheet) {
 			return fail(500, { submitError: 'Could not load scoresheet.' });
 		}
@@ -550,14 +726,30 @@ export const actions: Actions = {
 			}
 
 			if (scoresToUpsert.length > 0) {
+				const cpByCriterion = await checkpointsByCriterion(locals, params.participantId);
+				const { data: critRows } = await locals.supabase
+					.from('criteria')
+					.select('id, max_points')
+					.in('id', scoresToUpsert.map((s) => s.criterionId));
+				const maxByCrit = new Map<string, number>(
+					(critRows ?? []).map((r) => [r.id as string, r.max_points as number])
+				);
 				const { error: upErr } = await locals.supabase.from('scores').upsert(
-					scoresToUpsert.map((s) => ({
-						scoresheet_id: sheet.id,
-						criterion_id: s.criterionId,
-						level: s.level,
-						points: s.points,
-						comment: s.comment
-					})),
+					scoresToUpsert.map((s) => {
+						const reconciled = reconcileWithCheckpoints(
+							s,
+							cpByCriterion.get(s.criterionId),
+							maxByCrit.get(s.criterionId) ?? s.points
+						);
+						return {
+							scoresheet_id: sheet.id,
+							criterion_id: s.criterionId,
+							level: reconciled.level,
+							points: reconciled.points,
+							comment: s.comment,
+							checkpoint_state: s.checkpointIds.length > 0 ? s.checkpointIds : null
+						};
+					}),
 					{ onConflict: 'scoresheet_id,criterion_id' }
 				);
 				if (upErr) return fail(400, { submitError: upErr.message });
@@ -599,16 +791,32 @@ export const actions: Actions = {
 
 		// SECTION B submit path — the original "final submission" flow.
 		if (scoresToUpsert.length > 0) {
+			const cpByCriterion = await checkpointsByCriterion(locals, params.participantId);
+			const { data: critRows } = await locals.supabase
+				.from('criteria')
+				.select('id, max_points')
+				.in('id', scoresToUpsert.map((s) => s.criterionId));
+			const maxByCrit = new Map<string, number>(
+				(critRows ?? []).map((r) => [r.id as string, r.max_points as number])
+			);
 			const { error: upErr } = await locals.supabase
 				.from('scores')
 				.upsert(
-					scoresToUpsert.map((s) => ({
-						scoresheet_id: sheet.id,
-						criterion_id: s.criterionId,
-						level: s.level,
-						points: s.points,
-						comment: s.comment
-					})),
+					scoresToUpsert.map((s) => {
+						const reconciled = reconcileWithCheckpoints(
+							s,
+							cpByCriterion.get(s.criterionId),
+							maxByCrit.get(s.criterionId) ?? s.points
+						);
+						return {
+							scoresheet_id: sheet.id,
+							criterion_id: s.criterionId,
+							level: reconciled.level,
+							points: reconciled.points,
+							comment: s.comment,
+							checkpoint_state: s.checkpointIds.length > 0 ? s.checkpointIds : null
+						};
+					}),
 					{ onConflict: 'scoresheet_id,criterion_id' }
 				);
 			if (upErr) return fail(400, { submitError: upErr.message });
@@ -750,7 +958,16 @@ export const actions: Actions = {
 	flagDq: async ({ request, locals, params }) => {
 		const profile = await loadActorProfile(locals);
 
-		const sheet = await getOrCreateScoresheet(locals, params.participantId, profile.id);
+		// DQ requests target the scoresheet that's CURRENTLY in front of the
+		// judge — i.e. the current phase's section.
+		const phase = await getPhase(locals);
+		const dqSection: 'A' | 'B' = phase === 'section_b' ? 'B' : 'A';
+		const sheet = await getOrCreateScoresheet(
+			locals,
+			params.participantId,
+			profile.id,
+			dqSection
+		);
 		if (!sheet) return fail(500, { dqError: 'Could not load scoresheet.' });
 
 		const form = await request.formData();

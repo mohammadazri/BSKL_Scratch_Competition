@@ -140,7 +140,8 @@ export const criteria = pgTable(
 		section: sectionEnum('section').notNull(),
 		name: text('name').notNull(),
 		maxPoints: integer('max_points').notNull(),
-		sortOrder: integer('sort_order').notNull()
+		sortOrder: integer('sort_order').notNull(),
+		checkpoints: jsonb('checkpoints')
 	},
 	(t) => ({
 		uniqOrder: uniqueIndex('criteria_category_section_sort_order_key').on(
@@ -253,6 +254,7 @@ export const scores = pgTable(
 		level: perfLevelEnum('level').notNull(),
 		points: integer('points').notNull(),
 		comment: text('comment'),
+		checkpointState: jsonb('checkpoint_state'),
 		isOverride: boolean('is_override').notNull().default(false),
 		overrideReason: text('override_reason'),
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

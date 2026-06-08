@@ -3,7 +3,19 @@
 	Per DESIGN.md § 3 status pills: coloured dot + text on bg-3 surface.
 -->
 <script lang="ts">
-	type Status = 'not_started' | 'draft' | 'submitted' | 'finalised' | 'override' | 'dq';
+	// `section_a_done` is a derived UX status: scoresheets.status is still
+	// 'draft' (the row is one record across both sections), but the judge has
+	// already stamped section_a_submitted_at. From the judge's point of view
+	// Section A is "Done", and showing them "draft" feels like nothing was
+	// saved — so we surface the intent.
+	type Status =
+		| 'not_started'
+		| 'draft'
+		| 'section_a_done'
+		| 'submitted'
+		| 'finalised'
+		| 'override'
+		| 'dq';
 
 	interface Props {
 		status: Status;
@@ -15,10 +27,11 @@
 	const meta: Record<Status, { dot: string; text: string }> = {
 		not_started: { dot: 'var(--color-text-3)', text: 'not started' },
 		draft: { dot: 'var(--color-warning)', text: 'draft' },
-		submitted: { dot: 'var(--color-success)', text: 'submitted' },
-		finalised: { dot: 'var(--color-text-2)', text: 'finalised' },
+		section_a_done: { dot: 'var(--color-accent)', text: 'Section A done' },
+		submitted: { dot: 'var(--color-success)', text: 'completed' },
+		finalised: { dot: 'var(--color-success)', text: 'completed' },
 		override: { dot: 'var(--color-danger)', text: 'override' },
-		dq: { dot: 'var(--color-danger)', text: 'DQ' }
+		dq: { dot: 'var(--color-danger)', text: 'disqualified' }
 	};
 
 	let m = $derived(meta[status]);

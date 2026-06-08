@@ -13,6 +13,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { supabaseAdmin } from '$lib/server/supabase';
 import { requireSuperAdmin } from '$lib/server/guards';
 import { appendAudit, type AuditActor } from '$lib/server/audit-local';
+import { reshuffleSectionBForCategory } from '$lib/server/reshuffle';
 import type { EventPhase } from '$lib/types';
 
 export type EventStateRow = {
@@ -120,11 +121,48 @@ export const actions: Actions = {
 			.eq('id', 1)
 			.single();
 
+		const beforePhase = (before?.phase as EventPhase | null) ?? null;
+		const advancingToSectionB = phase === 'section_b' && beforePhase !== 'section_b';
+
 		const { error: updErr } = await supabaseAdmin
 			.from('event_state')
 			.update({ phase })
 			.eq('id', 1);
 		if (updErr) return fail(400, { error: updErr.message });
+
+		// AUTO RE-SHUFFLE: when transitioning into section_b, automatically
+		// re-assign each category's participants to a DIFFERENT judge for
+		// fairness (the same judge can't grade both sections of one student
+		// — that's how single-grader bias creeps in). We do this server-side
+		// at the moment of transition so the admin doesn't have to remember
+		// to click a separate "shuffle" button per category.
+		const reshuffleResults: Array<{
+			category: 'A' | 'B' | 'C';
+			ok: boolean;
+			message: string;
+			conflicts: number;
+		}> = [];
+
+		if (advancingToSectionB) {
+			for (const category of ['A', 'B', 'C'] as const) {
+				try {
+					const result = await reshuffleSectionBForCategory(category);
+					reshuffleResults.push({
+						category,
+						ok: result.ok,
+						message: result.message ?? '',
+						conflicts: result.conflicts ?? 0
+					});
+				} catch (e) {
+					reshuffleResults.push({
+						category,
+						ok: false,
+						message: e instanceof Error ? e.message : String(e),
+						conflicts: 0
+					});
+				}
+			}
+		}
 
 		await appendAudit({
 			actor: actor(session),
@@ -133,8 +171,8 @@ export const actions: Actions = {
 			action: 'event_phase_change',
 			targetType: 'event_state',
 			targetId: '1',
-			before: { phase: (before?.phase as string | null) ?? null },
-			after: { phase },
+			before: { phase: beforePhase },
+			after: { phase, reshuffle: advancingToSectionB ? reshuffleResults : null },
 			reason: null
 		});
 
@@ -144,7 +182,16 @@ export const actions: Actions = {
 			section_b: 'Section B scoring (event day)',
 			finalised: 'Finalised'
 		};
-		return { ok: true, message: `Event phase set to ${labels[phase]}.` };
+		const reshuffleSummary = advancingToSectionB
+			? ' · Re-shuffled Section B assignments: ' +
+				reshuffleResults
+					.map((r) => `Cat ${r.category} ${r.ok ? '✓' : '✕'}`)
+					.join(', ')
+			: '';
+		return {
+			ok: true,
+			message: `Event phase set to ${labels[phase]}.${reshuffleSummary}`
+		};
 	},
 
 	lock: async ({ locals, request, getClientAddress }) => {

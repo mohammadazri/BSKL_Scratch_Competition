@@ -10,6 +10,15 @@
 							"sort_order": 1,
 							"name": "Theme Integration",
 							"max_points": 16,
+							"checkpoints": [
+								{ "id": "A.A.1.1", "sort_order": 1, "points": 2, "label": "Game has 2 or more active sprites." },
+								{ "id": "A.A.1.2", "sort_order": 2, "points": 2, "label": "At least 1 themed backdrop (not the blank white default)." },
+								{ "id": "A.A.1.3", "sort_order": 3, "points": 3, "label": "Backdrop matches one of the 3 themes (Eco-Warriors / Smart Cities / Space Pioneers)." },
+								{ "id": "A.A.1.4", "sort_order": 4, "points": 3, "label": "Sprites visually relate to the chosen theme (no random off-theme sprites)." },
+								{ "id": "A.A.1.5", "sort_order": 5, "points": 2, "label": "At least 1 sprite is original — drawn in Paint Editor, not from Library." },
+								{ "id": "A.A.1.6", "sort_order": 6, "points": 2, "label": "Player sprite is clearly identifiable as the protagonist." },
+								{ "id": "A.A.1.7", "sort_order": 7, "points": 2, "label": "Background is fully coloured (no large white/empty areas)." }
+							],
 							"levels": [
 								{
 									"level": "Excellent",
@@ -41,6 +50,14 @@
 							"sort_order": 2,
 							"name": "Animation & Costumes",
 							"max_points": 22,
+							"checkpoints": [
+								{ "id": "A.A.2.1", "sort_order": 1, "points": 3, "label": "At least one sprite has 2 or more costumes set up." },
+								{ "id": "A.A.2.2", "sort_order": 2, "points": 4, "label": "Next Costume or Switch Costume block is used in the code." },
+								{ "id": "A.A.2.3", "sort_order": 3, "points": 4, "label": "A wait block separates costume changes (animation doesn't flicker)." },
+								{ "id": "A.A.2.4", "sort_order": 4, "points": 4, "label": "Costume changes are inside a forever or repeat loop (continuous, not one-shot)." },
+								{ "id": "A.A.2.5", "sort_order": 5, "points": 4, "label": "Wait timing produces smooth animation (not too fast, not too slow)." },
+								{ "id": "A.A.2.6", "sort_order": 6, "points": 3, "label": "Animation is contextually correct (e.g. only animates while the sprite is moving)." }
+							],
 							"levels": [
 								{
 									"level": "Excellent",
@@ -72,6 +89,17 @@
 							"sort_order": 3,
 							"name": "Core Functionality",
 							"max_points": 32,
+							"checkpoints": [
+								{ "id": "A.A.3.1", "sort_order": 1, "points": 4, "label": "Player moves via 'when [key] pressed' OR mouse-pointer tracking." },
+								{ "id": "A.A.3.2", "sort_order": 2, "points": 4, "label": "Movement is responsive — no big lag, no getting stuck on the edge." },
+								{ "id": "A.A.3.3", "sort_order": 3, "points": 3, "label": "Player can reach all four corners of the stage." },
+								{ "id": "A.A.3.4", "sort_order": 4, "points": 4, "label": "At least one 'if touching ___ ?' (sprite or colour) block is present." },
+								{ "id": "A.A.3.5", "sort_order": 5, "points": 4, "label": "Collision triggers a visible reaction (costume change / sound / hide / etc.)." },
+								{ "id": "A.A.3.6", "sort_order": 6, "points": 2, "label": "A 'Score' variable is created." },
+								{ "id": "A.A.3.7", "sort_order": 7, "points": 2, "label": "The 'Score' variable shows on the stage." },
+								{ "id": "A.A.3.8", "sort_order": 8, "points": 4, "label": "The 'Score' variable updates when a collision happens." },
+								{ "id": "A.A.3.9", "sort_order": 9, "points": 5, "label": "'Set Score to 0' runs 'when green flag clicked'." }
+							],
 							"levels": [
 								{
 									"level": "Excellent",
@@ -108,6 +136,11 @@
 							"sort_order": 1,
 							"name": "Sprite Added Correctly",
 							"max_points": 6,
+							"checkpoints": [
+								{ "id": "A.B.1.1", "sort_order": 1, "points": 3, "label": "The required sprite is added to the project." },
+								{ "id": "A.B.1.2", "sort_order": 2, "points": 2, "label": "Sprite was added from the Scratch Library (not hand-drawn)." },
+								{ "id": "A.B.1.3", "sort_order": 3, "points": 1, "label": "It is the correct variant from the brief (right look / right name)." }
+							],
 							"levels": [
 								{
 									"level": "Excellent",
@@ -133,6 +166,12 @@
 							"sort_order": 2,
 							"name": "Mystery Sprite — Movement",
 							"max_points": 8,
+							"checkpoints": [
+								{ "id": "A.B.2.1", "sort_order": 1, "points": 2, "label": "Movement code is present for the mystery sprite." },
+								{ "id": "A.B.2.2", "sort_order": 2, "points": 2, "label": "Movement uses the block type the brief specified (e.g. glide / move steps)." },
+								{ "id": "A.B.2.3", "sort_order": 3, "points": 2, "label": "Movement runs inside a forever / repeat loop (continuous)." },
+								{ "id": "A.B.2.4", "sort_order": 4, "points": 2, "label": "Movement does not stall, glitch, or stop unexpectedly." }
+							],
 							"levels": [
 								{
 									"level": "Excellent",
@@ -158,6 +197,13 @@
 							"sort_order": 3,
 							"name": "Collision Logic — All Actions",
 							"max_points": 16,
+							"checkpoints": [
+								{ "id": "A.B.3.1", "sort_order": 1, "points": 3, "label": "Collision detection (if touching ___) is present for the mystery sprite." },
+								{ "id": "A.B.3.2", "sort_order": 2, "points": 3, "label": "Collision triggers the first required action (e.g. speech / score change)." },
+								{ "id": "A.B.3.3", "sort_order": 3, "points": 3, "label": "Collision triggers the second required action (e.g. sound / costume change)." },
+								{ "id": "A.B.3.4", "sort_order": 4, "points": 3, "label": "Collision triggers the third required action if the brief specifies one." },
+								{ "id": "A.B.3.5", "sort_order": 5, "points": 4, "label": "All actions fire reliably on every collision (no broken / skipped events)." }
+							],
 							"levels": [
 								{
 									"level": "Excellent",
@@ -200,6 +246,15 @@
 							"sort_order": 1,
 							"name": "Theme & Visual Design",
 							"max_points": 16,
+							"checkpoints": [
+								{ "id": "B.A.1.1", "sort_order": 1, "points": 2, "label": "Game has 3 or more active sprites." },
+								{ "id": "B.A.1.2", "sort_order": 2, "points": 2, "label": "Game has 2 or more backdrops." },
+								{ "id": "B.A.1.3", "sort_order": 3, "points": 3, "label": "At least 1 visible scene transition is implemented (not just a static backdrop)." },
+								{ "id": "B.A.1.4", "sort_order": 4, "points": 2, "label": "Backdrop matches one of the 3 themes (Eco-Warriors / Smart Cities / Space Pioneers)." },
+								{ "id": "B.A.1.5", "sort_order": 5, "points": 2, "label": "Sprites visually relate to the chosen theme." },
+								{ "id": "B.A.1.6", "sort_order": 6, "points": 2, "label": "At least 1 sprite is original (drawn in Paint Editor, not Library)." },
+								{ "id": "B.A.1.7", "sort_order": 7, "points": 3, "label": "Overall visual style is consistent (colour palette, line weight, art style)." }
+							],
 							"levels": [
 								{
 									"level": "Excellent",
@@ -231,6 +286,14 @@
 							"sort_order": 2,
 							"name": "Variables & Gameplay",
 							"max_points": 22,
+							"checkpoints": [
+								{ "id": "B.A.2.1", "sort_order": 1, "points": 3, "label": "A gameplay variable (Score / Lives / Time / etc.) is created." },
+								{ "id": "B.A.2.2", "sort_order": 2, "points": 3, "label": "The variable is visible on the stage." },
+								{ "id": "B.A.2.3", "sort_order": 3, "points": 5, "label": "The variable updates dynamically during gameplay (not static)." },
+								{ "id": "B.A.2.4", "sort_order": 4, "points": 3, "label": "Difficulty / progression feels balanced (not trivial, not impossible)." },
+								{ "id": "B.A.2.5", "sort_order": 5, "points": 4, "label": "The variable resets correctly when the green flag is clicked." },
+								{ "id": "B.A.2.6", "sort_order": 6, "points": 4, "label": "The variable name is descriptive (not 'variable1' / 'my variable')." }
+							],
 							"levels": [
 								{
 									"level": "Excellent",
@@ -262,6 +325,14 @@
 							"sort_order": 3,
 							"name": "Broadcasts & Game Flow",
 							"max_points": 22,
+							"checkpoints": [
+								{ "id": "B.A.3.1", "sort_order": 1, "points": 4, "label": "At least 1 'broadcast ___' block is used in the code." },
+								{ "id": "B.A.3.2", "sort_order": 2, "points": 4, "label": "At least 1 'when I receive ___' block matches that broadcast." },
+								{ "id": "B.A.3.3", "sort_order": 3, "points": 4, "label": "The broadcast manages a scene / state transition." },
+								{ "id": "B.A.3.4", "sort_order": 4, "points": 4, "label": "No broken events (a broadcast no-one receives, or vice versa)." },
+								{ "id": "B.A.3.5", "sort_order": 5, "points": 3, "label": "The broadcast fires under the correct condition (not on every tick)." },
+								{ "id": "B.A.3.6", "sort_order": 6, "points": 3, "label": "Receiver responds exactly as the brief specifies." }
+							],
 							"levels": [
 								{
 									"level": "Excellent",
@@ -293,6 +364,12 @@
 							"sort_order": 4,
 							"name": "Code Organisation",
 							"max_points": 10,
+							"checkpoints": [
+								{ "id": "B.A.4.1", "sort_order": 1, "points": 2, "label": "At least 1 'My Block' (Custom Block) is defined." },
+								{ "id": "B.A.4.2", "sort_order": 2, "points": 3, "label": "My Blocks group repeated logic (no copy-paste of the same block sequence)." },
+								{ "id": "B.A.4.3", "sort_order": 3, "points": 3, "label": "No orphaned scripts (every script starts from a 'when ___' event)." },
+								{ "id": "B.A.4.4", "sort_order": 4, "points": 2, "label": "Workspace is reasonably clean (scripts not piled on top of each other)." }
+							],
 							"levels": [
 								{
 									"level": "Excellent",
@@ -329,6 +406,11 @@
 							"sort_order": 1,
 							"name": "Sprite & Variable Setup",
 							"max_points": 7,
+							"checkpoints": [
+								{ "id": "B.B.1.1", "sort_order": 1, "points": 2, "label": "The correct sprite is added per the brief." },
+								{ "id": "B.B.1.2", "sort_order": 2, "points": 3, "label": "A variable is created with the exact name from the brief." },
+								{ "id": "B.B.1.3", "sort_order": 3, "points": 2, "label": "The variable is visible on the stage." }
+							],
 							"levels": [
 								{
 									"level": "Excellent",
@@ -354,6 +436,12 @@
 							"sort_order": 2,
 							"name": "Broadcast Conditions & Receivers",
 							"max_points": 12,
+							"checkpoints": [
+								{ "id": "B.B.2.1", "sort_order": 1, "points": 3, "label": "At least 1 broadcast block is used in the mystery code." },
+								{ "id": "B.B.2.2", "sort_order": 2, "points": 3, "label": "At least 1 'when I receive ___' block matches that broadcast." },
+								{ "id": "B.B.2.3", "sort_order": 3, "points": 3, "label": "The broadcast fires only under the correct condition (per the brief)." },
+								{ "id": "B.B.2.4", "sort_order": 4, "points": 3, "label": "The receiver responds exactly as the brief specifies." }
+							],
 							"levels": [
 								{
 									"level": "Excellent",
@@ -385,6 +473,12 @@
 							"sort_order": 3,
 							"name": "Game-Ending / Response Condition",
 							"max_points": 11,
+							"checkpoints": [
+								{ "id": "B.B.3.1", "sort_order": 1, "points": 3, "label": "The terminal / response condition is detected by the code." },
+								{ "id": "B.B.3.2", "sort_order": 2, "points": 3, "label": "When the condition fires, the specified action runs." },
+								{ "id": "B.B.3.3", "sort_order": 3, "points": 3, "label": "The condition triggers consistently (no missed events)." },
+								{ "id": "B.B.3.4", "sort_order": 4, "points": 2, "label": "All sub-actions (stop / pause / costume / sound) execute." }
+							],
 							"levels": [
 								{
 									"level": "Excellent",
@@ -427,6 +521,13 @@
 							"sort_order": 1,
 							"name": "Theme Complexity & Originality",
 							"max_points": 12,
+							"checkpoints": [
+								{ "id": "C.A.1.1", "sort_order": 1, "points": 3, "label": "Theme interpretation goes beyond the obvious (e.g. story / narrative arc)." },
+								{ "id": "C.A.1.2", "sort_order": 2, "points": 2, "label": "Substantial original assets (paint-edited or vector-drawn, not stock)." },
+								{ "id": "C.A.1.3", "sort_order": 3, "points": 3, "label": "Interactive UI elements enhance the narrative (menus / dialogs / hubs)." },
+								{ "id": "C.A.1.4", "sort_order": 4, "points": 2, "label": "Theme is consistent across all sprites and backdrops." },
+								{ "id": "C.A.1.5", "sort_order": 5, "points": 2, "label": "Project has at least 1 genuinely unique feature (originality marker)." }
+							],
 							"levels": [
 								{
 									"level": "Excellent",
@@ -458,6 +559,14 @@
 							"sort_order": 2,
 							"name": "UX & Polish",
 							"max_points": 17,
+							"checkpoints": [
+								{ "id": "C.A.2.1", "sort_order": 1, "points": 3, "label": "Scene transitions are smooth (no jarring jumps or hard cuts)." },
+								{ "id": "C.A.2.2", "sort_order": 2, "points": 3, "label": "UI buttons are responsive (visible hover / click feedback)." },
+								{ "id": "C.A.2.3", "sort_order": 3, "points": 3, "label": "Physics or animation feel polished (no lag, no jitter)." },
+								{ "id": "C.A.2.4", "sort_order": 4, "points": 2, "label": "Sound effects or music enhance the experience (not just decoration)." },
+								{ "id": "C.A.2.5", "sort_order": 5, "points": 3, "label": "Visible feedback for every player action (sound / costume / movement)." },
+								{ "id": "C.A.2.6", "sort_order": 6, "points": 3, "label": "No obvious UX bugs (broken transitions / dead buttons / softlocks)." }
+							],
 							"levels": [
 								{
 									"level": "Excellent",
@@ -489,6 +598,16 @@
 							"sort_order": 3,
 							"name": "Lists & Extensions",
 							"max_points": 29,
+							"checkpoints": [
+								{ "id": "C.A.3.1", "sort_order": 1, "points": 3, "label": "A List is created in the project." },
+								{ "id": "C.A.3.2", "sort_order": 2, "points": 3, "label": "The List stores at least 1 data type (numbers / strings)." },
+								{ "id": "C.A.3.3", "sort_order": 3, "points": 4, "label": "The List is read / queried during gameplay (not just stored)." },
+								{ "id": "C.A.3.4", "sort_order": 4, "points": 4, "label": "The List updates dynamically as the game progresses." },
+								{ "id": "C.A.3.5", "sort_order": 5, "points": 4, "label": "At least 1 Scratch Extension is used (Pen / Music / TTS / Video Sensing / etc.)." },
+								{ "id": "C.A.3.6", "sort_order": 6, "points": 4, "label": "The Extension is integrated into core gameplay (not decorative)." },
+								{ "id": "C.A.3.7", "sort_order": 7, "points": 4, "label": "The Extension works without bugs (no errors / crashes)." },
+								{ "id": "C.A.3.8", "sort_order": 8, "points": 3, "label": "The Extension's output is contextually correct for the game state." }
+							],
 							"levels": [
 								{
 									"level": "Excellent",
@@ -520,6 +639,13 @@
 							"sort_order": 4,
 							"name": "Code Efficiency & Cloning",
 							"max_points": 12,
+							"checkpoints": [
+								{ "id": "C.A.4.1", "sort_order": 1, "points": 3, "label": "Custom Blocks (My Blocks) are defined AND used in the code." },
+								{ "id": "C.A.4.2", "sort_order": 2, "points": 3, "label": "All repetitive logic is in Custom Blocks (no copy-pasted scripts)." },
+								{ "id": "C.A.4.3", "sort_order": 3, "points": 2, "label": "Cloning ('create clone of myself') is used somewhere in the project." },
+								{ "id": "C.A.4.4", "sort_order": 4, "points": 2, "label": "Clones are managed properly (deleted when done — no runaway clones)." },
+								{ "id": "C.A.4.5", "sort_order": 5, "points": 2, "label": "No orphaned scripts (every script has a 'when ___' entry point)." }
+							],
 							"levels": [
 								{
 									"level": "Excellent",
@@ -556,6 +682,11 @@
 							"sort_order": 1,
 							"name": "Sprite & System Setup",
 							"max_points": 6,
+							"checkpoints": [
+								{ "id": "C.B.1.1", "sort_order": 1, "points": 2, "label": "The correct sprite(s) are added per the brief." },
+								{ "id": "C.B.1.2", "sort_order": 2, "points": 2, "label": "A List or Extension is set up as required by the brief." },
+								{ "id": "C.B.1.3", "sort_order": 3, "points": 2, "label": "The List name / Extension config matches the brief exactly." }
+							],
 							"levels": [
 								{
 									"level": "Excellent",
@@ -581,6 +712,12 @@
 							"sort_order": 2,
 							"name": "Clone Loop / Extension Trigger",
 							"max_points": 13,
+							"checkpoints": [
+								{ "id": "C.B.2.1", "sort_order": 1, "points": 3, "label": "The clone / extension logic is present in the code." },
+								{ "id": "C.B.2.2", "sort_order": 2, "points": 4, "label": "All parameters (coords, language, loop count, etc.) are correct per the brief." },
+								{ "id": "C.B.2.3", "sort_order": 3, "points": 3, "label": "The logic executes without errors (no broken blocks)." },
+								{ "id": "C.B.2.4", "sort_order": 4, "points": 3, "label": "Execution matches the brief's expected behaviour exactly." }
+							],
 							"levels": [
 								{
 									"level": "Excellent",
@@ -612,6 +749,12 @@
 							"sort_order": 3,
 							"name": "Data & Response Action",
 							"max_points": 11,
+							"checkpoints": [
+								{ "id": "C.B.3.1", "sort_order": 1, "points": 3, "label": "The data action is implemented (List update / sound / TTS / clone delete / etc.)." },
+								{ "id": "C.B.3.2", "sort_order": 2, "points": 3, "label": "All specified steps execute (nothing skipped)." },
+								{ "id": "C.B.3.3", "sort_order": 3, "points": 3, "label": "The action runs in the correct order per the brief." },
+								{ "id": "C.B.3.4", "sort_order": 4, "points": 2, "label": "The action is consistent across multiple triggers (works every time)." }
+							],
 							"levels": [
 								{
 									"level": "Excellent",

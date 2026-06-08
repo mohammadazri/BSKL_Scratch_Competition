@@ -41,6 +41,7 @@
 		level: PerfLevel | null;
 		points: number | null;
 		comment: string | null;
+		checkpointIds: string[];
 	};
 
 	function buildInitial(): Record<string, LocalScore> {
@@ -48,8 +49,13 @@
 		for (const c of data.criteria) {
 			const existing = data.scores.find((s) => s.criterionId === c.id);
 			out[c.id] = existing
-				? { level: existing.level, points: existing.points, comment: existing.comment }
-				: { level: null, points: null, comment: null };
+				? {
+						level: existing.level,
+						points: existing.points,
+						comment: existing.comment,
+						checkpointIds: existing.checkpointIds ?? []
+					}
+				: { level: null, points: null, comment: null, checkpointIds: [] };
 		}
 		return out;
 	}
@@ -86,6 +92,12 @@
 			)
 	);
 	let dqRaised = $derived(data.dq !== null);
+	// Section grouping + per-judge soft-lock. Declared here — before the submit-
+	// eligibility deriveds below that read them — so references resolve in
+	// declaration order.
+	let sectionA = $derived(data.criteria.filter((c) => c.section === 'A'));
+	let sectionB = $derived(data.criteria.filter((c) => c.section === 'B'));
+	let sectionASubmittedByJudge = $derived(!!data.scoresheet?.sectionASubmittedAt);
 	// Submit eligibility, branching on the active phase.
 	//   Section A: enabled when all Section A criteria are scored AND the
 	//              judge hasn't already submitted Section A for this sheet.
@@ -244,8 +256,42 @@
 
 	function onCriterionChange(id: string) {
 		return (next: LocalScore) => {
+			const prev = scoreState[id];
+			const wasScored = prev?.level !== null && prev?.points !== null;
 			scoreState[id] = { ...next };
 			markDirty();
+
+			// Auto-advance only in LEGACY (level) mode — picking a level is a
+			// decisive "I'm done with this card" signal. In CHECKPOINT mode the
+			// judge usually wants to tick several boxes on the same card; auto-
+			// advancing on the first tick would yank the card away mid-flow.
+			const criterion = data.criteria.find((c) => c.id === id);
+			const isCheckpointMode = Boolean(
+				criterion?.checkpoints && criterion.checkpoints.length > 0
+			);
+			const justGotLevel = !wasScored && next.level !== null;
+			if (!isCheckpointMode && justGotLevel) {
+				const list = data.phase === 'section_b' ? sectionB : sectionA;
+				const idx = list.findIndex((c) => c.id === id);
+				let nextOpen: string | null = null;
+				for (let i = idx + 1; i < list.length; i++) {
+					const s = scoreState[list[i].id];
+					if (!s || s.level === null || s.points === null) {
+						nextOpen = list[i].id;
+						break;
+					}
+				}
+				if (!nextOpen) {
+					for (let i = 0; i < idx; i++) {
+						const s = scoreState[list[i].id];
+						if (!s || s.level === null || s.points === null) {
+							nextOpen = list[i].id;
+							break;
+						}
+					}
+				}
+				activeCriterionId = nextOpen;
+			}
 		};
 	}
 
@@ -254,17 +300,11 @@
 		markDirty();
 	}
 
-	// ── Section grouping for the layout ───────────────────────────────────────
-	let sectionA = $derived(data.criteria.filter((c) => c.section === 'A'));
-	let sectionB = $derived(data.criteria.filter((c) => c.section === 'B'));
-
 	// ── Phase-aware editability ────────────────────────────────────────────────
 	// Per-judge soft-lock: when the judge has submitted Section A for this
 	// participant, Section A becomes read-only for them even if the event
-	// phase is still 'section_a'.
-	let sectionASubmittedByJudge = $derived(
-		!!data.scoresheet?.sectionASubmittedAt
-	);
+	// phase is still 'section_a' (sectionA / sectionB / sectionASubmittedByJudge
+	// are declared up top so the submit-eligibility deriveds can read them).
 	let sectionAEditable = $derived(
 		!data.readOnly && data.phase === 'section_a' && !sectionASubmittedByJudge
 	);
@@ -287,10 +327,35 @@
 		).length
 	);
 
-	// Default Section A summary to collapsed during Section B so the judge isn't
-	// staring at a 7-item table while scoring something else. They can expand it
-	// when they need to refresh memory.
-	let sectionASummaryOpen = $state(false);
+	// Section A summary is OPEN by default during Section B so the judge sees
+	// their Section A work at all times — when it was collapsed, multiple judges
+	// reported that "Section A is gone" because they didn't realise the card
+	// expanded. Keep it open; the judge can collapse if they want screen space.
+	let sectionASummaryOpen = $state(true);
+
+	// ── Accordion: one criterion expanded at a time ──────────────────────────
+	// Why: showing 7 fully-expanded cards = 2500px of scroll = the judge
+	// constantly losing context. Collapsed cards take ~50px each, so the whole
+	// rubric fits on one screen and the judge picks the next criterion with
+	// their eyes still in the same spot. The first unscored criterion in the
+	// active section is opened on mount; picking a level auto-advances to the
+	// next unscored card so the judge keeps a steady rhythm.
+	function firstUnscoredId(list: typeof data.criteria): string | null {
+		for (const c of list) {
+			const s = scoreState[c.id];
+			if (!s || s.level === null || s.points === null) return c.id;
+		}
+		return null;
+	}
+	let activeCriterionId = $state<string | null>(
+		untrack(() => {
+			const initialList = data.phase === 'section_b' ? data.criteria.filter((c) => c.section === 'B') : data.criteria.filter((c) => c.section === 'A');
+			return firstUnscoredId(initialList) ?? (initialList[0]?.id ?? null);
+		})
+	);
+	function handleActivate(id: string) {
+		activeCriterionId = activeCriterionId === id ? null : id;
+	}
 
 	// ── Request-edit flow ─────────────────────────────────────────────────────
 	let requestEditModalOpen = $state(false);
@@ -378,29 +443,50 @@
 		‹ My queue
 	</a>
 
-	<!-- Participant header -->
+	<!-- Participant header — name + theme are the two things the judge most
+	     needs to see at a glance: who is in front of them, and what they
+	     built. Pushed up the visual hierarchy so neither gets buried under
+	     status chips. -->
 	<header
-		class="mb-6 flex flex-col gap-1 border-b pb-4"
+		class="mb-6 border-b pb-5"
 		style="border-color: var(--border);"
 	>
-		<h1 class="text-2xl font-semibold sm:text-3xl" style="color: var(--color-text-1);">
-			{data.participant.fullName}
-			<span class="ml-2 text-base" style="color: var(--color-text-2);">
-				· {data.participant.schoolName}
+		<div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+			<h1
+				class="text-3xl font-bold leading-tight sm:text-4xl lg:text-[2.6rem]"
+				style="color: var(--color-text-1); font-family: var(--font-display);"
+			>
+				{data.participant.fullName}
+			</h1>
+			<span
+				class="text-base sm:text-lg"
+				style="color: var(--color-text-2);"
+			>
+				{data.participant.schoolName}
 			</span>
-		</h1>
-		<div class="flex flex-wrap items-center gap-3 text-xs" style="color: var(--color-text-2);">
+		</div>
+		{#if data.participant.theme}
+			<p
+				class="mt-2 text-lg font-semibold sm:text-xl"
+				style="color: var(--color-accent-2);"
+			>
+				Theme · {data.participant.theme}
+			</p>
+		{/if}
+		<div class="mt-3 flex flex-wrap items-center gap-3 text-xs" style="color: var(--color-text-2);">
 			<span
 				class="rounded px-2 py-0.5"
 				style="background: var(--accent-soft); color: var(--color-accent); font-family: var(--font-mono);"
 			>
 				CATEGORY {data.participant.category}
 			</span>
-			{#if data.participant.theme}
-				<span>{data.participant.theme}</span>
-			{/if}
 			{#if data.scoresheet}
-				<StatusPill status={data.scoresheet.status} />
+				{@const dqStatus = data.dq?.status === 'approved' ? 'dq' : null}
+				{@const aDone =
+					data.scoresheet.status === 'draft' && data.scoresheet.sectionASubmittedAt
+						? 'section_a_done'
+						: null}
+				<StatusPill status={dqStatus ?? aDone ?? data.scoresheet.status} />
 			{:else}
 				<StatusPill status="not_started" />
 			{/if}
@@ -640,14 +726,17 @@
 							{sectionAScored} / {sectionA.length} scored
 						</span>
 					</div>
-					<div class="flex flex-col gap-4">
+					<div class="flex flex-col gap-2">
 						{#each sectionA as c (c.id)}
 							<CriterionCard
 								criterion={c}
 								bind:level={scoreState[c.id].level}
 								bind:points={scoreState[c.id].points}
 								bind:comment={scoreState[c.id].comment}
+								bind:checkpointIds={scoreState[c.id].checkpointIds}
 								disabled={!sectionAEditable}
+								isActive={activeCriterionId === c.id}
+								onActivate={handleActivate}
 								onChange={onCriterionChange(c.id)}
 							/>
 						{/each}
@@ -677,14 +766,17 @@
 							{sectionBScored} / {sectionB.length} scored
 						</span>
 					</div>
-					<div class="flex flex-col gap-4">
+					<div class="flex flex-col gap-2">
 						{#each sectionB as c (c.id)}
 							<CriterionCard
 								criterion={c}
 								bind:level={scoreState[c.id].level}
 								bind:points={scoreState[c.id].points}
 								bind:comment={scoreState[c.id].comment}
+								bind:checkpointIds={scoreState[c.id].checkpointIds}
 								disabled={!sectionBEditable}
+								isActive={activeCriterionId === c.id}
+								onActivate={handleActivate}
 								onChange={onCriterionChange(c.id)}
 							/>
 						{/each}

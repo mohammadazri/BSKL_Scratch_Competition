@@ -17,6 +17,19 @@ export type RubricLevel = {
 	descriptor: string;
 };
 
+/**
+ * One concrete yes/no checkpoint on a criterion. When a criterion has a
+ * non-empty `checkpoints` array, the scoring UI renders binary toggles
+ * instead of the four level bands; points are computed as the sum of the
+ * ticked checkpoints. Level is derived from %.
+ */
+export type RubricCheckpoint = {
+	id: string;
+	sortOrder: number;
+	points: number;
+	label: string;
+};
+
 export type RubricCriterion = {
 	id: string;
 	category: Category;
@@ -25,7 +38,42 @@ export type RubricCriterion = {
 	maxPoints: number;
 	sortOrder: number;
 	levels: RubricLevel[]; // ordered Excellent → Insufficient
+	checkpoints?: RubricCheckpoint[]; // when present, UI uses checklist mode
 };
+
+/**
+ * Map a 0..maxPoints score to one of the four performance levels using fixed
+ * % thresholds: ≥80% Excellent, 60–79% Proficient, 30–59% Developing,
+ * <30% Insufficient. Keeps the level enum populated for the leaderboard,
+ * audit log, and results views even when the judge scored via checkpoints.
+ */
+export function deriveLevelFromPoints(
+	points: number,
+	maxPoints: number
+): PerfLevel {
+	if (maxPoints <= 0) return 'Insufficient';
+	const pct = points / maxPoints;
+	if (pct >= 0.8) return 'Excellent';
+	if (pct >= 0.6) return 'Proficient';
+	if (pct >= 0.3) return 'Developing';
+	return 'Insufficient';
+}
+
+/**
+ * Sum the points of the ticked checkpoints. Returns 0 when the set is empty
+ * or when no checkpoint id in the set matches a checkpoint on the criterion
+ * (defensive: ids that disappeared after a rubric edit are silently ignored).
+ */
+export function pointsFromCheckpoints(
+	checkpoints: RubricCheckpoint[],
+	ticked: Set<string>
+): number {
+	let sum = 0;
+	for (const cp of checkpoints) {
+		if (ticked.has(cp.id)) sum += cp.points;
+	}
+	return sum;
+}
 
 // Stable ordering for performance levels — best to worst.
 const LEVEL_ORDER: Record<PerfLevel, number> = {
