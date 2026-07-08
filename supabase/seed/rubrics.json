@@ -11,13 +11,48 @@
 							"name": "Theme Integration",
 							"max_points": 16,
 							"checkpoints": [
-								{ "id": "A.A.1.1", "sort_order": 1, "points": 2, "label": "Game has 2 or more active sprites." },
-								{ "id": "A.A.1.2", "sort_order": 2, "points": 2, "label": "At least 1 themed backdrop (not the blank white default)." },
-								{ "id": "A.A.1.3", "sort_order": 3, "points": 3, "label": "Backdrop matches one of the 3 themes (Eco-Warriors / Smart Cities / Space Pioneers)." },
-								{ "id": "A.A.1.4", "sort_order": 4, "points": 3, "label": "Sprites visually relate to the chosen theme (no random off-theme sprites)." },
-								{ "id": "A.A.1.5", "sort_order": 5, "points": 2, "label": "At least 1 sprite is original — drawn in Paint Editor, not from Library." },
-								{ "id": "A.A.1.6", "sort_order": 6, "points": 2, "label": "Player sprite is clearly identifiable as the protagonist." },
-								{ "id": "A.A.1.7", "sort_order": 7, "points": 2, "label": "Background is fully coloured (no large white/empty areas)." }
+								{
+									"id": "A.A.1.1",
+									"sort_order": 1,
+									"points": 2,
+									"label": "Game has 2 or more active sprites."
+								},
+								{
+									"id": "A.A.1.2",
+									"sort_order": 2,
+									"points": 2,
+									"label": "At least 1 themed backdrop (not the blank white default)."
+								},
+								{
+									"id": "A.A.1.3",
+									"sort_order": 3,
+									"points": 3,
+									"label": "Backdrop matches one of the 3 themes (Eco-Warriors / Smart Cities / Space Pioneers)."
+								},
+								{
+									"id": "A.A.1.4",
+									"sort_order": 4,
+									"points": 3,
+									"label": "Sprites visually relate to the chosen theme (no random off-theme sprites)."
+								},
+								{
+									"id": "A.A.1.5",
+									"sort_order": 5,
+									"points": 2,
+									"label": "At least 1 sprite is original — drawn in Paint Editor, not from Library."
+								},
+								{
+									"id": "A.A.1.6",
+									"sort_order": 6,
+									"points": 2,
+									"label": "Player sprite is clearly identifiable as the protagonist."
+								},
+								{
+									"id": "A.A.1.7",
+									"sort_order": 7,
+									"points": 2,
+									"label": "Background is fully coloured (no large white/empty areas)."
+								}
 							],
 							"levels": [
 								{
@@ -51,12 +86,42 @@
 							"name": "Animation & Costumes",
 							"max_points": 22,
 							"checkpoints": [
-								{ "id": "A.A.2.1", "sort_order": 1, "points": 3, "label": "At least one sprite has 2 or more costumes set up." },
-								{ "id": "A.A.2.2", "sort_order": 2, "points": 4, "label": "Next Costume or Switch Costume block is used in the code." },
-								{ "id": "A.A.2.3", "sort_order": 3, "points": 4, "label": "A wait block separates costume changes (animation doesn't flicker)." },
-								{ "id": "A.A.2.4", "sort_order": 4, "points": 4, "label": "Costume changes are inside a forever or repeat loop (continuous, not one-shot)." },
-								{ "id": "A.A.2.5", "sort_order": 5, "points": 4, "label": "Wait timing produces smooth animation (not too fast, not too slow)." },
-								{ "id": "A.A.2.6", "sort_order": 6, "points": 3, "label": "Animation is contextually correct (e.g. only animates while the sprite is moving)." }
+								{
+									"id": "A.A.2.1",
+									"sort_order": 1,
+									"points": 3,
+									"label": "At least one sprite has 2 or more costumes set up."
+								},
+								{
+									"id": "A.A.2.2",
+									"sort_order": 2,
+									"points": 4,
+									"label": "Next Costume or Switch Costume block is used in the code."
+								},
+								{
+									"id": "A.A.2.3",
+									"sort_order": 3,
+									"points": 4,
+									"label": "A wait block separates costume changes (animation doesn't flicker)."
+								},
+								{
+									"id": "A.A.2.4",
+									"sort_order": 4,
+									"points": 4,
+									"label": "Costume changes are inside a forever or repeat loop (continuous, not one-shot)."
+								},
+								{
+									"id": "A.A.2.5",
+									"sort_order": 5,
+									"points": 4,
+									"label": "Wait timing produces smooth animation (not too fast, not too slow)."
+								},
+								{
+									"id": "A.A.2.6",
+									"sort_order": 6,
+									"points": 3,
+									"label": "Animation is contextually correct (e.g. only animates while the sprite is moving)."
+								}
 							],
 							"levels": [
 								{
@@ -90,15 +155,60 @@
 							"name": "Core Functionality",
 							"max_points": 32,
 							"checkpoints": [
-								{ "id": "A.A.3.1", "sort_order": 1, "points": 4, "label": "Player moves via 'when [key] pressed' OR mouse-pointer tracking." },
-								{ "id": "A.A.3.2", "sort_order": 2, "points": 4, "label": "Movement is responsive — no big lag, no getting stuck on the edge." },
-								{ "id": "A.A.3.3", "sort_order": 3, "points": 3, "label": "Player can reach all four corners of the stage." },
-								{ "id": "A.A.3.4", "sort_order": 4, "points": 4, "label": "At least one 'if touching ___ ?' (sprite or colour) block is present." },
-								{ "id": "A.A.3.5", "sort_order": 5, "points": 4, "label": "Collision triggers a visible reaction (costume change / sound / hide / etc.)." },
-								{ "id": "A.A.3.6", "sort_order": 6, "points": 2, "label": "A 'Score' variable is created." },
-								{ "id": "A.A.3.7", "sort_order": 7, "points": 2, "label": "The 'Score' variable shows on the stage." },
-								{ "id": "A.A.3.8", "sort_order": 8, "points": 4, "label": "The 'Score' variable updates when a collision happens." },
-								{ "id": "A.A.3.9", "sort_order": 9, "points": 5, "label": "'Set Score to 0' runs 'when green flag clicked'." }
+								{
+									"id": "A.A.3.1",
+									"sort_order": 1,
+									"points": 4,
+									"label": "Player moves via 'when [key] pressed' OR mouse-pointer tracking."
+								},
+								{
+									"id": "A.A.3.2",
+									"sort_order": 2,
+									"points": 4,
+									"label": "Movement is responsive — no big lag, no getting stuck on the edge."
+								},
+								{
+									"id": "A.A.3.3",
+									"sort_order": 3,
+									"points": 3,
+									"label": "Player can reach all four corners of the stage."
+								},
+								{
+									"id": "A.A.3.4",
+									"sort_order": 4,
+									"points": 4,
+									"label": "At least one 'if touching ___ ?' (sprite or colour) block is present."
+								},
+								{
+									"id": "A.A.3.5",
+									"sort_order": 5,
+									"points": 4,
+									"label": "Collision triggers a visible reaction (costume change / sound / hide / etc.)."
+								},
+								{
+									"id": "A.A.3.6",
+									"sort_order": 6,
+									"points": 2,
+									"label": "A 'Score' variable is created."
+								},
+								{
+									"id": "A.A.3.7",
+									"sort_order": 7,
+									"points": 2,
+									"label": "The 'Score' variable shows on the stage."
+								},
+								{
+									"id": "A.A.3.8",
+									"sort_order": 8,
+									"points": 4,
+									"label": "The 'Score' variable updates when a collision happens."
+								},
+								{
+									"id": "A.A.3.9",
+									"sort_order": 9,
+									"points": 5,
+									"label": "'Set Score to 0' runs 'when green flag clicked'."
+								}
 							],
 							"levels": [
 								{
@@ -137,28 +247,55 @@
 							"name": "Sprite Added Correctly",
 							"max_points": 6,
 							"checkpoints": [
-								{ "id": "A.B.1.1", "sort_order": 1, "points": 3, "label": "The required sprite is added to the project." },
-								{ "id": "A.B.1.2", "sort_order": 2, "points": 2, "label": "Sprite was added from the Scratch Library (not hand-drawn)." },
-								{ "id": "A.B.1.3", "sort_order": 3, "points": 1, "label": "It is the correct variant from the brief (right look / right name)." }
+								{
+									"id": "A.B.1.1",
+									"sort_order": 1,
+									"points": 1,
+									"label": "The required sprite is added to the project."
+								},
+								{
+									"id": "A.B.1.2",
+									"sort_order": 2,
+									"points": 2,
+									"label": "Extra Marks: Sprite is originally hand-drawn in the Paint Editor (rather than just taken from the Library)."
+								},
+								{
+									"id": "A.B.1.3",
+									"sort_order": 3,
+									"points": 1,
+									"label": "The sprite matches the visual intent/variant specified in the brief."
+								},
+								{
+									"id": "A.B.1.4",
+									"sort_order": 4,
+									"points": 2,
+									"label": "The sprite is initially placed at the correct starting coordinates (X/Y) or starting state."
+								}
 							],
 							"levels": [
 								{
 									"level": "Excellent",
 									"min_pts": 6,
 									"max_pts": 6,
-									"descriptor": "Correct sprite from Scratch Library; not manually drawn."
+									"descriptor": "Hand-drawn sprite matches intent and starting conditions exactly."
 								},
 								{
 									"level": "Proficient",
-									"min_pts": 3,
+									"min_pts": 4,
 									"max_pts": 5,
-									"descriptor": "Sprite added but wrong variant or drawn manually."
+									"descriptor": "Required sprite added correctly but pulled from library or missing exact starting state."
+								},
+								{
+									"level": "Developing",
+									"min_pts": 2,
+									"max_pts": 3,
+									"descriptor": "Sprite added but missing multiple conditions or wrong variant."
 								},
 								{
 									"level": "Insufficient",
 									"min_pts": 0,
-									"max_pts": 2,
-									"descriptor": "Required sprite missing."
+									"max_pts": 1,
+									"descriptor": "Missing or completely wrong sprite."
 								}
 							]
 						},
@@ -167,29 +304,67 @@
 							"name": "Mystery Sprite — Movement",
 							"max_points": 8,
 							"checkpoints": [
-								{ "id": "A.B.2.1", "sort_order": 1, "points": 2, "label": "Movement code is present for the mystery sprite." },
-								{ "id": "A.B.2.2", "sort_order": 2, "points": 2, "label": "Movement uses the block type the brief specified (e.g. glide / move steps)." },
-								{ "id": "A.B.2.3", "sort_order": 3, "points": 2, "label": "Movement runs inside a forever / repeat loop (continuous)." },
-								{ "id": "A.B.2.4", "sort_order": 4, "points": 2, "label": "Movement does not stall, glitch, or stop unexpectedly." }
+								{
+									"id": "A.B.2.1",
+									"sort_order": 1,
+									"points": 1,
+									"label": "Movement code is present."
+								},
+								{
+									"id": "A.B.2.2",
+									"sort_order": 2,
+									"points": 2,
+									"label": "Movement uses the exact block type specified (e.g. glide vs move steps)."
+								},
+								{
+									"id": "A.B.2.3",
+									"sort_order": 3,
+									"points": 1,
+									"label": "Movement is enclosed in a loop (forever/repeat)."
+								},
+								{
+									"id": "A.B.2.4",
+									"sort_order": 4,
+									"points": 1,
+									"label": "Loop parameter (if repeat) matches the required count."
+								},
+								{
+									"id": "A.B.2.5",
+									"sort_order": 5,
+									"points": 2,
+									"label": "Movement speed/timing exactly matches the brief (e.g. wait blocks or glide duration)."
+								},
+								{
+									"id": "A.B.2.6",
+									"sort_order": 6,
+									"points": 1,
+									"label": "Movement does not stall, glitch, or stop unexpectedly."
+								}
 							],
 							"levels": [
 								{
 									"level": "Excellent",
 									"min_pts": 7,
 									"max_pts": 8,
-									"descriptor": "Moves continuously as specified; no stalling or looping bug."
+									"descriptor": "Movement uses exact blocks, timing, and loops flawlessly."
 								},
 								{
 									"level": "Proficient",
 									"min_pts": 4,
 									"max_pts": 6,
-									"descriptor": "Moves but stops, glitches, or is extremely slow."
+									"descriptor": "Movement functions but has minor timing/block inaccuracies."
+								},
+								{
+									"level": "Developing",
+									"min_pts": 2,
+									"max_pts": 3,
+									"descriptor": "Movement works partially but is missing loop structure or glitchy."
 								},
 								{
 									"level": "Insufficient",
 									"min_pts": 0,
-									"max_pts": 3,
-									"descriptor": "No movement programmed."
+									"max_pts": 1,
+									"descriptor": "No meaningful movement programmed."
 								}
 							]
 						},
@@ -198,36 +373,79 @@
 							"name": "Collision Logic — All Actions",
 							"max_points": 16,
 							"checkpoints": [
-								{ "id": "A.B.3.1", "sort_order": 1, "points": 3, "label": "Collision detection (if touching ___) is present for the mystery sprite." },
-								{ "id": "A.B.3.2", "sort_order": 2, "points": 3, "label": "Collision triggers the first required action (e.g. speech / score change)." },
-								{ "id": "A.B.3.3", "sort_order": 3, "points": 3, "label": "Collision triggers the second required action (e.g. sound / costume change)." },
-								{ "id": "A.B.3.4", "sort_order": 4, "points": 3, "label": "Collision triggers the third required action if the brief specifies one." },
-								{ "id": "A.B.3.5", "sort_order": 5, "points": 4, "label": "All actions fire reliably on every collision (no broken / skipped events)." }
+								{
+									"id": "A.B.3.1",
+									"sort_order": 1,
+									"points": 2,
+									"label": "Collision detection block (touching) is used."
+								},
+								{
+									"id": "A.B.3.2",
+									"sort_order": 2,
+									"points": 2,
+									"label": "Collision logic is placed inside an active loop so it can trigger at any time."
+								},
+								{
+									"id": "A.B.3.3",
+									"sort_order": 3,
+									"points": 2,
+									"label": "Action 1 (e.g. Speech/Think): Triggered correctly."
+								},
+								{
+									"id": "A.B.3.4",
+									"sort_order": 4,
+									"points": 2,
+									"label": "Action 1: Text exactly matches the brief (capitalisation/punctuation)."
+								},
+								{
+									"id": "A.B.3.5",
+									"sort_order": 5,
+									"points": 2,
+									"label": "Action 2 (e.g. Sound/Costume): Triggered correctly."
+								},
+								{
+									"id": "A.B.3.6",
+									"sort_order": 6,
+									"points": 2,
+									"label": "Action 2: Exact sound or costume variant is used."
+								},
+								{
+									"id": "A.B.3.7",
+									"sort_order": 7,
+									"points": 2,
+									"label": "Action 3 (e.g. Score/Stop): Triggered correctly."
+								},
+								{
+									"id": "A.B.3.8",
+									"sort_order": 8,
+									"points": 2,
+									"label": "Actions happen in the exact sequence requested by the brief."
+								}
 							],
 							"levels": [
 								{
 									"level": "Excellent",
 									"min_pts": 14,
 									"max_pts": 16,
-									"descriptor": "ALL actions triggered correctly (speech + score / bounce + sound / costume + stop)."
+									"descriptor": "All 3 actions trigger precisely in the correct sequence with exact variants."
 								},
 								{
 									"level": "Proficient",
-									"min_pts": 8,
+									"min_pts": 9,
 									"max_pts": 13,
-									"descriptor": "Collision fires; one required action missing or partially broken."
+									"descriptor": "Actions trigger but 1-2 parameters or sequencing are slightly off."
 								},
 								{
 									"level": "Developing",
-									"min_pts": 3,
-									"max_pts": 7,
-									"descriptor": "Collision block exists; logic does not execute as specified."
+									"min_pts": 4,
+									"max_pts": 8,
+									"descriptor": "Collision detects but only partial actions execute properly."
 								},
 								{
 									"level": "Insufficient",
 									"min_pts": 0,
-									"max_pts": 2,
-									"descriptor": "No collision detection for mystery sprite."
+									"max_pts": 3,
+									"descriptor": "Collision logic is absent or completely broken."
 								}
 							]
 						}
@@ -235,7 +453,6 @@
 				}
 			]
 		},
-
 		{
 			"category": "B",
 			"sections": [
@@ -247,13 +464,48 @@
 							"name": "Theme & Visual Design",
 							"max_points": 16,
 							"checkpoints": [
-								{ "id": "B.A.1.1", "sort_order": 1, "points": 2, "label": "Game has 3 or more active sprites." },
-								{ "id": "B.A.1.2", "sort_order": 2, "points": 2, "label": "Game has 2 or more backdrops." },
-								{ "id": "B.A.1.3", "sort_order": 3, "points": 3, "label": "At least 1 visible scene transition is implemented (not just a static backdrop)." },
-								{ "id": "B.A.1.4", "sort_order": 4, "points": 2, "label": "Backdrop matches one of the 3 themes (Eco-Warriors / Smart Cities / Space Pioneers)." },
-								{ "id": "B.A.1.5", "sort_order": 5, "points": 2, "label": "Sprites visually relate to the chosen theme." },
-								{ "id": "B.A.1.6", "sort_order": 6, "points": 2, "label": "At least 1 sprite is original (drawn in Paint Editor, not Library)." },
-								{ "id": "B.A.1.7", "sort_order": 7, "points": 3, "label": "Overall visual style is consistent (colour palette, line weight, art style)." }
+								{
+									"id": "B.A.1.1",
+									"sort_order": 1,
+									"points": 2,
+									"label": "Game has 3 or more active sprites."
+								},
+								{
+									"id": "B.A.1.2",
+									"sort_order": 2,
+									"points": 2,
+									"label": "Game has 2 or more backdrops."
+								},
+								{
+									"id": "B.A.1.3",
+									"sort_order": 3,
+									"points": 3,
+									"label": "At least 1 visible scene transition is implemented (not just a static backdrop)."
+								},
+								{
+									"id": "B.A.1.4",
+									"sort_order": 4,
+									"points": 2,
+									"label": "Backdrop matches one of the 3 themes (Eco-Warriors / Smart Cities / Space Pioneers)."
+								},
+								{
+									"id": "B.A.1.5",
+									"sort_order": 5,
+									"points": 2,
+									"label": "Sprites visually relate to the chosen theme."
+								},
+								{
+									"id": "B.A.1.6",
+									"sort_order": 6,
+									"points": 2,
+									"label": "At least 1 sprite is original (drawn in Paint Editor, not Library)."
+								},
+								{
+									"id": "B.A.1.7",
+									"sort_order": 7,
+									"points": 3,
+									"label": "Overall visual style is consistent (colour palette, line weight, art style)."
+								}
 							],
 							"levels": [
 								{
@@ -287,12 +539,42 @@
 							"name": "Variables & Gameplay",
 							"max_points": 22,
 							"checkpoints": [
-								{ "id": "B.A.2.1", "sort_order": 1, "points": 3, "label": "A gameplay variable (Score / Lives / Time / etc.) is created." },
-								{ "id": "B.A.2.2", "sort_order": 2, "points": 3, "label": "The variable is visible on the stage." },
-								{ "id": "B.A.2.3", "sort_order": 3, "points": 5, "label": "The variable updates dynamically during gameplay (not static)." },
-								{ "id": "B.A.2.4", "sort_order": 4, "points": 3, "label": "Difficulty / progression feels balanced (not trivial, not impossible)." },
-								{ "id": "B.A.2.5", "sort_order": 5, "points": 4, "label": "The variable resets correctly when the green flag is clicked." },
-								{ "id": "B.A.2.6", "sort_order": 6, "points": 4, "label": "The variable name is descriptive (not 'variable1' / 'my variable')." }
+								{
+									"id": "B.A.2.1",
+									"sort_order": 1,
+									"points": 3,
+									"label": "A gameplay variable (Score / Lives / Time / etc.) is created."
+								},
+								{
+									"id": "B.A.2.2",
+									"sort_order": 2,
+									"points": 3,
+									"label": "The variable is visible on the stage."
+								},
+								{
+									"id": "B.A.2.3",
+									"sort_order": 3,
+									"points": 5,
+									"label": "The variable updates dynamically during gameplay (not static)."
+								},
+								{
+									"id": "B.A.2.4",
+									"sort_order": 4,
+									"points": 3,
+									"label": "Difficulty / progression feels balanced (not trivial, not impossible)."
+								},
+								{
+									"id": "B.A.2.5",
+									"sort_order": 5,
+									"points": 4,
+									"label": "The variable resets correctly when the green flag is clicked."
+								},
+								{
+									"id": "B.A.2.6",
+									"sort_order": 6,
+									"points": 4,
+									"label": "The variable name is descriptive (not 'variable1' / 'my variable')."
+								}
 							],
 							"levels": [
 								{
@@ -326,12 +608,42 @@
 							"name": "Broadcasts & Game Flow",
 							"max_points": 22,
 							"checkpoints": [
-								{ "id": "B.A.3.1", "sort_order": 1, "points": 4, "label": "At least 1 'broadcast ___' block is used in the code." },
-								{ "id": "B.A.3.2", "sort_order": 2, "points": 4, "label": "At least 1 'when I receive ___' block matches that broadcast." },
-								{ "id": "B.A.3.3", "sort_order": 3, "points": 4, "label": "The broadcast manages a scene / state transition." },
-								{ "id": "B.A.3.4", "sort_order": 4, "points": 4, "label": "No broken events (a broadcast no-one receives, or vice versa)." },
-								{ "id": "B.A.3.5", "sort_order": 5, "points": 3, "label": "The broadcast fires under the correct condition (not on every tick)." },
-								{ "id": "B.A.3.6", "sort_order": 6, "points": 3, "label": "Receiver responds exactly as the brief specifies." }
+								{
+									"id": "B.A.3.1",
+									"sort_order": 1,
+									"points": 4,
+									"label": "At least 1 'broadcast ___' block is used in the code."
+								},
+								{
+									"id": "B.A.3.2",
+									"sort_order": 2,
+									"points": 4,
+									"label": "At least 1 'when I receive ___' block matches that broadcast."
+								},
+								{
+									"id": "B.A.3.3",
+									"sort_order": 3,
+									"points": 4,
+									"label": "The broadcast manages a scene / state transition."
+								},
+								{
+									"id": "B.A.3.4",
+									"sort_order": 4,
+									"points": 4,
+									"label": "No broken events (a broadcast no-one receives, or vice versa)."
+								},
+								{
+									"id": "B.A.3.5",
+									"sort_order": 5,
+									"points": 3,
+									"label": "The broadcast fires under the correct condition (not on every tick)."
+								},
+								{
+									"id": "B.A.3.6",
+									"sort_order": 6,
+									"points": 3,
+									"label": "Receiver responds exactly as the brief specifies."
+								}
 							],
 							"levels": [
 								{
@@ -365,10 +677,30 @@
 							"name": "Code Organisation",
 							"max_points": 10,
 							"checkpoints": [
-								{ "id": "B.A.4.1", "sort_order": 1, "points": 2, "label": "At least 1 'My Block' (Custom Block) is defined." },
-								{ "id": "B.A.4.2", "sort_order": 2, "points": 3, "label": "My Blocks group repeated logic (no copy-paste of the same block sequence)." },
-								{ "id": "B.A.4.3", "sort_order": 3, "points": 3, "label": "No orphaned scripts (every script starts from a 'when ___' event)." },
-								{ "id": "B.A.4.4", "sort_order": 4, "points": 2, "label": "Workspace is reasonably clean (scripts not piled on top of each other)." }
+								{
+									"id": "B.A.4.1",
+									"sort_order": 1,
+									"points": 2,
+									"label": "At least 1 'My Block' (Custom Block) is defined."
+								},
+								{
+									"id": "B.A.4.2",
+									"sort_order": 2,
+									"points": 3,
+									"label": "My Blocks group repeated logic (no copy-paste of the same block sequence)."
+								},
+								{
+									"id": "B.A.4.3",
+									"sort_order": 3,
+									"points": 3,
+									"label": "No orphaned scripts (every script starts from a 'when ___' event)."
+								},
+								{
+									"id": "B.A.4.4",
+									"sort_order": 4,
+									"points": 2,
+									"label": "Workspace is reasonably clean (scripts not piled on top of each other)."
+								}
 							],
 							"levels": [
 								{
@@ -407,28 +739,61 @@
 							"name": "Sprite & Variable Setup",
 							"max_points": 7,
 							"checkpoints": [
-								{ "id": "B.B.1.1", "sort_order": 1, "points": 2, "label": "The correct sprite is added per the brief." },
-								{ "id": "B.B.1.2", "sort_order": 2, "points": 3, "label": "A variable is created with the exact name from the brief." },
-								{ "id": "B.B.1.3", "sort_order": 3, "points": 2, "label": "The variable is visible on the stage." }
+								{
+									"id": "B.B.1.1",
+									"sort_order": 1,
+									"points": 2,
+									"label": "The correct sprite is added per the brief."
+								},
+								{
+									"id": "B.B.1.2",
+									"sort_order": 2,
+									"points": 1,
+									"label": "A new variable is created."
+								},
+								{
+									"id": "B.B.1.3",
+									"sort_order": 3,
+									"points": 2,
+									"label": "The variable name matches the brief exactly (case-sensitive)."
+								},
+								{
+									"id": "B.B.1.4",
+									"sort_order": 4,
+									"points": 1,
+									"label": "The variable is visible on the stage."
+								},
+								{
+									"id": "B.B.1.5",
+									"sort_order": 5,
+									"points": 1,
+									"label": "The variable starting value is initialized correctly (e.g. set to 0 on flag)."
+								}
 							],
 							"levels": [
 								{
 									"level": "Excellent",
 									"min_pts": 7,
 									"max_pts": 7,
-									"descriptor": "Correct sprite added; variable created, named correctly, visible."
+									"descriptor": "Correct sprite, exactly-named variable, visible, and initialized correctly."
 								},
 								{
 									"level": "Proficient",
 									"min_pts": 4,
 									"max_pts": 6,
-									"descriptor": "Sprite added; variable or visibility missing."
+									"descriptor": "Variable created but named incorrectly, hidden, or not initialized."
+								},
+								{
+									"level": "Developing",
+									"min_pts": 2,
+									"max_pts": 3,
+									"descriptor": "Variable or sprite missing entirely, partial setup only."
 								},
 								{
 									"level": "Insufficient",
 									"min_pts": 0,
-									"max_pts": 3,
-									"descriptor": "Sprite missing or wrong."
+									"max_pts": 1,
+									"descriptor": "No variable setup or completely wrong sprite."
 								}
 							]
 						},
@@ -437,35 +802,67 @@
 							"name": "Broadcast Conditions & Receivers",
 							"max_points": 12,
 							"checkpoints": [
-								{ "id": "B.B.2.1", "sort_order": 1, "points": 3, "label": "At least 1 broadcast block is used in the mystery code." },
-								{ "id": "B.B.2.2", "sort_order": 2, "points": 3, "label": "At least 1 'when I receive ___' block matches that broadcast." },
-								{ "id": "B.B.2.3", "sort_order": 3, "points": 3, "label": "The broadcast fires only under the correct condition (per the brief)." },
-								{ "id": "B.B.2.4", "sort_order": 4, "points": 3, "label": "The receiver responds exactly as the brief specifies." }
+								{
+									"id": "B.B.2.1",
+									"sort_order": 1,
+									"points": 2,
+									"label": "A broadcast block is used in the code."
+								},
+								{
+									"id": "B.B.2.2",
+									"sort_order": 2,
+									"points": 2,
+									"label": "The broadcast message name matches the brief."
+								},
+								{
+									"id": "B.B.2.3",
+									"sort_order": 3,
+									"points": 2,
+									"label": "The broadcast fires only when the exact required condition is met."
+								},
+								{
+									"id": "B.B.2.4",
+									"sort_order": 4,
+									"points": 2,
+									"label": "A when I receive block is present to catch the broadcast."
+								},
+								{
+									"id": "B.B.2.5",
+									"sort_order": 5,
+									"points": 2,
+									"label": "The receiver is placed on the correct target sprite/backdrop."
+								},
+								{
+									"id": "B.B.2.6",
+									"sort_order": 6,
+									"points": 2,
+									"label": "The receiver responds exactly as specified."
+								}
 							],
 							"levels": [
 								{
 									"level": "Excellent",
-									"min_pts": 10,
+									"min_pts": 11,
 									"max_pts": 12,
-									"descriptor": "All broadcasts fire under correct conditions. Receivers respond exactly as specified."
+									"descriptor": "Broadcast fired perfectly on condition and received flawlessly."
 								},
 								{
 									"level": "Proficient",
 									"min_pts": 7,
-									"max_pts": 9,
-									"descriptor": "Most broadcasts work; one condition or receiver broken."
+									"max_pts": 10,
+									"descriptor": "Broadcast executes but has a wrong name, condition bug, or slightly off response."
 								},
 								{
 									"level": "Developing",
 									"min_pts": 3,
 									"max_pts": 6,
-									"descriptor": "Broadcast sent; receiver logic incomplete or wrong event name."
+									"descriptor": "Broadcast sent or received but missing the other half or heavily bugged."
 								},
 								{
 									"level": "Insufficient",
 									"min_pts": 0,
 									"max_pts": 2,
-									"descriptor": "No broadcast logic programmed."
+									"descriptor": "Broadcast logic completely absent."
 								}
 							]
 						},
@@ -474,35 +871,61 @@
 							"name": "Game-Ending / Response Condition",
 							"max_points": 11,
 							"checkpoints": [
-								{ "id": "B.B.3.1", "sort_order": 1, "points": 3, "label": "The terminal / response condition is detected by the code." },
-								{ "id": "B.B.3.2", "sort_order": 2, "points": 3, "label": "When the condition fires, the specified action runs." },
-								{ "id": "B.B.3.3", "sort_order": 3, "points": 3, "label": "The condition triggers consistently (no missed events)." },
-								{ "id": "B.B.3.4", "sort_order": 4, "points": 2, "label": "All sub-actions (stop / pause / costume / sound) execute." }
+								{
+									"id": "B.B.3.1",
+									"sort_order": 1,
+									"points": 2,
+									"label": "The terminal/response condition is detected (e.g. score > 10)."
+								},
+								{
+									"id": "B.B.3.2",
+									"sort_order": 2,
+									"points": 2,
+									"label": "The exact threshold/operator specified in the brief is used."
+								},
+								{
+									"id": "B.B.3.3",
+									"sort_order": 3,
+									"points": 2,
+									"label": "Action 1 (e.g. Hide/Show): Executes correctly."
+								},
+								{
+									"id": "B.B.3.4",
+									"sort_order": 4,
+									"points": 2,
+									"label": "Action 2 (e.g. Stop All): Executes correctly."
+								},
+								{
+									"id": "B.B.3.5",
+									"sort_order": 5,
+									"points": 3,
+									"label": "The sequence runs flawlessly without softlocks or missed triggers."
+								}
 							],
 							"levels": [
 								{
 									"level": "Excellent",
-									"min_pts": 9,
+									"min_pts": 10,
 									"max_pts": 11,
-									"descriptor": "Terminal/response condition executes perfectly & consistently."
+									"descriptor": "Terminal condition detected exactly, and all actions run flawlessly."
 								},
 								{
 									"level": "Proficient",
 									"min_pts": 6,
-									"max_pts": 8,
-									"descriptor": "Condition triggers; one action (stop/pause/direction) fails."
+									"max_pts": 9,
+									"descriptor": "Condition works but action missed or operator slightly wrong."
 								},
 								{
 									"level": "Developing",
 									"min_pts": 3,
 									"max_pts": 5,
-									"descriptor": "Partially coded; does not execute fully."
+									"descriptor": "Condition present but actions do not execute correctly."
 								},
 								{
 									"level": "Insufficient",
 									"min_pts": 0,
 									"max_pts": 2,
-									"descriptor": "Condition absent or non-functional."
+									"descriptor": "No response condition logic programmed."
 								}
 							]
 						}
@@ -510,7 +933,6 @@
 				}
 			]
 		},
-
 		{
 			"category": "C",
 			"sections": [
@@ -522,11 +944,36 @@
 							"name": "Theme Complexity & Originality",
 							"max_points": 12,
 							"checkpoints": [
-								{ "id": "C.A.1.1", "sort_order": 1, "points": 3, "label": "Theme interpretation goes beyond the obvious (e.g. story / narrative arc)." },
-								{ "id": "C.A.1.2", "sort_order": 2, "points": 2, "label": "Substantial original assets (paint-edited or vector-drawn, not stock)." },
-								{ "id": "C.A.1.3", "sort_order": 3, "points": 3, "label": "Interactive UI elements enhance the narrative (menus / dialogs / hubs)." },
-								{ "id": "C.A.1.4", "sort_order": 4, "points": 2, "label": "Theme is consistent across all sprites and backdrops." },
-								{ "id": "C.A.1.5", "sort_order": 5, "points": 2, "label": "Project has at least 1 genuinely unique feature (originality marker)." }
+								{
+									"id": "C.A.1.1",
+									"sort_order": 1,
+									"points": 3,
+									"label": "Theme interpretation goes beyond the obvious (e.g. story / narrative arc)."
+								},
+								{
+									"id": "C.A.1.2",
+									"sort_order": 2,
+									"points": 2,
+									"label": "Substantial original assets (paint-edited or vector-drawn, not stock)."
+								},
+								{
+									"id": "C.A.1.3",
+									"sort_order": 3,
+									"points": 3,
+									"label": "Interactive UI elements enhance the narrative (menus / dialogs / hubs)."
+								},
+								{
+									"id": "C.A.1.4",
+									"sort_order": 4,
+									"points": 2,
+									"label": "Theme is consistent across all sprites and backdrops."
+								},
+								{
+									"id": "C.A.1.5",
+									"sort_order": 5,
+									"points": 2,
+									"label": "Project has at least 1 genuinely unique feature (originality marker)."
+								}
 							],
 							"levels": [
 								{
@@ -560,12 +1007,42 @@
 							"name": "UX & Polish",
 							"max_points": 17,
 							"checkpoints": [
-								{ "id": "C.A.2.1", "sort_order": 1, "points": 3, "label": "Scene transitions are smooth (no jarring jumps or hard cuts)." },
-								{ "id": "C.A.2.2", "sort_order": 2, "points": 3, "label": "UI buttons are responsive (visible hover / click feedback)." },
-								{ "id": "C.A.2.3", "sort_order": 3, "points": 3, "label": "Physics or animation feel polished (no lag, no jitter)." },
-								{ "id": "C.A.2.4", "sort_order": 4, "points": 2, "label": "Sound effects or music enhance the experience (not just decoration)." },
-								{ "id": "C.A.2.5", "sort_order": 5, "points": 3, "label": "Visible feedback for every player action (sound / costume / movement)." },
-								{ "id": "C.A.2.6", "sort_order": 6, "points": 3, "label": "No obvious UX bugs (broken transitions / dead buttons / softlocks)." }
+								{
+									"id": "C.A.2.1",
+									"sort_order": 1,
+									"points": 3,
+									"label": "Scene transitions are smooth (no jarring jumps or hard cuts)."
+								},
+								{
+									"id": "C.A.2.2",
+									"sort_order": 2,
+									"points": 3,
+									"label": "UI buttons are responsive (visible hover / click feedback)."
+								},
+								{
+									"id": "C.A.2.3",
+									"sort_order": 3,
+									"points": 3,
+									"label": "Physics or animation feel polished (no lag, no jitter)."
+								},
+								{
+									"id": "C.A.2.4",
+									"sort_order": 4,
+									"points": 2,
+									"label": "Sound effects or music enhance the experience (not just decoration)."
+								},
+								{
+									"id": "C.A.2.5",
+									"sort_order": 5,
+									"points": 3,
+									"label": "Visible feedback for every player action (sound / costume / movement)."
+								},
+								{
+									"id": "C.A.2.6",
+									"sort_order": 6,
+									"points": 3,
+									"label": "No obvious UX bugs (broken transitions / dead buttons / softlocks)."
+								}
 							],
 							"levels": [
 								{
@@ -599,14 +1076,54 @@
 							"name": "Lists & Extensions",
 							"max_points": 29,
 							"checkpoints": [
-								{ "id": "C.A.3.1", "sort_order": 1, "points": 3, "label": "A List is created in the project." },
-								{ "id": "C.A.3.2", "sort_order": 2, "points": 3, "label": "The List stores at least 1 data type (numbers / strings)." },
-								{ "id": "C.A.3.3", "sort_order": 3, "points": 4, "label": "The List is read / queried during gameplay (not just stored)." },
-								{ "id": "C.A.3.4", "sort_order": 4, "points": 4, "label": "The List updates dynamically as the game progresses." },
-								{ "id": "C.A.3.5", "sort_order": 5, "points": 4, "label": "At least 1 Scratch Extension is used (Pen / Music / TTS / Video Sensing / etc.)." },
-								{ "id": "C.A.3.6", "sort_order": 6, "points": 4, "label": "The Extension is integrated into core gameplay (not decorative)." },
-								{ "id": "C.A.3.7", "sort_order": 7, "points": 4, "label": "The Extension works without bugs (no errors / crashes)." },
-								{ "id": "C.A.3.8", "sort_order": 8, "points": 3, "label": "The Extension's output is contextually correct for the game state." }
+								{
+									"id": "C.A.3.1",
+									"sort_order": 1,
+									"points": 3,
+									"label": "A List is created in the project."
+								},
+								{
+									"id": "C.A.3.2",
+									"sort_order": 2,
+									"points": 3,
+									"label": "The List stores at least 1 data type (numbers / strings)."
+								},
+								{
+									"id": "C.A.3.3",
+									"sort_order": 3,
+									"points": 4,
+									"label": "The List is read / queried during gameplay (not just stored)."
+								},
+								{
+									"id": "C.A.3.4",
+									"sort_order": 4,
+									"points": 4,
+									"label": "The List updates dynamically as the game progresses."
+								},
+								{
+									"id": "C.A.3.5",
+									"sort_order": 5,
+									"points": 4,
+									"label": "At least 1 Scratch Extension is used (Pen / Music / TTS / Video Sensing / etc.)."
+								},
+								{
+									"id": "C.A.3.6",
+									"sort_order": 6,
+									"points": 4,
+									"label": "The Extension is integrated into core gameplay (not decorative)."
+								},
+								{
+									"id": "C.A.3.7",
+									"sort_order": 7,
+									"points": 4,
+									"label": "The Extension works without bugs (no errors / crashes)."
+								},
+								{
+									"id": "C.A.3.8",
+									"sort_order": 8,
+									"points": 3,
+									"label": "The Extension's output is contextually correct for the game state."
+								}
 							],
 							"levels": [
 								{
@@ -640,11 +1157,36 @@
 							"name": "Code Efficiency & Cloning",
 							"max_points": 12,
 							"checkpoints": [
-								{ "id": "C.A.4.1", "sort_order": 1, "points": 3, "label": "Custom Blocks (My Blocks) are defined AND used in the code." },
-								{ "id": "C.A.4.2", "sort_order": 2, "points": 3, "label": "All repetitive logic is in Custom Blocks (no copy-pasted scripts)." },
-								{ "id": "C.A.4.3", "sort_order": 3, "points": 2, "label": "Cloning ('create clone of myself') is used somewhere in the project." },
-								{ "id": "C.A.4.4", "sort_order": 4, "points": 2, "label": "Clones are managed properly (deleted when done — no runaway clones)." },
-								{ "id": "C.A.4.5", "sort_order": 5, "points": 2, "label": "No orphaned scripts (every script has a 'when ___' entry point)." }
+								{
+									"id": "C.A.4.1",
+									"sort_order": 1,
+									"points": 3,
+									"label": "Custom Blocks (My Blocks) are defined AND used in the code."
+								},
+								{
+									"id": "C.A.4.2",
+									"sort_order": 2,
+									"points": 3,
+									"label": "All repetitive logic is in Custom Blocks (no copy-pasted scripts)."
+								},
+								{
+									"id": "C.A.4.3",
+									"sort_order": 3,
+									"points": 2,
+									"label": "Cloning ('create clone of myself') is used somewhere in the project."
+								},
+								{
+									"id": "C.A.4.4",
+									"sort_order": 4,
+									"points": 2,
+									"label": "Clones are managed properly (deleted when done — no runaway clones)."
+								},
+								{
+									"id": "C.A.4.5",
+									"sort_order": 5,
+									"points": 2,
+									"label": "No orphaned scripts (every script has a 'when ___' entry point)."
+								}
 							],
 							"levels": [
 								{
@@ -683,28 +1225,49 @@
 							"name": "Sprite & System Setup",
 							"max_points": 6,
 							"checkpoints": [
-								{ "id": "C.B.1.1", "sort_order": 1, "points": 2, "label": "The correct sprite(s) are added per the brief." },
-								{ "id": "C.B.1.2", "sort_order": 2, "points": 2, "label": "A List or Extension is set up as required by the brief." },
-								{ "id": "C.B.1.3", "sort_order": 3, "points": 2, "label": "The List name / Extension config matches the brief exactly." }
+								{
+									"id": "C.B.1.1",
+									"sort_order": 1,
+									"points": 2,
+									"label": "The correct sprite(s) are added per the brief."
+								},
+								{
+									"id": "C.B.1.2",
+									"sort_order": 2,
+									"points": 2,
+									"label": "List or Extension is initialized."
+								},
+								{
+									"id": "C.B.1.3",
+									"sort_order": 3,
+									"points": 2,
+									"label": "List name / Extension config matches the brief exactly."
+								}
 							],
 							"levels": [
 								{
 									"level": "Excellent",
-									"min_pts": 5,
+									"min_pts": 6,
 									"max_pts": 6,
-									"descriptor": "Correct sprite(s) added. List/Extensions set up and named per mission."
+									"descriptor": "Sprite added and Extension/List initialized and named perfectly."
 								},
 								{
 									"level": "Proficient",
-									"min_pts": 3,
-									"max_pts": 4,
-									"descriptor": "Sprite added; setup partially done (e.g. List named wrong)."
+									"min_pts": 4,
+									"max_pts": 5,
+									"descriptor": "Setup done but List named incorrectly or minor Extension config error."
+								},
+								{
+									"level": "Developing",
+									"min_pts": 2,
+									"max_pts": 3,
+									"descriptor": "Partial setup, missing List/Extension entirely."
 								},
 								{
 									"level": "Insufficient",
 									"min_pts": 0,
-									"max_pts": 2,
-									"descriptor": "Sprite missing or setup absent."
+									"max_pts": 1,
+									"descriptor": "No system setup or completely wrong sprite."
 								}
 							]
 						},
@@ -713,35 +1276,67 @@
 							"name": "Clone Loop / Extension Trigger",
 							"max_points": 13,
 							"checkpoints": [
-								{ "id": "C.B.2.1", "sort_order": 1, "points": 3, "label": "The clone / extension logic is present in the code." },
-								{ "id": "C.B.2.2", "sort_order": 2, "points": 4, "label": "All parameters (coords, language, loop count, etc.) are correct per the brief." },
-								{ "id": "C.B.2.3", "sort_order": 3, "points": 3, "label": "The logic executes without errors (no broken blocks)." },
-								{ "id": "C.B.2.4", "sort_order": 4, "points": 3, "label": "Execution matches the brief's expected behaviour exactly." }
+								{
+									"id": "C.B.2.1",
+									"sort_order": 1,
+									"points": 2,
+									"label": "Clone/Extension creation logic is present."
+								},
+								{
+									"id": "C.B.2.2",
+									"sort_order": 2,
+									"points": 2,
+									"label": "Parameter: Coordinates / Placement are exactly as specified."
+								},
+								{
+									"id": "C.B.2.3",
+									"sort_order": 3,
+									"points": 2,
+									"label": "Parameter: Language / Text Strings are exactly as specified."
+								},
+								{
+									"id": "C.B.2.4",
+									"sort_order": 4,
+									"points": 2,
+									"label": "Parameter: Loop Count / Iterations are exactly as specified."
+								},
+								{
+									"id": "C.B.2.5",
+									"sort_order": 5,
+									"points": 2,
+									"label": "Parameter: Timing / Intervals are exactly as specified."
+								},
+								{
+									"id": "C.B.2.6",
+									"sort_order": 6,
+									"points": 3,
+									"label": "Execution is fully functional with no syntax or logic errors."
+								}
 							],
 							"levels": [
 								{
 									"level": "Excellent",
 									"min_pts": 11,
 									"max_pts": 13,
-									"descriptor": "Logic works exactly as specified. All parameters correct (coords, language, loop)."
+									"descriptor": "All logic and all parameters execute exactly per the brief."
 								},
 								{
 									"level": "Proficient",
-									"min_pts": 8,
+									"min_pts": 7,
 									"max_pts": 10,
-									"descriptor": "Core logic works; one parameter wrong."
+									"descriptor": "Logic works but 1-2 parameters (e.g. coords, loop count) are wrong."
 								},
 								{
 									"level": "Developing",
-									"min_pts": 4,
-									"max_pts": 7,
-									"descriptor": "Partially coded; does not execute without errors."
+									"min_pts": 3,
+									"max_pts": 6,
+									"descriptor": "Logic present but buggy or multiple parameters are incorrect."
 								},
 								{
 									"level": "Insufficient",
 									"min_pts": 0,
-									"max_pts": 3,
-									"descriptor": "No clone or extension logic."
+									"max_pts": 2,
+									"descriptor": "Clone/Extension logic is missing."
 								}
 							]
 						},
@@ -750,35 +1345,61 @@
 							"name": "Data & Response Action",
 							"max_points": 11,
 							"checkpoints": [
-								{ "id": "C.B.3.1", "sort_order": 1, "points": 3, "label": "The data action is implemented (List update / sound / TTS / clone delete / etc.)." },
-								{ "id": "C.B.3.2", "sort_order": 2, "points": 3, "label": "All specified steps execute (nothing skipped)." },
-								{ "id": "C.B.3.3", "sort_order": 3, "points": 3, "label": "The action runs in the correct order per the brief." },
-								{ "id": "C.B.3.4", "sort_order": 4, "points": 2, "label": "The action is consistent across multiple triggers (works every time)." }
+								{
+									"id": "C.B.3.1",
+									"sort_order": 1,
+									"points": 2,
+									"label": "The main data action (List update, TTS, clone delete) is present."
+								},
+								{
+									"id": "C.B.3.2",
+									"sort_order": 2,
+									"points": 2,
+									"label": "The data action processes the exact required data (no hardcoded shortcuts)."
+								},
+								{
+									"id": "C.B.3.3",
+									"sort_order": 3,
+									"points": 2,
+									"label": "Step 1 of the response executes."
+								},
+								{
+									"id": "C.B.3.4",
+									"sort_order": 4,
+									"points": 2,
+									"label": "Step 2 of the response executes."
+								},
+								{
+									"id": "C.B.3.5",
+									"sort_order": 5,
+									"points": 3,
+									"label": "The action is consistent and robust across multiple triggers."
+								}
 							],
 							"levels": [
 								{
 									"level": "Excellent",
 									"min_pts": 10,
 									"max_pts": 11,
-									"descriptor": "List updates correctly / sound plays / clone deletes / TTS speaks — all steps correct."
+									"descriptor": "Action processes correct data and fully executes all response steps."
 								},
 								{
 									"level": "Proficient",
-									"min_pts": 7,
+									"min_pts": 6,
 									"max_pts": 9,
-									"descriptor": "Most actions work; one step missing."
+									"descriptor": "Action executes but data is hardcoded or a response step is missed."
 								},
 								{
 									"level": "Developing",
 									"min_pts": 3,
-									"max_pts": 6,
-									"descriptor": "Partially coded; inconsistent execution."
+									"max_pts": 5,
+									"descriptor": "Action triggers but execution fails or only partial steps run."
 								},
 								{
 									"level": "Insufficient",
 									"min_pts": 0,
 									"max_pts": 2,
-									"descriptor": "No data action programmed."
+									"descriptor": "No response action programmed."
 								}
 							]
 						}
