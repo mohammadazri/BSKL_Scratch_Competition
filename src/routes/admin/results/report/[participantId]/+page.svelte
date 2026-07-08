@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { Printer, CheckCircle, HelpCircle } from '@lucide/svelte';
+	import { FileText, CheckCircle, HelpCircle } from '@lucide/svelte';
 	import Button from '$lib/components/Button.svelte';
 
 	interface Props {
@@ -31,7 +31,7 @@
 	</div>
 	<Button variant="primary" onclick={() => window.print()}>
 		{#snippet icon()}
-			<Printer size={16} strokeWidth={1.5} />
+			<FileText size={16} strokeWidth={1.5} />
 		{/snippet}
 		Print to PDF
 	</Button>

@@ -11,7 +11,7 @@
 	Viewer-role variant hides Override + Unlock entirely (read-only).
 -->
 <script lang="ts">
-	import { ArrowLeft, Download, ShieldAlert, Unlock, MessageSquare, Printer } from '@lucide/svelte';
+	import { ArrowLeft, Download, ShieldAlert, Unlock, MessageSquare, FileText } from '@lucide/svelte';
 	import BrandHeader from '$lib/components/BrandHeader.svelte';
 	import Card from '$lib/components/Card.svelte';
 	import Button from '$lib/components/Button.svelte';
@@ -165,7 +165,7 @@
 							class="inline-flex h-9 items-center gap-2 rounded-md border px-4 text-sm font-medium transition"
 							style="background: var(--color-bg-2); border-color: var(--border); color: var(--color-text-1);"
 						>
-							<Printer size={14} />
+							<FileText size={14} />
 							Print PDF
 						</a>
 					{/if}
