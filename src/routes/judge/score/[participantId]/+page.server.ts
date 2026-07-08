@@ -157,11 +157,22 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 
 	let scores: ScoreRow[] = [];
 	let dq: DqInfo | null = null;
-	if (sheet) {
+	
+	// Fetch all scores for this participant across all their scoresheets (both sections).
+	// This ensures Section A scores are visible to the Section B judge, and that the
+	// UI knows Section A is fully scored so the final Submit button can unlock.
+	const { data: allSheets } = await locals.supabase
+		.from('scoresheets')
+		.select('id')
+		.eq('participant_id', participantId);
+		
+	const sheetIds = (allSheets ?? []).map(s => s.id as string);
+	if (sheetIds.length > 0) {
 		const { data: scoreRows } = await locals.supabase
 			.from('scores')
 			.select('criterion_id, level, points, comment, checkpoint_state')
-			.eq('scoresheet_id', sheet.id);
+			.in('scoresheet_id', sheetIds);
+			
 		scores = (scoreRows ?? []).map((s) => ({
 			criterionId: s.criterion_id as string,
 			level: s.level as PerfLevel,
@@ -171,7 +182,9 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 				? (s.checkpoint_state as string[])
 				: []
 		}));
+	}
 
+	if (sheet) {
 		const { data: dqRow } = await locals.supabase
 			.from('disqualifications')
 			.select('id, reason, notes, cleared_by, status')
