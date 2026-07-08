@@ -14,6 +14,7 @@
 // their very first interaction without an explicit "start" step.
 
 import { error, fail, redirect } from '@sveltejs/kit';
+import { supabaseAdmin } from '$lib/server/supabase';
 import type { Actions, PageServerLoad } from './$types';
 import {
 	sortLevels,
@@ -161,14 +162,16 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 	// Fetch all scores for this participant across all their scoresheets (both sections).
 	// This ensures Section A scores are visible to the Section B judge, and that the
 	// UI knows Section A is fully scored so the final Submit button can unlock.
-	const { data: allSheets } = await locals.supabase
+	// We MUST use supabaseAdmin here because RLS prevents the current judge from
+	// selecting the scoresheet belonging to the other judge!
+	const { data: allSheets } = await supabaseAdmin
 		.from('scoresheets')
 		.select('id')
 		.eq('participant_id', participantId);
 		
 	const sheetIds = (allSheets ?? []).map(s => s.id as string);
 	if (sheetIds.length > 0) {
-		const { data: scoreRows } = await locals.supabase
+		const { data: scoreRows } = await supabaseAdmin
 			.from('scores')
 			.select('criterion_id, level, points, comment, checkpoint_state')
 			.in('scoresheet_id', sheetIds);
