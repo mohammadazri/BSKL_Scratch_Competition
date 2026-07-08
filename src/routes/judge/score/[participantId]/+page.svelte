@@ -675,55 +675,9 @@
 		     dictates what's on screen so the judge focuses on the task
 		     in front of them, not on what's NOT available yet. -->
 		<div class="flex flex-col gap-6">
-			<!-- Section A locked summary (only during Section B). Collapsed by
-			     default so the judge isn't visually competing with a 7-item
-			     table while scoring something else. -->
-			{#if data.phase === 'section_b' && sectionA.length > 0}
-				<div
-					class="rounded-lg border"
-					style="background: var(--color-bg-2); border-color: var(--border);"
-				>
-					<button
-						type="button"
-						class="flex w-full items-center justify-between gap-4 px-4 py-3 text-left"
-						onclick={() => (sectionASummaryOpen = !sectionASummaryOpen)}
-						aria-expanded={sectionASummaryOpen}
-					>
-						<div class="flex items-center gap-2 text-xs font-semibold tracking-[0.18em] uppercase" style="color: var(--color-text-2);">
-							<span class="inline-block h-1.5 w-1.5 rounded-full" style="background: var(--color-accent);"></span>
-							Section A — locked
-						</div>
-						<div class="flex items-center gap-3 text-sm" style="color: var(--color-text-1);">
-							<span style="font-family: var(--font-mono);">
-								{sectionATotal} / {sectionAMax}
-							</span>
-							<span class="text-xs" style="color: var(--color-text-3);">
-								{sectionASummaryOpen ? '−' : '+'}
-							</span>
-						</div>
-					</button>
-					{#if sectionASummaryOpen}
-						<ul class="flex flex-col border-t" style="border-color: var(--border);">
-							{#each sectionA as c (c.id)}
-								<li
-									class="flex items-center justify-between gap-3 px-4 py-2 text-xs"
-									style="color: var(--color-text-2);"
-								>
-									<span class="truncate">{c.name}</span>
-									<span style="font-family: var(--font-mono); color: var(--color-text-1);">
-										{scoreState[c.id]?.points ?? '—'} / {c.maxPoints}
-									</span>
-								</li>
-							{/each}
-						</ul>
-					{/if}
-				</div>
-			{/if}
-
-			<!-- Active scoring area — exactly ONE section is rendered as cards.
-			     Section A during section_a/setup/finalised, Section B during
-			     section_b. The phase-mismatched section is hidden entirely. -->
-			{#if data.phase !== 'section_b' && sectionA.length > 0}
+			<!-- Active scoring area. Section A always shows (as read-only history
+			     during Section B). Section B only shows during Section B phase. -->
+			{#if sectionA.length > 0}
 				<section aria-label="Section A criteria">
 					<div
 						class="mb-4 flex items-baseline justify-between border-b pb-2"
