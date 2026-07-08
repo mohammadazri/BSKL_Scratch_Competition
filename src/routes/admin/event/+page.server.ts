@@ -21,7 +21,12 @@ export type EventStateRow = {
 	eventName: string;
 	eventDate: string | null;
 	sprintMinutes: number;
-	phase: EventPhase;
+	phaseA: EventPhase;
+	phaseB: EventPhase;
+	phaseC: EventPhase;
+	sprintStartA: string | null;
+	sprintStartB: string | null;
+	sprintStartC: string | null;
 	locked: boolean;
 	lockedAt: string | null;
 	lockedBy: string | null;
@@ -42,11 +47,14 @@ function actor(session: {
 export const load: PageServerLoad = async () => {
 	const { data, error: dbErr } = await supabaseAdmin
 		.from('event_state')
-		.select('id, event_name, event_date, sprint_minutes, phase, locked, locked_at, locked_by')
+		.select('id, event_name, event_date, sprint_minutes, phase_a, phase_b, phase_c, sprint_start_a, sprint_start_b, sprint_start_c, locked, locked_at, locked_by')
 		.eq('id', 1)
 		.single();
 
-	if (dbErr || !data) throw error(500, dbErr?.message ?? 'event_state missing');
+	if (dbErr || !data) {
+		console.error("DB ERR IN /ADMIN/EVENT:", dbErr);
+		throw error(500, dbErr?.message ?? 'event_state missing');
+	}
 
 	let lockedByName: string | null = null;
 	if (data.locked_by) {
@@ -63,7 +71,12 @@ export const load: PageServerLoad = async () => {
 		eventName: data.event_name as string,
 		eventDate: (data.event_date as string | null) ?? null,
 		sprintMinutes: data.sprint_minutes as number,
-		phase: (data.phase as EventPhase) ?? 'setup',
+		phaseA: (data.phase_a as EventPhase) ?? 'setup',
+		phaseB: (data.phase_b as EventPhase) ?? 'setup',
+		phaseC: (data.phase_c as EventPhase) ?? 'setup',
+		sprintStartA: (data.sprint_start_a as string | null) ?? null,
+		sprintStartB: (data.sprint_start_b as string | null) ?? null,
+		sprintStartC: (data.sprint_start_c as string | null) ?? null,
 		locked: data.locked as boolean,
 		lockedAt: (data.locked_at as string | null) ?? null,
 		lockedBy: (data.locked_by as string | null) ?? null,
@@ -111,31 +124,30 @@ export const actions: Actions = {
 		const session = await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const phase = String(form.get('phase') ?? '') as EventPhase;
+		const category = String(form.get('category') ?? '') as 'A' | 'B' | 'C';
 		if (!VALID_PHASES.has(phase)) {
 			return fail(400, { error: 'Invalid phase.' });
 		}
+		if (!['A', 'B', 'C'].includes(category)) {
+			return fail(400, { error: 'Invalid category.' });
+		}
 
+		const column = `phase_${category.toLowerCase()}`;
 		const { data: before } = await supabaseAdmin
 			.from('event_state')
-			.select('phase')
+			.select(column)
 			.eq('id', 1)
 			.single();
 
-		const beforePhase = (before?.phase as EventPhase | null) ?? null;
+		const beforePhase = (before?.[column] as EventPhase | null) ?? null;
 		const advancingToSectionB = phase === 'section_b' && beforePhase !== 'section_b';
 
 		const { error: updErr } = await supabaseAdmin
 			.from('event_state')
-			.update({ phase })
+			.update({ [column]: phase })
 			.eq('id', 1);
 		if (updErr) return fail(400, { error: updErr.message });
 
-		// AUTO RE-SHUFFLE: when transitioning into section_b, automatically
-		// re-assign each category's participants to a DIFFERENT judge for
-		// fairness (the same judge can't grade both sections of one student
-		// — that's how single-grader bias creeps in). We do this server-side
-		// at the moment of transition so the admin doesn't have to remember
-		// to click a separate "shuffle" button per category.
 		const reshuffleResults: Array<{
 			category: 'A' | 'B' | 'C';
 			ok: boolean;
@@ -144,23 +156,21 @@ export const actions: Actions = {
 		}> = [];
 
 		if (advancingToSectionB) {
-			for (const category of ['A', 'B', 'C'] as const) {
-				try {
-					const result = await reshuffleSectionBForCategory(category);
-					reshuffleResults.push({
-						category,
-						ok: result.ok,
-						message: result.message ?? '',
-						conflicts: result.conflicts ?? 0
-					});
-				} catch (e) {
-					reshuffleResults.push({
-						category,
-						ok: false,
-						message: e instanceof Error ? e.message : String(e),
-						conflicts: 0
-					});
-				}
+			try {
+				const result = await reshuffleSectionBForCategory(category);
+				reshuffleResults.push({
+					category,
+					ok: result.ok,
+					message: result.message ?? '',
+					conflicts: result.conflicts ?? 0
+				});
+			} catch (e) {
+				reshuffleResults.push({
+					category,
+					ok: false,
+					message: e instanceof Error ? e.message : String(e),
+					conflicts: 0
+				});
 			}
 		}
 
@@ -171,8 +181,8 @@ export const actions: Actions = {
 			action: 'event_phase_change',
 			targetType: 'event_state',
 			targetId: '1',
-			before: { phase: beforePhase },
-			after: { phase, reshuffle: advancingToSectionB ? reshuffleResults : null },
+			before: { [column]: beforePhase },
+			after: { [column]: phase, reshuffle: advancingToSectionB ? reshuffleResults : null },
 			reason: null
 		});
 
@@ -190,7 +200,33 @@ export const actions: Actions = {
 			: '';
 		return {
 			ok: true,
-			message: `Event phase set to ${labels[phase]}.${reshuffleSummary}`
+			message: `Category ${category} phase set to ${labels[phase]}.${reshuffleSummary}`
+		};
+	},
+
+	setTimer: async ({ request, locals }) => {
+		await requireSuperAdmin(locals.user);
+		const form = await request.formData();
+		const dateString = String(form.get('datetime') ?? '').trim();
+		const category = String(form.get('category') ?? '') as 'A' | 'B' | 'C';
+
+		if (!['A', 'B', 'C'].includes(category)) {
+			return fail(400, { error: 'Invalid category.' });
+		}
+
+		const column = `sprint_start_${category.toLowerCase()}`;
+		const val = dateString ? new Date(dateString).toISOString() : null;
+
+		const { error: updErr } = await supabaseAdmin
+			.from('event_state')
+			.update({ [column]: val })
+			.eq('id', 1);
+		
+		if (updErr) return fail(400, { error: updErr.message });
+		
+		return {
+			ok: true,
+			message: `Category ${category} countdown timer ${val ? 'set' : 'cleared'}.`
 		};
 	},
 
