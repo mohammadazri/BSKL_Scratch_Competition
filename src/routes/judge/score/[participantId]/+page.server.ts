@@ -821,7 +821,10 @@ export const actions: Actions = {
 
 			const { error: stampErr } = await locals.supabase
 				.from('scoresheets')
-				.update({ section_a_submitted_at: new Date().toISOString() })
+				.update({ 
+					section_a_submitted_at: new Date().toISOString(),
+					status: 'submitted' 
+				})
 				.eq('id', sheet.id);
 			if (stampErr) return fail(400, { submitError: stampErr.message });
 
