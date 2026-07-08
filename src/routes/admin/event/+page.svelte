@@ -38,16 +38,38 @@
 		return new Date(iso).toLocaleString();
 	}
 
-	const phase = $derived(data.event.phase);
-	const phaseLabel = $derived(
-		phase === 'setup'
+	const phases = $derived({
+		A: data.event.phaseA,
+		B: data.event.phaseB,
+		C: data.event.phaseC
+	});
+	
+	function phaseLabel(phase: 'setup' | 'section_a' | 'section_b' | 'finalised') {
+		return phase === 'setup'
 			? 'Setup'
 			: phase === 'section_a'
-				? 'Section A — pre-event scoring open'
+				? 'Section A — pre-event scoring'
 				: phase === 'section_b'
-					? 'Section B — event-day scoring open'
-					: 'Finalised'
-	);
+					? 'Section B — event-day scoring'
+					: 'Finalised';
+	}
+	
+	const sprintStarts = $derived({
+		A: data.event.sprintStartA,
+		B: data.event.sprintStartB,
+		C: data.event.sprintStartC
+	});
+	
+	// Create local states for the datetime pickers so they don't jump while typing
+	let localTimerA = $state(untrack(() => data.event.sprintStartA ? new Date(data.event.sprintStartA).toISOString().slice(0, 16) : ''));
+	let localTimerB = $state(untrack(() => data.event.sprintStartB ? new Date(data.event.sprintStartB).toISOString().slice(0, 16) : ''));
+	let localTimerC = $state(untrack(() => data.event.sprintStartC ? new Date(data.event.sprintStartC).toISOString().slice(0, 16) : ''));
+
+	$effect(() => {
+		localTimerA = data.event.sprintStartA ? new Date(data.event.sprintStartA).toISOString().slice(0, 16) : '';
+		localTimerB = data.event.sprintStartB ? new Date(data.event.sprintStartB).toISOString().slice(0, 16) : '';
+		localTimerC = data.event.sprintStartC ? new Date(data.event.sprintStartC).toISOString().slice(0, 16) : '';
+	});
 </script>
 
 <svelte:head>
@@ -72,46 +94,61 @@
 	</div>
 {/if}
 
-<!-- Phase control — the main super-admin lever. Section A is scored before
-     the event, Section B on event day, then finalised. Judges only see the
-     criteria for the currently-open phase. -->
-<div class="mb-4">
-	<Card label="Current phase: {phaseLabel}">
-		<p class="mb-3 text-sm" style="color: var(--color-text-2);">
-			Judges can only enter scores for the criteria belonging to the current section.
-			Section A scores remain visible (read-only) during Section B.
-		</p>
-
-		<div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-			<form method="POST" action="?/setPhase" use:enhance>
-				<input type="hidden" name="phase" value="section_a" />
-				<Button variant={phase === 'section_a' ? 'primary' : 'secondary'} type="submit">
-					Open Section A
-				</Button>
-			</form>
-			<form method="POST" action="?/setPhase" use:enhance>
-				<input type="hidden" name="phase" value="section_b" />
-				<Button variant={phase === 'section_b' ? 'primary' : 'secondary'} type="submit">
-					Open Section B
-				</Button>
-			</form>
-			<form method="POST" action="?/setPhase" use:enhance>
-				<input type="hidden" name="phase" value="finalised" />
-				<Button variant={phase === 'finalised' ? 'primary' : 'secondary'} type="submit">
-					Finalise scoring
-				</Button>
-			</form>
-			<form method="POST" action="?/setPhase" use:enhance>
-				<input type="hidden" name="phase" value="setup" />
-				<Button variant="ghost" type="submit">Back to setup</Button>
-			</form>
-		</div>
-
-		<p class="mt-3 text-xs" style="color: var(--color-text-3);">
-			Phase changes are audit-logged. Use <strong>Back to setup</strong> only if you need to
-			re-open scoring for everyone before the event.
-		</p>
-	</Card>
+<!-- Phase controls — per category. -->
+<div class="mb-4 flex flex-col gap-4">
+	{#each ['A', 'B', 'C'] as category}
+		{@const catPhase = phases[category]}
+		{@const catTimer = category === 'A' ? localTimerA : category === 'B' ? localTimerB : localTimerC}
+		
+		<Card label="Category {category} Phase: {phaseLabel(catPhase)}">
+			<div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+				<div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+					<form method="POST" action="?/setPhase" use:enhance>
+						<input type="hidden" name="category" value={category} />
+						<input type="hidden" name="phase" value="section_a" />
+						<Button variant={catPhase === 'section_a' ? 'primary' : 'secondary'} type="submit">
+							Open Section A
+						</Button>
+					</form>
+					<form method="POST" action="?/setPhase" use:enhance>
+						<input type="hidden" name="category" value={category} />
+						<input type="hidden" name="phase" value="section_b" />
+						<Button variant={catPhase === 'section_b' ? 'primary' : 'secondary'} type="submit">
+							Open Section B
+						</Button>
+					</form>
+					<form method="POST" action="?/setPhase" use:enhance>
+						<input type="hidden" name="category" value={category} />
+						<input type="hidden" name="phase" value="finalised" />
+						<Button variant={catPhase === 'finalised' ? 'primary' : 'secondary'} type="submit">
+							Finalise
+						</Button>
+					</form>
+					<form method="POST" action="?/setPhase" use:enhance>
+						<input type="hidden" name="category" value={category} />
+						<input type="hidden" name="phase" value="setup" />
+						<Button variant="ghost" type="submit">Back to setup</Button>
+					</form>
+				</div>
+				
+				<div class="flex flex-col items-end gap-2 border-t pt-3 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0" style="border-color: var(--border);">
+					<label class="text-xs font-semibold" style="color: var(--color-text-2);">Section B Start Timer</label>
+					<form method="POST" action="?/setTimer" use:enhance class="flex items-center gap-2">
+						<input type="hidden" name="category" value={category} />
+						<input 
+							type="datetime-local" 
+							name="datetime" 
+							class="rounded border px-2 py-1 text-sm" 
+							style="background: var(--color-bg-1); border-color: var(--border); color: var(--color-text-1);"
+							value={catTimer}
+						/>
+						<Button variant="secondary" type="submit">Set</Button>
+					</form>
+					<span class="text-[10px] text-zinc-500 max-w-[200px] text-right">Displays a countdown to judges if Section B has not started.</span>
+				</div>
+			</div>
+		</Card>
+	{/each}
 </div>
 
 <div class="grid gap-4 lg:grid-cols-2">

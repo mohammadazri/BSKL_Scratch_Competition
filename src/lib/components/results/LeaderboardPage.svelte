@@ -100,6 +100,9 @@
 	const exportUrl = $derived(
 		`/${data.role === 'super_admin' ? 'admin' : 'viewer'}/results/export${page.url.search}`
 	);
+	const exportExcelUrl = $derived(
+		`/${data.role === 'super_admin' ? 'admin' : 'viewer'}/results/export-excel${page.url.search}`
+	);
 	const podiumUrl = $derived(
 		`/${data.role === 'super_admin' ? 'admin' : 'viewer'}/results/podium${page.url.search}`
 	);
@@ -158,6 +161,15 @@
 					>
 						<Printer size={14} strokeWidth={1.5} />
 						Print podium
+					</a>
+					<a
+						href={exportExcelUrl}
+						download
+						class="inline-flex h-11 items-center justify-center gap-2 rounded-[var(--radius)] border px-4 text-sm font-medium transition-colors"
+						style="background: var(--color-accent-2); border-color: var(--color-accent-2); color: white;"
+					>
+						<Download size={14} strokeWidth={1.5} />
+						Export Excel
 					</a>
 				{/if}
 				<a

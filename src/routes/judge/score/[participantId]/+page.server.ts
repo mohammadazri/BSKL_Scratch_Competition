@@ -137,10 +137,13 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 	//    the relevant work.
 	const { data: ev0 } = await locals.supabase
 		.from('event_state')
-		.select('phase')
+		.select('phase_a, phase_b, phase_c')
 		.eq('id', 1)
 		.maybeSingle();
-	const currentSection: 'A' | 'B' = ev0?.phase === 'section_b' ? 'B' : 'A';
+	
+	const phaseKey = `phase_${participant.category.toLowerCase()}` as 'phase_a' | 'phase_b' | 'phase_c';
+	const participantPhase = ev0?.[phaseKey] ?? 'setup';
+	const currentSection: 'A' | 'B' = participantPhase === 'section_b' ? 'B' : 'A';
 
 	const { data: sheet } = await locals.supabase
 		.from('scoresheets')
@@ -191,15 +194,20 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 	//    currently-open section. Setup and finalised phases lock everything.
 	const { data: ev } = await locals.supabase
 		.from('event_state')
-		.select('locked, phase')
+		.select('locked, phase_a, phase_b, phase_c, sprint_start_a, sprint_start_b, sprint_start_c')
 		.eq('id', 1)
 		.maybeSingle();
 	const eventLocked = Boolean(ev?.locked);
-	const phase = ((ev?.phase as string | null) ?? 'setup') as
+	
+	const participantPhaseKey = `phase_${participant.category.toLowerCase()}` as 'phase_a' | 'phase_b' | 'phase_c';
+	const phase = ((ev?.[participantPhaseKey] as string | null) ?? 'setup') as
 		| 'setup'
 		| 'section_a'
 		| 'section_b'
 		| 'finalised';
+
+	const sprintStartKey = `sprint_start_${participant.category.toLowerCase()}` as 'sprint_start_a' | 'sprint_start_b' | 'sprint_start_c';
+	const sprintStart = (ev?.[sprintStartKey] as string | null) ?? null;
 
 	const readOnly =
 		eventLocked ||
@@ -232,6 +240,7 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 		dq,
 		eventLocked,
 		phase,
+		sprintStart,
 		readOnly,
 		pendingEditRequest: sheet
 			? await (async () => {
@@ -400,13 +409,15 @@ function parsePayload(form: FormData): {
 
 // Returns the current event phase, normalised. Anywhere we use it we treat
 // 'setup' and 'finalised' as "no scoring allowed".
-async function getPhase(locals: App.Locals): Promise<'setup' | 'section_a' | 'section_b' | 'finalised'> {
+async function getPhase(locals: App.Locals, category: string): Promise<'setup' | 'section_a' | 'section_b' | 'finalised'> {
 	const { data } = await locals.supabase
 		.from('event_state')
-		.select('phase')
+		.select('phase_a, phase_b, phase_c')
 		.eq('id', 1)
 		.maybeSingle();
-	const p = (data?.phase as string | null) ?? 'setup';
+	
+	const phaseKey = `phase_${category.toLowerCase()}` as 'phase_a' | 'phase_b' | 'phase_c';
+	const p = (data?.[phaseKey] as string | null) ?? 'setup';
 	if (p === 'section_a' || p === 'section_b' || p === 'finalised') return p;
 	return 'setup';
 }
@@ -567,7 +578,15 @@ export const actions: Actions = {
 	save: async ({ request, locals, params }) => {
 		const profile = await loadActorProfile(locals);
 
-		const phase = await getPhase(locals);
+		// We need the participant's category to determine their phase
+		const { data: participant } = await locals.supabase
+			.from('participants')
+			.select('category')
+			.eq('id', params.participantId)
+			.single();
+		if (!participant) return fail(404, { saveError: 'Participant not found.' });
+
+		const phase = await getPhase(locals, participant.category);
 		if (phase === 'setup' || phase === 'finalised') {
 			return fail(409, {
 				saveError:
@@ -675,7 +694,15 @@ export const actions: Actions = {
 
 	submit: async ({ request, locals, params }) => {
 		const profile = await loadActorProfile(locals);
-		const phase = await getPhase(locals);
+
+		const { data: participant } = await locals.supabase
+			.from('participants')
+			.select('category')
+			.eq('id', params.participantId)
+			.single();
+		if (!participant) return fail(404, { submitError: 'Participant not found.' });
+
+		const phase = await getPhase(locals, participant.category);
 
 		if (phase !== 'section_a' && phase !== 'section_b') {
 			return fail(409, {
@@ -961,9 +988,16 @@ export const actions: Actions = {
 	flagDq: async ({ request, locals, params }) => {
 		const profile = await loadActorProfile(locals);
 
+		const { data: participant } = await locals.supabase
+			.from('participants')
+			.select('category')
+			.eq('id', params.participantId)
+			.single();
+		if (!participant) return fail(404, { error: 'Participant not found.' });
+
 		// DQ requests target the scoresheet that's CURRENTLY in front of the
 		// judge — i.e. the current phase's section.
-		const phase = await getPhase(locals);
+		const phase = await getPhase(locals, participant.category);
 		const dqSection: 'A' | 'B' = phase === 'section_b' ? 'B' : 'A';
 		const sheet = await getOrCreateScoresheet(
 			locals,
