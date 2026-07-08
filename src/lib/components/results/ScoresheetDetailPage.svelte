@@ -11,7 +11,7 @@
 	Viewer-role variant hides Override + Unlock entirely (read-only).
 -->
 <script lang="ts">
-	import { ArrowLeft, Download, ShieldAlert, Unlock, MessageSquare } from '@lucide/svelte';
+	import { ArrowLeft, Download, ShieldAlert, Unlock, MessageSquare, Printer } from '@lucide/svelte';
 	import BrandHeader from '$lib/components/BrandHeader.svelte';
 	import Card from '$lib/components/Card.svelte';
 	import Button from '$lib/components/Button.svelte';
@@ -86,6 +86,12 @@
 			? `/${role === 'super_admin' ? 'admin' : 'viewer'}/scoresheets/${detail.scoresheetId}/export`
 			: '#'
 	);
+
+	const printReportHref = $derived(
+		detail
+			? `/admin/results/report/${detail.participantId}`
+			: '#'
+	);
 </script>
 
 {#if role !== 'super_admin'}
@@ -143,15 +149,26 @@
 				</div>
 				<div class="flex items-center gap-2">
 					<StatusPill status={detail.status} />
-					<a
-						href={exportHref}
-						download
-						class="inline-flex h-10 items-center justify-center gap-2 rounded-[var(--radius)] border px-3 text-xs font-medium transition-colors"
-						style="background: var(--color-bg-3); border-color: var(--border); color: var(--color-text-1);"
-					>
-						<Download size={12} strokeWidth={1.5} />
-						Export
-					</a>
+					{#if role === 'super_admin'}
+						<a
+							href={exportHref}
+							download
+							class="inline-flex h-9 items-center gap-2 rounded-md border px-4 text-sm font-medium transition hover:bg-[color:var(--accent-soft)]"
+							style="border-color: var(--border); color: var(--color-text-1);"
+						>
+							<Download size={14} />
+							Export CSV
+						</a>
+						<a
+							href={printReportHref}
+							target="_blank"
+							class="inline-flex h-9 items-center gap-2 rounded-md border px-4 text-sm font-medium transition"
+							style="background: var(--color-bg-2); border-color: var(--border); color: var(--color-text-1);"
+						>
+							<Printer size={14} />
+							Print PDF
+						</a>
+					{/if}
 				</div>
 			</div>
 

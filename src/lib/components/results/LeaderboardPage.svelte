@@ -106,6 +106,9 @@
 	const podiumUrl = $derived(
 		`/${data.role === 'super_admin' ? 'admin' : 'viewer'}/results/podium${page.url.search}`
 	);
+	const printLeaderboardUrl = $derived(
+		`/${data.role === 'super_admin' ? 'admin' : 'viewer'}/results/print${page.url.search}`
+	);
 
 	// `BrandHeader` only renders for viewer routes — admin routes get it from
 	// the AppShell wrapper in /admin/+layout.svelte, so rendering it here would
@@ -170,6 +173,15 @@
 					>
 						<Download size={14} strokeWidth={1.5} />
 						Export Excel
+					</a>
+					<a
+						href={printLeaderboardUrl}
+						target="_blank"
+						class="inline-flex h-11 items-center justify-center gap-2 rounded-[var(--radius)] border px-4 text-sm font-medium transition-colors"
+						style="background: var(--color-bg-2); border-color: var(--border); color: var(--color-text-1);"
+					>
+						<Printer size={14} strokeWidth={1.5} />
+						Print PDF
 					</a>
 				{/if}
 				<a
