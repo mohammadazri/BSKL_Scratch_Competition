@@ -95,10 +95,13 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 	});
 
 	const criteria: RubricCriterion[] = criteriaRows.map((c) => {
+		// Guard with Array.isArray: if checkpoints is ever stored as a non-array
+		// (e.g. a double-encoded JSON string), fall back to level mode rather than
+		// spreading a string into characters.
 		const rawCheckpoints = c.checkpoints as
 			| Array<{ id?: string; sort_order?: number; points: number; label: string }>
 			| null;
-		const checkpoints: RubricCheckpoint[] | undefined = rawCheckpoints
+		const checkpoints: RubricCheckpoint[] | undefined = Array.isArray(rawCheckpoints)
 			? [...rawCheckpoints]
 					.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
 					// Stable fallback id. Databases seeded before checkpoints had ids
@@ -517,7 +520,7 @@ async function checkpointsByCriterion(
 		const raw = c.checkpoints as
 			| Array<{ id?: string; sort_order?: number; points: number; label: string }>
 			| null;
-		if (!raw) {
+		if (!Array.isArray(raw)) {
 			out.set(c.id as string, []);
 			continue;
 		}

@@ -20,13 +20,18 @@
 
 CREATE OR REPLACE FUNCTION current_role_is(target user_role)
 RETURNS boolean
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
+DECLARE
+  res boolean;
+BEGIN
   SELECT EXISTS (
     SELECT 1 FROM profiles
      WHERE id = auth.uid() AND role = target AND is_active = true
-  );
+  ) INTO res;
+  RETURN res;
+END;
 $$;

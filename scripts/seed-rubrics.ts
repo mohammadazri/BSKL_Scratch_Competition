@@ -83,7 +83,12 @@ async function main() {
 						}
 					}
 
-					const checkpointsJson = crit.checkpoints ? JSON.stringify(crit.checkpoints) : null;
+					// Pass the raw array through sql.json so postgres.js serialises it
+					// exactly once. Pre-stringifying it (JSON.stringify) and casting
+					// with ::jsonb double-encodes — postgres.js JSON-encodes the string
+					// again, storing a jsonb *string* ("[{...}]") instead of an array,
+					// which the scoring page then spreads into characters.
+					const checkpoints = crit.checkpoints ? sql.json(crit.checkpoints) : null;
 
 					const rows = await sql<{ id: string }[]>`
 						INSERT INTO criteria (category, section, name, max_points, sort_order, checkpoints)
@@ -93,7 +98,7 @@ async function main() {
 							${crit.name},
 							${crit.max_points},
 							${crit.sort_order},
-							${checkpointsJson}::jsonb
+							${checkpoints}
 						)
 						ON CONFLICT (category, section, sort_order)
 						DO UPDATE SET
