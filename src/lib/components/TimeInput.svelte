@@ -26,19 +26,29 @@
 	}: Props = $props();
 
 	const initialParts = secondsToTime(value);
-	let minStr = $state(String(initialParts.minutes).padStart(2, '0'));
-	let secStr = $state(String(initialParts.seconds).padStart(2, '0'));
+	let minStr = $state(value === null ? '' : String(initialParts.minutes).padStart(2, '0'));
+	let secStr = $state(value === null ? '' : String(initialParts.seconds).padStart(2, '0'));
 
 	// keep local strings in sync if external value changes
 	$effect(() => {
-		const p = secondsToTime(value);
-		minStr = String(p.minutes).padStart(2, '0');
-		secStr = String(p.seconds).padStart(2, '0');
+		if (value === null) {
+			minStr = '';
+			secStr = '';
+		} else {
+			const p = secondsToTime(value);
+			minStr = String(p.minutes).padStart(2, '0');
+			secStr = String(p.seconds).padStart(2, '0');
+		}
 	});
 
 	function recompute() {
-		const m = Number(minStr);
-		const s = Number(secStr);
+		if (minStr.trim() === '' && secStr.trim() === '') {
+			value = null;
+			onValue?.(null);
+			return;
+		}
+		const m = Number(minStr || 0);
+		const s = Number(secStr || 0);
 		const total = timeToSeconds(m, s);
 		if (total === null) return;
 		const clamped = Math.min(maxSeconds, total);
@@ -61,6 +71,8 @@
 	}
 
 	function onSecBlur() {
+		if (secStr.trim() === '' && minStr.trim() === '') return;
+		if (secStr.trim() === '') secStr = '00';
 		let n = Number(secStr);
 		if (!Number.isFinite(n) || n < 0) n = 0;
 		if (n > 59) n = 59;
@@ -69,6 +81,8 @@
 	}
 
 	function onMinBlur() {
+		if (minStr.trim() === '' && secStr.trim() === '') return;
+		if (minStr.trim() === '') minStr = '00';
 		let n = Number(minStr);
 		if (!Number.isFinite(n) || n < 0) n = 0;
 		if (n > 45) n = 45;
@@ -77,8 +91,8 @@
 	}
 
 	function onClear() {
-		minStr = '00';
-		secStr = '00';
+		minStr = '';
+		secStr = '';
 		value = null;
 		onValue?.(null);
 	}
@@ -93,6 +107,7 @@
 			type="text"
 			inputmode="numeric"
 			aria-label="Minutes"
+			placeholder="00"
 			value={minStr}
 			oninput={onMinInput}
 			onblur={onMinBlur}
@@ -111,6 +126,7 @@
 			type="text"
 			inputmode="numeric"
 			aria-label="Seconds"
+			placeholder="00"
 			value={secStr}
 			oninput={onSecInput}
 			onblur={onSecBlur}
