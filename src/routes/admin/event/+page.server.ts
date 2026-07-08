@@ -129,7 +129,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid phase.' });
 		}
 		if (!['A', 'B', 'C'].includes(category)) {
-			return fail(400, { error: 'Invalid category.' });
+			return fail(400, { error: `Invalid category: "${category}"` });
 		}
 
 		const column = `phase_${category.toLowerCase()}`;

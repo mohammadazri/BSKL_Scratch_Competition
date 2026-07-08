@@ -63,5 +63,7 @@
 </script>
 
 <AppShell {nav} activeHref={page.url.pathname} user={data.profile}>
-	{@render children()}
+	{#key page.url.pathname}
+		{@render children()}
+	{/key}
 </AppShell>

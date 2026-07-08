@@ -453,15 +453,16 @@ async function nextParticipantForJudge(
 	//    when they haven't started a given participant yet.
 	const { data: sheets } = await locals.supabase
 		.from('scoresheets')
-		.select('participant_id, status')
+		.select('participant_id, status, section_a_submitted_at')
 		.eq('judge_id', judgeId)
 		.eq('section', phaseSection)
 		.in('participant_id', participantIds);
 
-	const sheetByParticipant = new Map<string, { status: string }>();
+	const sheetByParticipant = new Map<string, { status: string; sectionASubmittedAt: string | null }>();
 	for (const s of sheets ?? []) {
 		sheetByParticipant.set(s.participant_id as string, {
-			status: s.status as string
+			status: s.status as string,
+			sectionASubmittedAt: s.section_a_submitted_at as string | null
 		});
 	}
 
@@ -477,12 +478,14 @@ async function nextParticipantForJudge(
 	}
 
 	// A section is "done for this judge" when the section sheet exists and is
-	// submitted/finalised. With section-scoped sheets the rule is uniform —
-	// no more special-casing of section_a_submitted_at.
+	// submitted/finalised. For Section A, we also consider it done if section_a_submitted_at is set.
 	const candidates = participantIds
 		.filter((id) => {
 			const sheet = sheetByParticipant.get(id);
-			return !sheet || (sheet.status !== 'submitted' && sheet.status !== 'finalised');
+			if (!sheet) return true;
+			if (sheet.status === 'submitted' || sheet.status === 'finalised') return false;
+			if (phase === 'section_a' && sheet.sectionASubmittedAt) return false;
+			return true;
 		})
 		.sort((a, b) => (nameById.get(a) ?? '').localeCompare(nameById.get(b) ?? ''));
 
