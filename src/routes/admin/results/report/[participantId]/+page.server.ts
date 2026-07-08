@@ -76,7 +76,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 		reportSections.push({
 			section,
-			judgeName: sheet?.profiles?.full_name as string | null,
+			judgeName: (sheet?.profiles as any)?.full_name as string | null,
 			status: sheet?.status as string | null,
 			sprintTime: sheet?.live_sprint_time_seconds as number | null,
 			criteria: criteriaWithScores,
@@ -92,7 +92,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		participant: {
 			id: p.id as string,
 			name: p.full_name as string,
-			schoolName: p.schools?.name as string,
+			schoolName: (p.schools as any)?.name as string,
 			category: p.category as string,
 			theme: p.theme as string | null
 		},

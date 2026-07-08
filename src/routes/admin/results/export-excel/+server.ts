@@ -156,7 +156,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 				};
 				if (rowNumber > 1) {
 					// align numbers to center
-					if (cell._column.key === 'rank' || cell._column.key === 'totalPoints' || cell._column.key === 'sprintTime' || String(cell._column.key).startsWith('crit_')) {
+					const colKey = String((cell as any)._column?.key);
+					if (colKey === 'rank' || colKey === 'totalPoints' || colKey === 'sprintTime' || colKey.startsWith('crit_')) {
 						cell.alignment = { horizontal: 'center' };
 					}
 				}
