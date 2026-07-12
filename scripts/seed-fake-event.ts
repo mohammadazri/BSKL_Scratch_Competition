@@ -277,12 +277,12 @@ async function main(): Promise<void> {
 	console.log(`[seed-fake-event] inserted ${insertedSchools.length} schools`);
 
 	// Phase 3 — participants. Spread across schools round-robin within each
-	// category. Themes cycle for cat B + C; cat A leaves theme null.
+	// category. Themes cycle across every category (theme is required).
 	const participantRows: Array<{
 		school_id: string;
 		full_name: string;
 		category: 'A' | 'B' | 'C';
-		theme: (typeof THEMES)[number] | null;
+		theme: (typeof THEMES)[number];
 		qualified: boolean;
 	}> = [];
 
@@ -294,7 +294,7 @@ async function main(): Promise<void> {
 				school_id: school.id,
 				full_name: makeParticipantName(catIdx, n),
 				category,
-				theme: category === 'A' ? null : THEMES[(n - 1) % THEMES.length],
+				theme: THEMES[(n - 1) % THEMES.length],
 				qualified: true
 			});
 		}
@@ -306,6 +306,18 @@ async function main(): Promise<void> {
 		.select('id, school_id, category');
 	if (pErr || !insertedParticipants) throw pErr ?? new Error('participants insert failed');
 	console.log(`[seed-fake-event] inserted ${insertedParticipants.length} participants`);
+
+	const { error: credentialErr } = await admin.from('participant_scratch_credentials').insert(
+		insertedParticipants.map((participant, index) => ({
+			participant_id: participant.id,
+			username: `seed-${participant.category.toLowerCase()}-${String(index + 1).padStart(2, '0')}`,
+			password: 'scratch-seed-pass!'
+		}))
+	);
+	if (credentialErr) throw credentialErr;
+	console.log(
+		`[seed-fake-event] inserted ${insertedParticipants.length} Scratch credential records`
+	);
 
 	// Phase 4 — judges (auth users + profiles).
 	const judgeIds: string[] = [];
@@ -366,7 +378,11 @@ async function main(): Promise<void> {
 			maxPerSchoolPerJudge: 3
 		});
 		const rows = buckets.flatMap((b) =>
-			b.participant_ids.map((pid) => ({ participant_id: pid, judge_id: b.judge_id }))
+			b.participant_ids.map((pid) => ({
+				participant_id: pid,
+				judge_id: b.judge_id,
+				section: 'A' as const
+			}))
 		);
 		if (rows.length === 0) continue;
 		const { error: aErr } = await admin.from('assignments').insert(rows);

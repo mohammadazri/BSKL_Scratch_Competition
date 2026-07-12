@@ -216,7 +216,10 @@ async function deleteSeededTables(admin: SupabaseClient): Promise<void> {
 		.neq('id', '00000000-0000-0000-0000-000000000000');
 	if (pErr) throw pErr;
 
-	const { error: sErr } = await admin.from('schools').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+	const { error: sErr } = await admin
+		.from('schools')
+		.delete()
+		.neq('id', '00000000-0000-0000-0000-000000000000');
 	if (sErr) throw sErr;
 	console.log(`[seed-small-test] wiped ALL participants and schools`);
 }
@@ -262,17 +265,20 @@ async function main(): Promise<void> {
 	await deleteSeededAuthUsers(admin);
 
 	// Reset event_state
-	const { error: esErr } = await admin.from('event_state').update({
-		phase_a: 'setup',
-		phase_b: 'setup',
-		phase_c: 'setup',
-		sprint_start_a: null,
-		sprint_start_b: null,
-		sprint_start_c: null,
-		locked: false,
-		locked_at: null,
-		locked_by: null
-	}).eq('id', 1);
+	const { error: esErr } = await admin
+		.from('event_state')
+		.update({
+			phase_a: 'setup',
+			phase_b: 'setup',
+			phase_c: 'setup',
+			sprint_start_a: null,
+			sprint_start_b: null,
+			sprint_start_c: null,
+			locked: false,
+			locked_at: null,
+			locked_by: null
+		})
+		.eq('id', 1);
 	if (esErr) throw esErr;
 	console.log(`[seed-small-test] reset event_state to setup`);
 
@@ -314,6 +320,18 @@ async function main(): Promise<void> {
 		.select('id, school_id, category');
 	if (pErr || !insertedParticipants) throw pErr ?? new Error('participants insert failed');
 	console.log(`[seed-fake-event] inserted ${insertedParticipants.length} participants`);
+
+	const { error: credentialErr } = await admin.from('participant_scratch_credentials').insert(
+		insertedParticipants.map((participant, index) => ({
+			participant_id: participant.id,
+			username: `seed-${participant.category.toLowerCase()}-${String(index + 1).padStart(2, '0')}`,
+			password: 'scratch-seed-pass!'
+		}))
+	);
+	if (credentialErr) throw credentialErr;
+	console.log(
+		`[seed-small-test] inserted ${insertedParticipants.length} Scratch credential records`
+	);
 
 	// Phase 4 — judges (auth users + profiles).
 	const judgeIds: string[] = [];
@@ -374,7 +392,11 @@ async function main(): Promise<void> {
 			maxPerSchoolPerJudge: 3
 		});
 		const rows = buckets.flatMap((b) =>
-			b.participant_ids.map((pid) => ({ participant_id: pid, judge_id: b.judge_id }))
+			b.participant_ids.map((pid) => ({
+				participant_id: pid,
+				judge_id: b.judge_id,
+				section: 'A' as const
+			}))
 		);
 		if (rows.length === 0) continue;
 		const { error: aErr } = await admin.from('assignments').insert(rows);

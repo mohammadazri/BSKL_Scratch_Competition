@@ -17,14 +17,14 @@ import type {
 	profiles,
 	schools,
 	participants,
+	participantScratchCredentials,
 	criteria,
 	criterionLevels,
 	assignments,
 	scoresheets,
 	scores,
 	disqualifications,
-	eventState,
-	auditLog
+	eventState
 } from './server/db/schema';
 
 // ─── Enum aliases (mirror of Postgres types) ─────────────────────────────────
@@ -46,6 +46,7 @@ export type DqReason =
 export type Profile = InferSelectModel<typeof profiles>;
 export type School = InferSelectModel<typeof schools>;
 export type Participant = InferSelectModel<typeof participants>;
+export type ParticipantScratchCredential = InferSelectModel<typeof participantScratchCredentials>;
 export type Criterion = InferSelectModel<typeof criteria>;
 export type CriterionLevel = InferSelectModel<typeof criterionLevels>;
 export type Assignment = InferSelectModel<typeof assignments>;
@@ -53,4 +54,3 @@ export type Scoresheet = InferSelectModel<typeof scoresheets>;
 export type Score = InferSelectModel<typeof scores>;
 export type Disqualification = InferSelectModel<typeof disqualifications>;
 export type EventState = InferSelectModel<typeof eventState>;
-export type AuditLog = InferSelectModel<typeof auditLog>;
