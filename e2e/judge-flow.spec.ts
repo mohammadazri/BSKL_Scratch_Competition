@@ -21,13 +21,18 @@ test.describe('judge · scoresheet flow', () => {
 
 		// Pick the first non-finalised row. Falls back to clicking the first
 		// "Start" / "Continue" link in the queue.
-		const firstActionLink = page
-			.getByRole('link', { name: /start|continue/i })
-			.first();
+		const firstActionLink = page.getByRole('link', { name: /start|continue/i }).first();
 		await expect(firstActionLink).toBeVisible();
 		await firstActionLink.click();
 
 		await expect(page).toHaveURL(/\/judge\/score\//);
+		await expect(page.getByRole('heading', { name: 'Scratch access' })).toBeVisible();
+		await expect(page.getByRole('link', { name: /open scratch/i })).toHaveAttribute(
+			'href',
+			'https://scratch.mit.edu/'
+		);
+		await page.getByRole('button', { name: /reveal scratch password/i }).click();
+		await expect(page.getByText('scratch-seed-pass!', { exact: true })).toBeVisible();
 
 		// CriterionCard renders a set of RadioLevel buttons. Click "Proficient"
 		// (or whatever the second level is) on each visible criterion card.
@@ -41,7 +46,11 @@ test.describe('judge · scoresheet flow', () => {
 			for (let i = 0; i < n; i++) await proficientButtons.nth(i).check();
 		} else {
 			for (let i = 0; i < cardCount; i++) {
-				await cards.nth(i).getByRole('radio', { name: /proficient/i }).first().check();
+				await cards
+					.nth(i)
+					.getByRole('radio', { name: /proficient/i })
+					.first()
+					.check();
 			}
 		}
 
@@ -57,7 +66,10 @@ test.describe('judge · scoresheet flow', () => {
 		// written before we try to submit.
 		await expectAutosaveSaved(page);
 
-		await page.getByRole('button', { name: /^submit$|finalise|finish/i }).first().click();
+		await page
+			.getByRole('button', { name: /^submit$|finalise|finish/i })
+			.first()
+			.click();
 
 		// Submit confirm modal — accept.
 		const confirmBtn = page.getByRole('button', { name: /yes|confirm|submit/i }).last();

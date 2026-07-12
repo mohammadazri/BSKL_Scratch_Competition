@@ -22,6 +22,7 @@
 	import LiveTotalCard from '$lib/components/LiveTotalCard.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import SaveStatusIndicator from '$lib/components/SaveStatusIndicator.svelte';
+	import ScratchCredentialsCard from '$lib/components/ScratchCredentialsCard.svelte';
 	import type { SaveState } from '$lib/components/SaveStatusIndicator.svelte';
 	import StatusPill from '$lib/components/StatusPill.svelte';
 	import TimeInput from '$lib/components/TimeInput.svelte';
@@ -75,9 +76,7 @@
 	let scopedCriteria = $derived(
 		data.phase === 'section_a' ? data.criteria.filter((c) => c.section === 'A') : data.criteria
 	);
-	let total = $derived(
-		scopedCriteria.reduce((sum, c) => sum + (scoreState[c.id]?.points ?? 0), 0)
-	);
+	let total = $derived(scopedCriteria.reduce((sum, c) => sum + (scoreState[c.id]?.points ?? 0), 0));
 	let maxTotal = $derived(scopedCriteria.reduce((sum, c) => sum + c.maxPoints, 0));
 	let scoredCount = $derived(
 		scopedCriteria.filter(
@@ -105,18 +104,14 @@
 	//              OR a DQ flag is raised).
 	let sectionAAllScored = $derived(
 		sectionA.length > 0 &&
-			sectionA.every(
-				(c) => scoreState[c.id]?.level !== null && scoreState[c.id]?.points !== null
-			)
+			sectionA.every((c) => scoreState[c.id]?.level !== null && scoreState[c.id]?.points !== null)
 	);
 	let canSubmit = $derived(
 		!data.readOnly &&
 			((data.phase === 'section_a' && sectionAAllScored && !sectionASubmittedByJudge) ||
 				(data.phase === 'section_b' && allScored && (sprintSeconds !== null || dqRaised)))
 	);
-	let submitLabel = $derived(
-		data.phase === 'section_a' ? 'Submit Section A ›' : 'Submit final ›'
-	);
+	let submitLabel = $derived(data.phase === 'section_a' ? 'Submit Section A ›' : 'Submit final ›');
 
 	// ── Autosave state machine ────────────────────────────────────────────────
 	let saveState: SaveState = $state(untrack(() => (data.scoresheet ? 'saved' : 'idle')));
@@ -161,9 +156,10 @@
 			pendingDirty = false;
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
-			saveError = msg.includes('row-level') || msg.includes('locked')
-				? 'Event locked or scoresheet read-only.'
-				: msg;
+			saveError =
+				msg.includes('row-level') || msg.includes('locked')
+					? 'Event locked or scoresheet read-only.'
+					: msg;
 			saveState = 'failed';
 		}
 	}
@@ -190,9 +186,7 @@
 					invalidateAll();
 				} else if (row.status === 'denied') {
 					toasts.error(
-						row.resolved_note
-							? `Reason: ${row.resolved_note}`
-							: 'Your edit request was denied.',
+						row.resolved_note ? `Reason: ${row.resolved_note}` : 'Your edit request was denied.',
 						'Edit access denied'
 					);
 					invalidateAll();
@@ -208,10 +202,7 @@
 			filter: `scoresheet_id=eq.${sheetId}`,
 			onUpdate: (row) => {
 				if (row.status === 'approved') {
-					toasts.success(
-						'Admin approved the disqualification.',
-						'Disqualification confirmed'
-					);
+					toasts.success('Admin approved the disqualification.', 'Disqualification confirmed');
 					invalidateAll();
 				} else if (row.status === 'denied') {
 					toasts.info(
@@ -266,9 +257,7 @@
 			// judge usually wants to tick several boxes on the same card; auto-
 			// advancing on the first tick would yank the card away mid-flow.
 			const criterion = data.criteria.find((c) => c.id === id);
-			const isCheckpointMode = Boolean(
-				criterion?.checkpoints && criterion.checkpoints.length > 0
-			);
+			const isCheckpointMode = Boolean(criterion?.checkpoints && criterion.checkpoints.length > 0);
 			const justGotLevel = !wasScored && next.level !== null;
 			if (!isCheckpointMode && justGotLevel) {
 				const list = data.phase === 'section_b' ? sectionB : sectionA;
@@ -317,14 +306,12 @@
 	);
 	let sectionAMax = $derived(sectionA.reduce((sum, c) => sum + c.maxPoints, 0));
 	let sectionAScored = $derived(
-		sectionA.filter(
-			(c) => scoreState[c.id]?.level !== null && scoreState[c.id]?.points !== null
-		).length
+		sectionA.filter((c) => scoreState[c.id]?.level !== null && scoreState[c.id]?.points !== null)
+			.length
 	);
 	let sectionBScored = $derived(
-		sectionB.filter(
-			(c) => scoreState[c.id]?.level !== null && scoreState[c.id]?.points !== null
-		).length
+		sectionB.filter((c) => scoreState[c.id]?.level !== null && scoreState[c.id]?.points !== null)
+			.length
 	);
 
 	// Section A summary is OPEN by default during Section B so the judge sees
@@ -349,8 +336,11 @@
 	}
 	let activeCriterionId = $state<string | null>(
 		untrack(() => {
-			const initialList = data.phase === 'section_b' ? data.criteria.filter((c) => c.section === 'B') : data.criteria.filter((c) => c.section === 'A');
-			return firstUnscoredId(initialList) ?? (initialList[0]?.id ?? null);
+			const initialList =
+				data.phase === 'section_b'
+					? data.criteria.filter((c) => c.section === 'B')
+					: data.criteria.filter((c) => c.section === 'A');
+			return firstUnscoredId(initialList) ?? initialList[0]?.id ?? null;
 		})
 	);
 	function handleActivate(id: string) {
@@ -400,12 +390,14 @@
 				return;
 			}
 			if (result.type === 'failure' || result.type === 'error') {
-				const data = (result.type === 'failure' ? result.data : null) as
-					| { submitError?: string }
-					| null;
+				const data = (result.type === 'failure' ? result.data : null) as {
+					submitError?: string;
+				} | null;
 				formError =
 					data?.submitError ??
-					(result.type === 'error' ? (result.error?.message ?? 'Submit failed.') : 'Submit failed.');
+					(result.type === 'error'
+						? (result.error?.message ?? 'Submit failed.')
+						: 'Submit failed.');
 				submitConfirmOpen = false;
 				submitting = false;
 				return;
@@ -466,10 +458,7 @@
 	     needs to see at a glance: who is in front of them, and what they
 	     built. Pushed up the visual hierarchy so neither gets buried under
 	     status chips. -->
-	<header
-		class="mb-6 border-b pb-5"
-		style="border-color: var(--border);"
-	>
+	<header class="mb-6 border-b pb-5" style="border-color: var(--border);">
 		<div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
 			<h1
 				class="text-3xl font-bold leading-tight sm:text-4xl lg:text-[2.6rem]"
@@ -477,18 +466,12 @@
 			>
 				{data.participant.fullName}
 			</h1>
-			<span
-				class="text-base sm:text-lg"
-				style="color: var(--color-text-2);"
-			>
+			<span class="text-base sm:text-lg" style="color: var(--color-text-2);">
 				{data.participant.schoolName}
 			</span>
 		</div>
 		{#if data.participant.theme}
-			<p
-				class="mt-2 text-lg font-semibold sm:text-xl"
-				style="color: var(--color-accent-2);"
-			>
+			<p class="mt-2 text-lg font-semibold sm:text-xl" style="color: var(--color-accent-2);">
 				Theme · {data.participant.theme}
 			</p>
 		{/if}
@@ -515,6 +498,8 @@
 		</div>
 	</header>
 
+	<ScratchCredentialsCard credentials={data.scratchCredentials} />
+
 	<!-- Phase banner — compact, single line. Long instructions get in the way
 	     when the judge is mid-flow scoring criterion by criterion. -->
 	{#if data.phase === 'setup'}
@@ -522,7 +507,8 @@
 			class="mb-4 flex items-center gap-2 rounded-md border px-3 py-2 text-xs"
 			style="background: var(--color-bg-2); border-color: var(--border-strong); color: var(--color-text-2);"
 		>
-			<span class="inline-block h-2 w-2 rounded-full" style="background: var(--color-text-3);"></span>
+			<span class="inline-block h-2 w-2 rounded-full" style="background: var(--color-text-3);"
+			></span>
 			Scoring hasn't opened yet. Form is read-only until the admin opens Section A.
 		</div>
 	{:else if data.phase === 'section_a' && sectionASubmittedByJudge}
@@ -531,14 +517,10 @@
 			style="background: rgba(16, 185, 129, 0.10); border-color: var(--color-success); color: var(--color-text-1);"
 		>
 			<div class="flex items-center gap-2">
-				<span
-					class="inline-block h-2 w-2 rounded-full"
-					style="background: var(--color-success);"
+				<span class="inline-block h-2 w-2 rounded-full" style="background: var(--color-success);"
 				></span>
 				<strong style="color: var(--color-success);">Section A submitted.</strong>
-				<span style="color: var(--color-text-2);">
-					Locked until admin opens Section B.
-				</span>
+				<span style="color: var(--color-text-2);"> Locked until admin opens Section B. </span>
 			</div>
 			{#if pendingRequest}
 				<span class="text-[11px]" style="color: var(--color-warning); font-style: italic;">
@@ -560,7 +542,8 @@
 			class="mb-4 flex items-center gap-2 rounded-md border px-3 py-2 text-xs"
 			style="background: rgba(124, 58, 237, 0.08); border-color: var(--color-accent); color: var(--color-text-1);"
 		>
-			<span class="inline-block h-2 w-2 rounded-full" style="background: var(--color-accent);"></span>
+			<span class="inline-block h-2 w-2 rounded-full" style="background: var(--color-accent);"
+			></span>
 			<strong>Section A is open.</strong>
 			<span style="color: var(--color-text-2);">
 				Pre-event scoring · Section B opens on event day.
@@ -571,7 +554,8 @@
 			class="mb-4 flex items-center gap-2 rounded-md border px-3 py-2 text-xs"
 			style="background: rgba(8, 145, 178, 0.08); border-color: var(--color-accent-2); color: var(--color-text-1);"
 		>
-			<span class="inline-block h-2 w-2 rounded-full" style="background: var(--color-accent-2);"></span>
+			<span class="inline-block h-2 w-2 rounded-full" style="background: var(--color-accent-2);"
+			></span>
 			<strong>Section B is open.</strong>
 			<span style="color: var(--color-text-2);">Section A locked · submit when all scored.</span>
 		</div>
@@ -580,7 +564,8 @@
 			class="mb-4 flex items-center gap-2 rounded-md border px-3 py-2 text-xs"
 			style="background: rgba(239,68,68,0.08); border-color: var(--color-danger); color: var(--color-danger);"
 		>
-			<span class="inline-block h-2 w-2 rounded-full" style="background: var(--color-danger);"></span>
+			<span class="inline-block h-2 w-2 rounded-full" style="background: var(--color-danger);"
+			></span>
 			Scoring is finalised. All scores are read-only.
 		</div>
 	{/if}
@@ -594,9 +579,7 @@
 			style="background: rgba(16, 185, 129, 0.10); border-color: var(--color-success); color: var(--color-text-1);"
 		>
 			<div class="flex items-center gap-2">
-				<span
-					class="inline-block h-2 w-2 rounded-full"
-					style="background: var(--color-success);"
+				<span class="inline-block h-2 w-2 rounded-full" style="background: var(--color-success);"
 				></span>
 				<strong style="color: var(--color-success);">Scoresheet submitted.</strong>
 				<span style="color: var(--color-text-2);">Locked. Spotted a mistake?</span>
@@ -684,9 +667,7 @@
 						style="border-color: var(--border);"
 					>
 						<div class="flex items-center gap-2">
-							<span
-								class="inline-block h-5 w-1 rounded-sm"
-								style="background: var(--color-accent);"
+							<span class="inline-block h-5 w-1 rounded-sm" style="background: var(--color-accent);"
 							></span>
 							<h2
 								class="text-sm font-semibold tracking-[0.12em] uppercase"
@@ -695,7 +676,10 @@
 								Section A · Phase 1 At-Home Build
 							</h2>
 						</div>
-						<span class="text-xs" style="color: var(--color-text-2); font-family: var(--font-mono);">
+						<span
+							class="text-xs"
+							style="color: var(--color-text-2); font-family: var(--font-mono);"
+						>
 							{sectionAScored} / {sectionA.length} scored
 						</span>
 					</div>
@@ -735,7 +719,10 @@
 								Section B · Live Sprint Mystery
 							</h2>
 						</div>
-						<span class="text-xs" style="color: var(--color-text-2); font-family: var(--font-mono);">
+						<span
+							class="text-xs"
+							style="color: var(--color-text-2); font-family: var(--font-mono);"
+						>
 							{sectionBScored} / {sectionB.length} scored
 						</span>
 					</div>
@@ -764,11 +751,18 @@
 					style="background: var(--color-bg-2); border-color: var(--border); color: var(--color-text-2);"
 				>
 					{#if data.phase === 'setup' && timeUntilSprint !== null && timeUntilSprint > 0}
-						<div class="mb-2 text-sm uppercase tracking-widest text-emerald-500 font-semibold">Section B begins in</div>
-						<div class="text-5xl font-mono text-white mb-2" style="font-family: var(--font-display); font-variant-numeric: tabular-nums;">
+						<div class="mb-2 text-sm uppercase tracking-widest text-emerald-500 font-semibold">
+							Section B begins in
+						</div>
+						<div
+							class="text-5xl font-mono text-white mb-2"
+							style="font-family: var(--font-display); font-variant-numeric: tabular-nums;"
+						>
 							{formatCountdown(timeUntilSprint)}
 						</div>
-						<div class="text-xs text-zinc-400">Please wait for the administrator to open the scoring.</div>
+						<div class="text-xs text-zinc-400">
+							Please wait for the administrator to open the scoring.
+						</div>
 					{:else}
 						<div class="text-sm">
 							{data.phase === 'setup'
@@ -782,12 +776,7 @@
 
 		<!-- Right column: sidebar -->
 		<aside class="flex flex-col gap-4 lg:sticky lg:top-4 lg:self-start">
-			<LiveTotalCard
-				{total}
-				{maxTotal}
-				{scoredCount}
-				{totalCriteria}
-			/>
+			<LiveTotalCard {total} {maxTotal} {scoredCount} {totalCriteria} />
 
 			<div
 				class="rounded-lg border p-4"
@@ -835,9 +824,7 @@
 				{data.dq ? 'Update disqualification' : 'Request disqualification'}
 			</button>
 
-			<div
-				class="hidden flex-col gap-2 lg:flex"
-			>
+			<div class="hidden flex-col gap-2 lg:flex">
 				<button
 					type="submit"
 					formaction="?/save"
@@ -926,9 +913,9 @@
 		<p class="text-sm" style="color: var(--color-text-2);">
 			{#if data.phase === 'section_a'}
 				Submit Section A for
-				<strong style="color: var(--color-text-1);">{data.participant.fullName}</strong>?
-				You won't be able to edit Section A again unless the admin unlocks it. Section B
-				stays available on event day.
+				<strong style="color: var(--color-text-1);">{data.participant.fullName}</strong>? You won't
+				be able to edit Section A again unless the admin unlocks it. Section B stays available on
+				event day.
 			{:else}
 				Submit
 				<strong style="color: var(--color-text-1);">{data.participant.fullName}'s</strong>
@@ -1080,8 +1067,8 @@
 		class="flex flex-col gap-4"
 	>
 		<p class="text-sm" style="color: var(--color-text-2);">
-			Tell the super admin what you need to change and why. Once they approve, this
-			scoresheet becomes editable again until you re-submit.
+			Tell the super admin what you need to change and why. Once they approve, this scoresheet
+			becomes editable again until you re-submit.
 		</p>
 		{#if form?.requestError}
 			<div
