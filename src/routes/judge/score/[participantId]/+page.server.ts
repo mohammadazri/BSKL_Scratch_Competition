@@ -224,7 +224,7 @@ export const load: PageServerLoad = async ({ locals, params, parent, setHeaders 
 	//    currently-open section. Setup and finalised phases lock everything.
 	const { data: ev } = await locals.supabase
 		.from('event_state')
-		.select('locked, phase_a, phase_b, phase_c, sprint_start_a, sprint_start_b, sprint_start_c')
+		.select('locked, phase_a, phase_b, phase_c')
 		.eq('id', 1)
 		.maybeSingle();
 	const eventLocked = Boolean(ev?.locked);
@@ -238,12 +238,6 @@ export const load: PageServerLoad = async ({ locals, params, parent, setHeaders 
 		| 'section_a'
 		| 'section_b'
 		| 'finalised';
-
-	const sprintStartKey = `sprint_start_${participant.category.toLowerCase()}` as
-		| 'sprint_start_a'
-		| 'sprint_start_b'
-		| 'sprint_start_c';
-	const sprintStart = (ev?.[sprintStartKey] as string | null) ?? null;
 
 	const readOnly =
 		eventLocked ||
@@ -282,7 +276,6 @@ export const load: PageServerLoad = async ({ locals, params, parent, setHeaders 
 		dq,
 		eventLocked,
 		phase,
-		sprintStart,
 		readOnly,
 		pendingEditRequest: sheet
 			? await (async () => {

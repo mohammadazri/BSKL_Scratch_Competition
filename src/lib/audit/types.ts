@@ -34,6 +34,7 @@ export type AuditAction =
 	| 'event_lock'
 	| 'event_unlock'
 	| 'event_phase_change'
+	| 'event_timer_change'
 	| 'export_csv'
 	| 'export_pdf';
 
@@ -70,6 +71,7 @@ export const ALL_AUDIT_ACTIONS: AuditAction[] = [
 	'event_lock',
 	'event_unlock',
 	'event_phase_change',
+	'event_timer_change',
 	'export_csv',
 	'export_pdf'
 ];
@@ -98,10 +100,7 @@ export const OVERRIDE_ACTIONS: ReadonlySet<AuditAction> = new Set([
 ]);
 
 // Actions that signal a disqualification event — get the warning icon.
-export const DQ_ACTIONS: ReadonlySet<AuditAction> = new Set([
-	'dq_flag_raise',
-	'dq_flag_clear'
-]);
+export const DQ_ACTIONS: ReadonlySet<AuditAction> = new Set(['dq_flag_raise', 'dq_flag_clear']);
 
 // Human-readable labels for action enum values.
 export function actionLabel(a: AuditAction): string {
@@ -110,8 +109,4 @@ export function actionLabel(a: AuditAction): string {
 
 // Fields hidden from the before/after JSON diff display — they always differ
 // and add noise. They stay in the underlying data; we just don't render them.
-export const NOISY_JSON_FIELDS: ReadonlySet<string> = new Set([
-	'id',
-	'created_at',
-	'updated_at'
-]);
+export const NOISY_JSON_FIELDS: ReadonlySet<string> = new Set(['id', 'created_at', 'updated_at']);

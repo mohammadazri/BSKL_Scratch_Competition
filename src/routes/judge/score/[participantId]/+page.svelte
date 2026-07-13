@@ -423,25 +423,6 @@
 					sprintSeconds % 60
 				).padStart(2, '0')}`
 	);
-
-	let now = $state(Date.now());
-	$effect(() => {
-		const id = setInterval(() => (now = Date.now()), 1000);
-		return () => clearInterval(id);
-	});
-	let timeUntilSprint = $derived(
-		data.sprintStart ? Math.max(0, new Date(data.sprintStart).getTime() - now) : null
-	);
-
-	function formatCountdown(ms: number) {
-		const seconds = Math.floor(ms / 1000);
-		const days = Math.floor(seconds / (3600 * 24));
-		const hours = Math.floor((seconds % (3600 * 24)) / 3600);
-		const mins = Math.floor((seconds % 3600) / 60);
-		const secs = seconds % 60;
-		if (days > 0) return `${days}d ${hours}h ${mins}m`;
-		return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-	}
 </script>
 
 <div class="mx-auto max-w-7xl px-0 pb-32 lg:pb-10">
@@ -744,32 +725,18 @@
 				</section>
 			{/if}
 
-			<!-- Empty placeholder or Countdown Timer if neither section is in scope -->
+			<!-- Empty placeholder if neither section is in scope. The shared app
+			     status bar owns the category timers on every authenticated page. -->
 			{#if data.phase === 'setup' || data.phase === 'finalised'}
 				<div
 					class="flex flex-col items-center justify-center rounded-lg border p-12 text-center"
 					style="background: var(--color-bg-2); border-color: var(--border); color: var(--color-text-2);"
 				>
-					{#if data.phase === 'setup' && timeUntilSprint !== null && timeUntilSprint > 0}
-						<div class="mb-2 text-sm uppercase tracking-widest text-emerald-500 font-semibold">
-							Section B begins in
-						</div>
-						<div
-							class="text-5xl font-mono text-white mb-2"
-							style="font-family: var(--font-display); font-variant-numeric: tabular-nums;"
-						>
-							{formatCountdown(timeUntilSprint)}
-						</div>
-						<div class="text-xs text-zinc-400">
-							Please wait for the administrator to open the scoring.
-						</div>
-					{:else}
-						<div class="text-sm">
-							{data.phase === 'setup'
-								? 'No section is open for scoring yet.'
-								: 'Scoring is finalised. View-only.'}
-						</div>
-					{/if}
+					<div class="text-sm">
+						{data.phase === 'setup'
+							? 'No section is open for scoring yet. Follow the live status bar above.'
+							: 'Scoring is finalised. View-only.'}
+					</div>
 				</div>
 			{/if}
 		</div>

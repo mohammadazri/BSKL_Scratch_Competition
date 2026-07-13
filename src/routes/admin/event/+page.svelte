@@ -13,6 +13,8 @@
 	import ConfirmModal from '$lib/components/ConfirmModal.svelte';
 	import { Lock, Unlock } from '@lucide/svelte';
 	import type { ActionData, PageData } from './$types';
+	import type { Category } from '$lib/types';
+	import { toMalaysiaDateTimeInput } from '$lib/event-status';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -43,7 +45,8 @@
 		B: data.event.phaseB,
 		C: data.event.phaseC
 	});
-	
+	const categories: Category[] = ['A', 'B', 'C'];
+
 	function phaseLabel(phase: 'setup' | 'section_a' | 'section_b' | 'finalised') {
 		return phase === 'setup'
 			? 'Setup'
@@ -53,22 +56,16 @@
 					? 'Section B — event-day scoring'
 					: 'Finalised';
 	}
-	
-	const sprintStarts = $derived({
-		A: data.event.sprintStartA,
-		B: data.event.sprintStartB,
-		C: data.event.sprintStartC
-	});
-	
+
 	// Create local states for the datetime pickers so they don't jump while typing
-	let localTimerA = $state(untrack(() => data.event.sprintStartA ? new Date(data.event.sprintStartA).toISOString().slice(0, 16) : ''));
-	let localTimerB = $state(untrack(() => data.event.sprintStartB ? new Date(data.event.sprintStartB).toISOString().slice(0, 16) : ''));
-	let localTimerC = $state(untrack(() => data.event.sprintStartC ? new Date(data.event.sprintStartC).toISOString().slice(0, 16) : ''));
+	let localTimerA = $state(untrack(() => toMalaysiaDateTimeInput(data.event.sprintStartA)));
+	let localTimerB = $state(untrack(() => toMalaysiaDateTimeInput(data.event.sprintStartB)));
+	let localTimerC = $state(untrack(() => toMalaysiaDateTimeInput(data.event.sprintStartC)));
 
 	$effect(() => {
-		localTimerA = data.event.sprintStartA ? new Date(data.event.sprintStartA).toISOString().slice(0, 16) : '';
-		localTimerB = data.event.sprintStartB ? new Date(data.event.sprintStartB).toISOString().slice(0, 16) : '';
-		localTimerC = data.event.sprintStartC ? new Date(data.event.sprintStartC).toISOString().slice(0, 16) : '';
+		localTimerA = toMalaysiaDateTimeInput(data.event.sprintStartA);
+		localTimerB = toMalaysiaDateTimeInput(data.event.sprintStartB);
+		localTimerC = toMalaysiaDateTimeInput(data.event.sprintStartC);
 	});
 </script>
 
@@ -96,10 +93,11 @@
 
 <!-- Phase controls — per category. -->
 <div class="mb-4 flex flex-col gap-4">
-	{#each ['A', 'B', 'C'] as category}
+	{#each categories as category}
 		{@const catPhase = phases[category]}
-		{@const catTimer = category === 'A' ? localTimerA : category === 'B' ? localTimerB : localTimerC}
-		
+		{@const catTimer =
+			category === 'A' ? localTimerA : category === 'B' ? localTimerB : localTimerC}
+
 		<Card label="Category {category} Phase: {phaseLabel(catPhase)}">
 			<div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 				<div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -130,21 +128,31 @@
 						<Button variant="ghost" type="submit">Back to setup</Button>
 					</form>
 				</div>
-				
-				<div class="flex flex-col items-end gap-2 border-t pt-3 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0" style="border-color: var(--border);">
-					<label class="text-xs font-semibold" style="color: var(--color-text-2);">Section B Start Timer</label>
+
+				<div
+					class="flex flex-col items-end gap-2 border-t pt-3 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0"
+					style="border-color: var(--border);"
+				>
+					<label
+						for={`timer-${category}`}
+						class="text-xs font-semibold"
+						style="color: var(--color-text-2);">Section B start timer</label
+					>
 					<form method="POST" action="?/setTimer" use:enhance class="flex items-center gap-2">
 						<input type="hidden" name="category" value={category} />
-						<input 
-							type="datetime-local" 
-							name="datetime" 
-							class="rounded border px-2 py-1 text-sm" 
+						<input
+							id={`timer-${category}`}
+							type="datetime-local"
+							name="datetime"
+							class="rounded border px-2 py-1 text-sm"
 							style="background: var(--color-bg-1); border-color: var(--border); color: var(--color-text-1);"
 							value={catTimer}
 						/>
 						<Button variant="secondary" type="submit">Set</Button>
 					</form>
-					<span class="text-[10px] text-zinc-500 max-w-[200px] text-right">Displays a countdown to judges if Section B has not started.</span>
+					<span class="max-w-[230px] text-right text-[10px]" style="color: var(--color-text-3);"
+						>Malaysia time (UTC+8). Leave blank and save to clear it.</span
+					>
 				</div>
 			</div>
 		</Card>
@@ -180,9 +188,7 @@
 		</form>
 	</Card>
 
-	<Card
-		label={data.event.locked ? 'Event is LOCKED' : 'Event is unlocked'}
-	>
+	<Card label={data.event.locked ? 'Event is LOCKED' : 'Event is unlocked'}>
 		{#if data.event.locked}
 			<div
 				class="mb-3 rounded-(--radius) border p-3 text-sm"

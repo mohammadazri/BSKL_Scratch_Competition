@@ -9,8 +9,10 @@
 	import UserAvatar from './UserAvatar.svelte';
 	import RolePill from './RolePill.svelte';
 	import Toast from './Toast.svelte';
+	import EventStatusBar from './EventStatusBar.svelte';
 	import { Menu, LogOut, ChevronDown } from '@lucide/svelte';
 	import type { Role } from '$lib/types';
+	import type { EventSnapshot } from '$lib/event-status';
 	import { enhance } from '$app/forms';
 
 	export interface NavItem {
@@ -23,10 +25,11 @@
 		nav: NavItem[];
 		activeHref: string;
 		user: { fullName: string; email: string; role: Role };
+		event?: EventSnapshot | null;
 		children?: Snippet;
 	}
 
-	let { nav, activeHref, user, children }: Props = $props();
+	let { nav, activeHref, user, event = null, children }: Props = $props();
 
 	let menuOpen = $state(false);
 	let drawerOpen = $state(false);
@@ -60,10 +63,7 @@
 					<UserAvatar name={user.fullName} size={28} />
 					<span class="hidden flex-col text-left leading-tight md:flex">
 						<span class="max-w-[10rem] truncate text-xs font-semibold">{user.fullName}</span>
-						<span
-							class="max-w-[10rem] truncate text-[10px]"
-							style="color: var(--color-text-3);"
-						>
+						<span class="max-w-[10rem] truncate text-[10px]" style="color: var(--color-text-3);">
 							{user.email}
 						</span>
 					</span>
@@ -98,6 +98,10 @@
 		{/snippet}
 	</BrandHeader>
 
+	{#if event}
+		<EventStatusBar {event} />
+	{/if}
+
 	<div class="flex flex-1 min-h-0">
 		<Sidebar items={nav} {activeHref} />
 
@@ -124,8 +128,7 @@
 				<ul class="flex flex-col gap-0.5 p-2">
 					{#each nav as item (item.href)}
 						{@const Icon = item.icon}
-						{@const active =
-							activeHref === item.href || activeHref.startsWith(item.href + '/')}
+						{@const active = activeHref === item.href || activeHref.startsWith(item.href + '/')}
 						<li>
 							<a
 								href={item.href}
