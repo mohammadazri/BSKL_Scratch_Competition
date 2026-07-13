@@ -86,12 +86,14 @@ The remaining `.env` variables (`PUBLIC_APP_URL`, `HOST`/`PORT`/`NODE_ENV`, `CF_
 Run these **in this exact order**:
 
 ```bash
-pnpm tsx scripts/apply-migrations.ts   # runs every supabase/migrations/*.sql in order (24 migrations) — tables, RLS, triggers, views
+pnpm tsx scripts/apply-migrations.ts   # runs every supabase/migrations/*.sql in order (26 migrations) — tables, RLS, triggers, views
 pnpm tsx scripts/seed-rubrics.ts       # seeds 20 criteria + 76 levels + checkpoints from supabase/seed/rubrics.json
 pnpm tsx scripts/seed-superadmin.ts    # creates the super_admin account from your .env bootstrap values
 ```
 
 All three are idempotent. `apply-migrations.ts` and `seed-rubrics.ts` only need `DATABASE_URL`. `seed-superadmin.ts` also needs `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and the three `SUPER_ADMIN_*` values — if the account already exists it resets the password and re-promotes the profile.
+
+> **Upgrading an existing database:** apply only the new migration files that the database has not already received. For this release, apply `supabase/migrations/026_participant_scratch_credentials.sql` through the Supabase SQL Editor or `psql`. Do not rerun `scripts/apply-migrations.ts` against an existing event database.
 
 Optionally verify RLS isolation:
 
@@ -219,7 +221,7 @@ judging-site/
 │       └── viewer/            ← viewer: results, scoresheets/[id], audit (+export)
 │
 ├── supabase/
-│   ├── migrations/            ← 001_extensions.sql … 024_judge_queue_section_aware.sql (24 files, applied in order)
+│   ├── migrations/            ← 001_extensions.sql … 026_participant_scratch_credentials.sql (26 files, applied in order)
 │   └── seed/rubrics.json      ← 20 criteria across 3 categories × 2 sections, with checkpoints + 4-band levels
 │
 ├── scripts/
