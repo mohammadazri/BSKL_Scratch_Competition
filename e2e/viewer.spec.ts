@@ -14,6 +14,14 @@ test.describe('viewer · read-only', () => {
 		await signIn(page, accounts.viewer);
 	});
 
+	test('viewer landing page shows the live dashboard and useful navigation', async ({ page }) => {
+		await page.goto('/viewer');
+		await expect(page.getByRole('heading', { name: /live observer dashboard/i })).toBeVisible();
+		await expect(page.getByRole('link', { name: /full leaderboard/i })).toBeVisible();
+		await expect(page.getByText(/read-only by design/i)).toBeVisible();
+		await expect(page.getByText(/tracks 4/i)).toHaveCount(0);
+	});
+
 	test('viewer reaches /viewer/results without any edit affordances', async ({ page }) => {
 		await page.goto('/viewer/results');
 		await expect(page).toHaveURL(/\/viewer\/results/);

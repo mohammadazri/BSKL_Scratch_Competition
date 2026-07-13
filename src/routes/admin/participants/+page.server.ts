@@ -12,6 +12,12 @@ import type { Actions, PageServerLoad } from './$types';
 import { supabaseAdmin } from '$lib/server/supabase';
 import { requireSuperAdmin } from '$lib/server/guards';
 import { appendAudit } from '$lib/server/audit-local';
+import {
+	createParticipantWithScratch,
+	fetchScratchCredentialSummaries,
+	parseScratchCredentials,
+	updateParticipantWithScratch
+} from '$lib/server/scratch-credentials';
 import type { Category, DqReason, Theme } from '$lib/types';
 
 export type ParticipantRow = {
@@ -24,12 +30,15 @@ export type ParticipantRow = {
 	qualified: boolean;
 	notes: string | null;
 	judgeName: string | null;
+	scratchUsername: string | null;
+	scratchCredentialsSet: boolean;
 	createdAt: string;
 };
 
 export type SchoolLite = { id: string; name: string };
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ parent }) => {
+	await parent();
 	const { data: parts, error: pErr } = await supabaseAdmin
 		.from('participants')
 		.select(
@@ -38,10 +47,17 @@ export const load: PageServerLoad = async () => {
 		.order('full_name');
 	if (pErr) throw error(500, pErr.message);
 
-	const { data: schools } = await supabaseAdmin
-		.from('schools')
-		.select('id, name')
-		.order('name');
+	const participantIds = (parts ?? []).map((p) => p.id as string);
+	const { rows: credentialRows, error: credentialError } = await fetchScratchCredentialSummaries(
+		supabaseAdmin,
+		participantIds
+	);
+	if (credentialError) throw error(500, credentialError);
+	const credentialByParticipant = new Map(
+		credentialRows.map((row) => [row.participantId, row.username])
+	);
+
+	const { data: schools } = await supabaseAdmin.from('schools').select('id, name').order('name');
 
 	const { data: assignments } = await supabaseAdmin
 		.from('assignments')
@@ -50,9 +66,7 @@ export const load: PageServerLoad = async () => {
 	const judgeByParticipant = new Map<string, string>();
 	for (const a of assignments ?? []) {
 		const prof = (a as { profiles?: { full_name?: string } | { full_name?: string }[] }).profiles;
-		const fullName = Array.isArray(prof)
-			? (prof[0]?.full_name ?? null)
-			: (prof?.full_name ?? null);
+		const fullName = Array.isArray(prof) ? (prof[0]?.full_name ?? null) : (prof?.full_name ?? null);
 		if (fullName) judgeByParticipant.set(a.participant_id as string, fullName);
 	}
 
@@ -69,6 +83,8 @@ export const load: PageServerLoad = async () => {
 			qualified: p.qualified as boolean,
 			notes: (p.notes as string | null) ?? null,
 			judgeName: judgeByParticipant.get(p.id as string) ?? null,
+			scratchUsername: credentialByParticipant.get(p.id as string) ?? null,
+			scratchCredentialsSet: credentialByParticipant.has(p.id as string),
 			createdAt: p.created_at as string
 		};
 	});
@@ -102,7 +118,7 @@ function parseDqReason(v: FormDataEntryValue | null): DqReason | null {
 }
 
 // Every action below uses `supabaseAdmin` (service role, bypasses RLS) AND
-// inline-guards with `requireSuperAdmin`. Layout guards don't run before form
+// applies an inline role guard. Layout guards don't run before form
 // actions, so the inline check is the real security boundary. Without it,
 // any authenticated user could POST here and edit participants.
 //
@@ -118,16 +134,24 @@ export const actions: Actions = {
 		const schoolId = String(form.get('school_id') ?? '');
 		const category = parseCategory(form.get('category'));
 		const theme = parseTheme(form.get('theme'));
+		const scratch = parseScratchCredentials(
+			form.get('scratch_username'),
+			form.get('scratch_password')
+		);
 		if (!fullName || !schoolId || !category || !theme) {
 			return fail(400, { error: 'Name, school, category and theme are all required.' });
 		}
+		if (!scratch.credentials) return fail(400, { error: scratch.error });
 
-		const { data: inserted, error: insErr } = await supabaseAdmin
-			.from('participants')
-			.insert({ full_name: fullName, school_id: schoolId, category, theme })
-			.select('id')
-			.single();
-		if (insErr) return fail(400, { error: insErr.message });
+		const created = await createParticipantWithScratch(
+			supabaseAdmin,
+			{ fullName, schoolId, category, theme },
+			scratch.credentials,
+			session.user.id
+		);
+		if (created.error || !created.id) {
+			return fail(400, { error: created.error ?? 'Could not create participant.' });
+		}
 
 		await appendAudit({
 			actor: {
@@ -140,9 +164,15 @@ export const actions: Actions = {
 			actorUa: request.headers.get('user-agent'),
 			action: 'participant_create',
 			targetType: 'participant',
-			targetId: (inserted?.id as string) ?? null,
+			targetId: created.id,
 			before: null,
-			after: { full_name: fullName, school_id: schoolId, category, theme },
+			after: {
+				full_name: fullName,
+				school_id: schoolId,
+				category,
+				theme,
+				scratch_credentials_set: true
+			},
 			reason: null
 		});
 
@@ -157,9 +187,15 @@ export const actions: Actions = {
 		const schoolId = String(form.get('school_id') ?? '');
 		const category = parseCategory(form.get('category'));
 		const theme = parseTheme(form.get('theme'));
+		const scratch = parseScratchCredentials(
+			form.get('scratch_username'),
+			form.get('scratch_password'),
+			{ passwordRequired: false }
+		);
 		if (!id || !fullName || !schoolId || !category || !theme) {
 			return fail(400, { error: 'Name, school, category and theme are all required.' });
 		}
+		if (!scratch.credentials) return fail(400, { error: scratch.error });
 
 		const { data: before } = await supabaseAdmin
 			.from('participants')
@@ -167,11 +203,14 @@ export const actions: Actions = {
 			.eq('id', id)
 			.single();
 
-		const { error: updErr } = await supabaseAdmin
-			.from('participants')
-			.update({ full_name: fullName, school_id: schoolId, category, theme })
-			.eq('id', id);
-		if (updErr) return fail(400, { error: updErr.message });
+		const updateError = await updateParticipantWithScratch(
+			supabaseAdmin,
+			id,
+			{ fullName, schoolId, category, theme },
+			scratch.credentials,
+			session.user.id
+		);
+		if (updateError) return fail(400, { error: updateError });
 
 		await appendAudit({
 			actor: {
@@ -186,7 +225,14 @@ export const actions: Actions = {
 			targetType: 'participant',
 			targetId: id,
 			before: (before as Record<string, unknown>) ?? null,
-			after: { full_name: fullName, school_id: schoolId, category, theme },
+			after: {
+				full_name: fullName,
+				school_id: schoolId,
+				category,
+				theme,
+				scratch_credentials_changed: true,
+				scratch_password_changed: Boolean(scratch.credentials.password)
+			},
 			reason: null
 		});
 
@@ -245,7 +291,9 @@ export const actions: Actions = {
 		const id = String(form.get('id') ?? '');
 		const dq = String(form.get('dq') ?? 'true') === 'true';
 		const reason = parseDqReason(form.get('reason'));
-		const notes = String(form.get('notes') ?? '').slice(0, 2000).trim();
+		const notes = String(form.get('notes') ?? '')
+			.slice(0, 2000)
+			.trim();
 
 		if (!id) return fail(400, { error: 'Missing id.' });
 		if (dq && (!reason || notes.length < 10)) {

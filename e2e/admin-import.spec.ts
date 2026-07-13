@@ -19,9 +19,9 @@ const SCHOOL_CSV = [
 ].join('\n');
 
 const PARTICIPANT_CSV = [
-	'full_name,school,category,theme,qualified',
-	`[e2e-import-${STAMP}] Ada Lovelace,[e2e-import-${STAMP}] Pluto Coding Club,A,,true`,
-	`[e2e-import-${STAMP}] Grace Hopper,[e2e-import-${STAMP}] Neptune Robotics Lab,B,Smart Cities,true`
+	'full_name,school_name,category,theme,scratch_username,scratch_password',
+	`[e2e-import-${STAMP}] Ada Lovelace,[e2e-import-${STAMP}] Pluto Coding Club,A,Eco-Warriors,e2e-ada-${STAMP},scratch-pass-${STAMP}`,
+	`[e2e-import-${STAMP}] Grace Hopper,[e2e-import-${STAMP}] Neptune Robotics Lab,B,Smart Cities,e2e-grace-${STAMP},scratch-pass-${STAMP}`
 ].join('\n');
 
 test.describe('admin · CSV import', () => {
@@ -67,8 +67,7 @@ test.describe('admin · CSV import', () => {
 			buffer: Buffer.from(PARTICIPANT_CSV)
 		});
 
-		await expect(page.getByText(`[e2e-import-${STAMP}] Ada Lovelace`)).toBeVisible();
-		await expect(page.getByText(`[e2e-import-${STAMP}] Grace Hopper`)).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Import 2 participants' })).toBeVisible();
 
 		await page.getByRole('button', { name: /commit|import|confirm/i }).click();
 
@@ -79,6 +78,8 @@ test.describe('admin · CSV import', () => {
 		// internals; we look for the row-scoped toggle by accessible name.
 		const adaRow = page.getByRole('row', { name: new RegExp(`Ada Lovelace`) });
 		await adaRow.getByRole('button', { name: /dq|disqualify|qualified/i }).click();
+		await page.getByRole('textbox', { name: /notes/i }).fill('E2E import disqualification check.');
+		await page.getByRole('button', { name: 'Disqualify', exact: true }).click();
 		await expect(adaRow.getByText(/dq|disqualified/i)).toBeVisible();
 	});
 });

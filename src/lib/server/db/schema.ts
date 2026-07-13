@@ -7,12 +7,10 @@
 
 import { sql } from 'drizzle-orm';
 import {
-	bigserial,
 	boolean,
 	check,
 	date,
 	index,
-	inet,
 	integer,
 	jsonb,
 	pgEnum,
@@ -130,6 +128,38 @@ export const participants = pgTable(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// participant_scratch_credentials (restricted one-to-one operational secret)
+// ─────────────────────────────────────────────────────────────────────────────
+export const participantScratchCredentials = pgTable(
+	'participant_scratch_credentials',
+	{
+		participantId: uuid('participant_id')
+			.primaryKey()
+			.references(() => participants.id, { onDelete: 'cascade' }),
+		username: text('username').notNull(),
+		password: text('password').notNull(),
+		updatedBy: uuid('updated_by').references(() => profiles.id, { onDelete: 'set null' }),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(t) => ({
+		usernameLength: check(
+			'scratch_username_length',
+			sql`char_length(btrim(${t.username})) BETWEEN 1 AND 50`
+		),
+		usernameFormat: check('scratch_username_format', sql`${t.username} ~ '^[A-Za-z0-9_-]+$'`),
+		passwordLength: check(
+			'scratch_password_length',
+			sql`char_length(${t.password}) BETWEEN 1 AND 200`
+		),
+		passwordNotBlank: check(
+			'scratch_password_not_blank',
+			sql`char_length(btrim(${t.password})) > 0`
+		)
+	})
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // criteria (reference data, seeded once)
 // ─────────────────────────────────────────────────────────────────────────────
 export const criteria = pgTable(
@@ -221,19 +251,21 @@ export const scoresheets = pgTable(
 		submittedAt: timestamp('submitted_at', { withTimezone: true }),
 		finalisedAt: timestamp('finalised_at', { withTimezone: true }),
 		judgeNotes: text('judge_notes'),
+		section: sectionEnum('section').notNull().default('A'),
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 	},
 	(t) => ({
-		uniqParticipantJudge: uniqueIndex('scoresheets_participant_id_judge_id_key').on(
+		uniqParticipantJudgeSection: uniqueIndex('scoresheets_participant_judge_section_key').on(
 			t.participantId,
-			t.judgeId
+			t.judgeId,
+			t.section
 		),
 		judgeStatusIdx: index('scoresheets_judge_status_idx').on(t.judgeId, t.status),
 		participantIdx: index('scoresheets_participant_idx').on(t.participantId),
 		sprintTimeCheck: check(
 			'scoresheets_live_sprint_time_seconds_check',
-			sql`${t.liveSprintTimeSeconds} BETWEEN 0 AND 2700`
+			sql`${t.liveSprintTimeSeconds} IS NULL OR (${t.liveSprintTimeSeconds} > 0 AND ${t.liveSprintTimeSeconds} <= 2700)`
 		)
 	})
 );
@@ -345,32 +377,5 @@ export const eventState = pgTable(
 	},
 	(t) => ({
 		singletonCheck: check('event_state_singleton', sql`${t.id} = 1`)
-	})
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// audit_log (APPEND-ONLY)
-// ─────────────────────────────────────────────────────────────────────────────
-export const auditLog = pgTable(
-	'audit_log',
-	{
-		id: bigserial('id', { mode: 'bigint' }).primaryKey(),
-		at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
-		actorId: uuid('actor_id').references(() => profiles.id),
-		actorRole: userRoleEnum('actor_role'),
-		actorIp: inet('actor_ip'),
-		actorUa: text('actor_ua'),
-		action: auditActionEnum('action').notNull(),
-		targetType: text('target_type'),
-		targetId: uuid('target_id'),
-		beforeJson: jsonb('before_json'),
-		afterJson: jsonb('after_json'),
-		reason: text('reason')
-	},
-	(t) => ({
-		atIdx: index('audit_log_at_idx').on(t.at.desc()),
-		actorIdx: index('audit_log_actor_idx').on(t.actorId, t.at.desc()),
-		targetIdx: index('audit_log_target_idx').on(t.targetType, t.targetId),
-		actionIdx: index('audit_log_action_idx').on(t.action, t.at.desc())
 	})
 );

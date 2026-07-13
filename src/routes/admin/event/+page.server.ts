@@ -14,6 +14,7 @@ import { supabaseAdmin } from '$lib/server/supabase';
 import { requireSuperAdmin } from '$lib/server/guards';
 import { appendAudit, type AuditActor } from '$lib/server/audit-local';
 import { reshuffleSectionBForCategory } from '$lib/server/reshuffle';
+import { parseMalaysiaDateTimeInput } from '$lib/event-status';
 import type { EventPhase } from '$lib/types';
 
 export type EventStateRow = {
@@ -41,18 +42,25 @@ function actor(session: {
 	fullName: string;
 	email: string;
 }): AuditActor {
-	return { id: session.user.id, role: session.role, fullName: session.fullName, email: session.email };
+	return {
+		id: session.user.id,
+		role: session.role,
+		fullName: session.fullName,
+		email: session.email
+	};
 }
 
 export const load: PageServerLoad = async () => {
 	const { data, error: dbErr } = await supabaseAdmin
 		.from('event_state')
-		.select('id, event_name, event_date, sprint_minutes, phase_a, phase_b, phase_c, sprint_start_a, sprint_start_b, sprint_start_c, locked, locked_at, locked_by')
+		.select(
+			'id, event_name, event_date, sprint_minutes, phase_a, phase_b, phase_c, sprint_start_a, sprint_start_b, sprint_start_c, locked, locked_at, locked_by'
+		)
 		.eq('id', 1)
 		.single();
 
 	if (dbErr || !data) {
-		console.error("DB ERR IN /ADMIN/EVENT:", dbErr);
+		console.error('DB ERR IN /ADMIN/EVENT:', dbErr);
 		throw error(500, dbErr?.message ?? 'event_state missing');
 	}
 
@@ -112,10 +120,7 @@ export const actions: Actions = {
 			update.event_date = eventDate;
 		}
 
-		const { error: updErr } = await supabaseAdmin
-			.from('event_state')
-			.update(update)
-			.eq('id', 1);
+		const { error: updErr } = await supabaseAdmin.from('event_state').update(update).eq('id', 1);
 		if (updErr) return fail(400, { error: updErr.message });
 		return { ok: true, message: 'Event details saved.' };
 	},
@@ -132,14 +137,17 @@ export const actions: Actions = {
 			return fail(400, { error: `Invalid category: "${category}"` });
 		}
 
-		const column = `phase_${category.toLowerCase()}`;
+		const phaseColumns = { A: 'phase_a', B: 'phase_b', C: 'phase_c' } as const;
+		const column = phaseColumns[category];
 		const { data: before } = await supabaseAdmin
 			.from('event_state')
 			.select(column)
 			.eq('id', 1)
 			.single();
 
-		const beforePhase = (before?.[column] as EventPhase | null) ?? null;
+		const beforePhase = before
+			? (((before as unknown as Record<string, unknown>)[column] as EventPhase | null) ?? null)
+			: null;
 		const advancingToSectionB = phase === 'section_b' && beforePhase !== 'section_b';
 
 		const { error: updErr } = await supabaseAdmin
@@ -194,9 +202,7 @@ export const actions: Actions = {
 		};
 		const reshuffleSummary = advancingToSectionB
 			? ' · Re-shuffled Section B assignments: ' +
-				reshuffleResults
-					.map((r) => `Cat ${r.category} ${r.ok ? '✓' : '✕'}`)
-					.join(', ')
+				reshuffleResults.map((r) => `Cat ${r.category} ${r.ok ? '✓' : '✕'}`).join(', ')
 			: '';
 		return {
 			ok: true,
@@ -204,8 +210,8 @@ export const actions: Actions = {
 		};
 	},
 
-	setTimer: async ({ request, locals }) => {
-		await requireSuperAdmin(locals.user);
+	setTimer: async ({ request, locals, getClientAddress }) => {
+		const session = await requireSuperAdmin(locals.user);
 		const form = await request.formData();
 		const dateString = String(form.get('datetime') ?? '').trim();
 		const category = String(form.get('category') ?? '') as 'A' | 'B' | 'C';
@@ -214,19 +220,45 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid category.' });
 		}
 
-		const column = `sprint_start_${category.toLowerCase()}`;
-		const val = dateString ? new Date(dateString).toISOString() : null;
+		const timerColumns = {
+			A: 'sprint_start_a',
+			B: 'sprint_start_b',
+			C: 'sprint_start_c'
+		} as const;
+		const column = timerColumns[category];
+		const parsed = parseMalaysiaDateTimeInput(dateString);
+		if (parsed.error) return fail(400, { error: parsed.error });
+
+		const { data: before } = await supabaseAdmin
+			.from('event_state')
+			.select(column)
+			.eq('id', 1)
+			.single();
+		const beforeValue = before
+			? ((before as unknown as Record<string, unknown>)[column] ?? null)
+			: null;
 
 		const { error: updErr } = await supabaseAdmin
 			.from('event_state')
-			.update({ [column]: val })
+			.update({ [column]: parsed.iso })
 			.eq('id', 1);
-		
 		if (updErr) return fail(400, { error: updErr.message });
-		
+
+		await appendAudit({
+			actor: actor(session),
+			actorIp: getClientAddress(),
+			actorUa: request.headers.get('user-agent'),
+			action: 'event_timer_change',
+			targetType: 'event_state',
+			targetId: '1',
+			before: { category, sprint_start: beforeValue },
+			after: { category, sprint_start: parsed.iso },
+			reason: null
+		});
+
 		return {
 			ok: true,
-			message: `Category ${category} countdown timer ${val ? 'set' : 'cleared'}.`
+			message: `Category ${category} countdown timer ${parsed.iso ? 'set' : 'cleared'}.`
 		};
 	},
 

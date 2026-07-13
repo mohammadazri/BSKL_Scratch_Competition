@@ -18,7 +18,16 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import { parseCsv } from '$lib/utils/csv';
 	import { toasts } from '$lib/stores/toast';
-	import { Plus, Pencil, Trash2, Upload, Ban, CheckCircle2, FileText } from '@lucide/svelte';
+	import {
+		Plus,
+		Pencil,
+		Trash2,
+		Upload,
+		Ban,
+		CheckCircle2,
+		FileText,
+		KeyRound
+	} from '@lucide/svelte';
 	import type { ActionData, PageData } from './$types';
 	import type { ParticipantRow } from './+page.server';
 	import type { Category, DqReason, Theme } from '$lib/types';
@@ -37,11 +46,15 @@
 	let editSchoolId = $state('');
 	let editCategory = $state<Category>('A');
 	let editTheme = $state<Theme | ''>('');
+	let editScratchUsername = $state('');
+	let editScratchPassword = $state('');
 
 	let newName = $state('');
 	let newSchoolId = $state('');
 	let newCategory = $state<Category>('A');
 	let newTheme = $state<Theme | ''>('');
+	let newScratchUsername = $state('');
+	let newScratchPassword = $state('');
 
 	let dqing = $state<ParticipantRow | null>(null);
 	let dqReason = $state<DqReason>('tutorial_or_ai_use');
@@ -77,9 +90,14 @@
 		if (!f) return;
 		const text = await f.text();
 		const parsed = parseCsv(text);
-		const missing = ['full_name', 'school_name', 'category'].filter(
-			(h) => !parsed.headers.includes(h)
-		);
+		const missing = [
+			'full_name',
+			'school_name',
+			'category',
+			'theme',
+			'scratch_username',
+			'scratch_password'
+		].filter((h) => !parsed.headers.includes(h));
 		if (missing.length > 0) {
 			csvErrors = [{ line: 1, message: `missing headers: ${missing.join(', ')}` }];
 			return;
@@ -154,6 +172,8 @@
 		editSchoolId = row.schoolId;
 		editCategory = row.category;
 		editTheme = row.theme ?? '';
+		editScratchUsername = row.scratchUsername ?? '';
+		editScratchPassword = '';
 		editOpen = true;
 	}
 
@@ -210,7 +230,11 @@
 			{#snippet icon()}<Upload size={16} strokeWidth={1.5} />{/snippet}
 			Import CSV
 		</Button>
-		<Button variant="primary" onclick={() => (createOpen = true)} disabled={data.schools.length === 0}>
+		<Button
+			variant="primary"
+			onclick={() => (createOpen = true)}
+			disabled={data.schools.length === 0}
+		>
 			{#snippet icon()}<Plus size={16} strokeWidth={1.5} />{/snippet}
 			New participant
 		</Button>
@@ -244,7 +268,8 @@
 	</EmptyState>
 {:else}
 	<div class="mb-4 flex items-center gap-2">
-		<span class="text-xs tracking-wider uppercase" style="color: var(--color-text-2);">Filter:</span>
+		<span class="text-xs tracking-wider uppercase" style="color: var(--color-text-2);">Filter:</span
+		>
 		{#each ['all', 'A', 'B', 'C'] as f (f)}
 			<button
 				type="button"
@@ -271,7 +296,7 @@
 		<table class="w-full border-collapse text-sm">
 			<thead>
 				<tr style="background: var(--color-bg-3);">
-					{#each ['Name', 'School', 'Cat', 'Theme', 'Judge', 'Status', ''] as h, i (i)}
+					{#each ['Name', 'School', 'Cat', 'Theme', 'Scratch', 'Judge', 'Status', ''] as h, i (i)}
 						<th
 							class="px-3 py-2 text-[11px] font-medium tracking-wider uppercase whitespace-nowrap"
 							style="color: var(--color-text-2); text-align: {h === '' ? 'right' : 'left'};"
@@ -298,6 +323,16 @@
 						<td class="px-3 py-2.5"><CategoryChip category={row.category} /></td>
 						<td class="px-3 py-2.5 text-xs" style="color: var(--color-text-2);">
 							{row.theme ?? '—'}
+						</td>
+						<td class="px-3 py-2.5 text-xs">
+							{#if row.scratchCredentialsSet}
+								<div class="flex items-center gap-1.5" style="color: var(--color-success);">
+									<KeyRound size={13} strokeWidth={1.8} />
+									<span style="font-family: var(--font-mono);">{row.scratchUsername}</span>
+								</div>
+							{:else}
+								<span style="color: var(--color-warning);">Missing</span>
+							{/if}
 						</td>
 						<td class="px-3 py-2.5 text-xs" style="color: var(--color-text-2);">
 							{row.judgeName ?? '—'}
@@ -360,7 +395,11 @@
 				{/each}
 				{#if filteredRows.length === 0}
 					<tr>
-						<td colspan="7" class="px-6 py-10 text-center text-sm" style="color: var(--color-text-2);">
+						<td
+							colspan="8"
+							class="px-6 py-10 text-center text-sm"
+							style="color: var(--color-text-2);"
+						>
 							No participants match.
 						</td>
 					</tr>
@@ -376,13 +415,16 @@
 		method="POST"
 		action="?/create"
 		use:enhance={() => {
-			return async ({ update }) => {
+			return async ({ result, update }) => {
 				await update();
+				if (result.type !== 'success') return;
 				createOpen = false;
 				newName = '';
 				newSchoolId = '';
 				newCategory = 'A';
 				newTheme = '';
+				newScratchUsername = '';
+				newScratchPassword = '';
 			};
 		}}
 		class="space-y-4"
@@ -405,6 +447,26 @@
 			<option value="Smart Cities">Smart Cities</option>
 			<option value="Space Pioneers">Space Pioneers</option>
 		</Select>
+		<div class="grid gap-4 sm:grid-cols-2">
+			<Input
+				label="Scratch username"
+				name="scratch_username"
+				required
+				autocomplete="off"
+				bind:value={newScratchUsername}
+			/>
+			<Input
+				label="Scratch password"
+				name="scratch_password"
+				type="password"
+				required
+				autocomplete="new-password"
+				bind:value={newScratchPassword}
+			/>
+		</div>
+		<p class="text-xs" style="color: var(--color-warning);">
+			Use a dedicated competition account password, never a personal or reused password.
+		</p>
 		<div class="flex justify-end gap-2 pt-2">
 			<Button variant="ghost" onclick={() => (createOpen = false)}>Cancel</Button>
 			<Button variant="primary" type="submit">Add</Button>
@@ -419,8 +481,9 @@
 			method="POST"
 			action="?/update"
 			use:enhance={() => {
-				return async ({ update }) => {
+				return async ({ result, update }) => {
 					await update();
+					if (result.type !== 'success') return;
 					editOpen = false;
 				};
 			}}
@@ -444,6 +507,26 @@
 				<option value="Smart Cities">Smart Cities</option>
 				<option value="Space Pioneers">Space Pioneers</option>
 			</Select>
+			<div class="grid gap-4 sm:grid-cols-2">
+				<Input
+					label="Scratch username"
+					name="scratch_username"
+					required
+					autocomplete="off"
+					bind:value={editScratchUsername}
+				/>
+				<Input
+					label="New Scratch password"
+					name="scratch_password"
+					type="password"
+					required={!editing.scratchCredentialsSet}
+					autocomplete="new-password"
+					hint={editing.scratchCredentialsSet
+						? 'Leave blank to keep the current password.'
+						: 'Required because credentials are currently missing.'}
+					bind:value={editScratchPassword}
+				/>
+			</div>
 			<div class="flex justify-end gap-2 pt-2">
 				<Button variant="ghost" onclick={() => (editOpen = false)}>Cancel</Button>
 				<Button variant="primary" type="submit">Save</Button>
@@ -470,8 +553,8 @@
 			<input type="hidden" name="id" value={dqing.id} />
 			<input type="hidden" name="dq" value="true" />
 			<p class="text-sm" style="color: var(--color-text-2);">
-				<strong style="color: var(--color-text-1);">{dqing.fullName}</strong> will be excluded
-				from the leaderboard. The reason is logged in the audit trail.
+				<strong style="color: var(--color-text-1);">{dqing.fullName}</strong> will be excluded from the
+				leaderboard. The reason is logged in the audit trail.
 			</p>
 			<Select label="Reason" name="reason" required bind:value={dqReason}>
 				<option value="complete_on_arrival">Complete on arrival</option>
@@ -500,9 +583,7 @@
 <ConfirmModal
 	bind:open={requalifyOpen}
 	title="Re-qualify participant?"
-	message={requalifying
-		? `${requalifying.fullName} will be eligible for ranking again.`
-		: ''}
+	message={requalifying ? `${requalifying.fullName} will be eligible for ranking again.` : ''}
 	confirmLabel="Yes, re-qualify"
 	onconfirm={submitRequalify}
 	oncancel={() => {
@@ -515,7 +596,9 @@
 <ConfirmModal
 	bind:open={deleteOpen}
 	title="Delete participant?"
-	message={deleting ? `${deleting.fullName} and any related scoresheets will be deleted. This can't be undone.` : ''}
+	message={deleting
+		? `${deleting.fullName} and any related scoresheets will be deleted. This can't be undone.`
+		: ''}
 	confirmLabel="Delete"
 	danger
 	onconfirm={submitDelete}
@@ -529,8 +612,10 @@
 <Modal bind:open={importOpen} title="Import participants from CSV" size="lg">
 	<p class="mb-3 text-sm" style="color: var(--color-text-2);">
 		Headers required:
-		<span style="font-family: var(--font-mono);">full_name,school_name,category,theme</span>
-		(theme optional). Missing schools are auto-created.
+		<span style="font-family: var(--font-mono);"
+			>full_name,school_name,category,theme,scratch_username,scratch_password</span
+		>
+		(all fields required). Missing schools are auto-created.
 	</p>
 
 	<div
@@ -576,7 +661,10 @@
 					<p class="text-[11px] tracking-wider uppercase" style="color: var(--color-text-2);">
 						Participants
 					</p>
-					<p class="text-2xl font-semibold" style="font-family: var(--font-mono); color: var(--color-text-1);">
+					<p
+						class="text-2xl font-semibold"
+						style="font-family: var(--font-mono); color: var(--color-text-1);"
+					>
 						{csvPreview.participants}
 					</p>
 				</div>

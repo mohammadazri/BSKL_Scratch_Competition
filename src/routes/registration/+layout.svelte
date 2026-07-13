@@ -19,6 +19,6 @@
 	];
 </script>
 
-<AppShell {nav} activeHref={page.url.pathname} user={data.profile}>
+<AppShell {nav} activeHref={page.url.pathname} user={data.profile} event={data.event}>
 	{@render children()}
 </AppShell>

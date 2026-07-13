@@ -42,9 +42,10 @@ export type DqInfo = {
 	status: 'pending' | 'approved';
 };
 
-export const load: PageServerLoad = async ({ locals, params, parent }) => {
+export const load: PageServerLoad = async ({ locals, params, parent, setHeaders }) => {
 	const { profile } = await parent();
 	const participantId = params.participantId;
+	setHeaders({ 'cache-control': 'private, no-store' });
 
 	// 1. Participant — RLS will already gate non-assigned ones for a judge.
 	const { data: participant, error: pErr } = await locals.supabase
@@ -54,6 +55,15 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 		.single();
 	if (pErr || !participant) {
 		throw error(404, 'Participant not found or not assigned to you.');
+	}
+
+	const { data: scratchCredentials, error: scratchError } = await locals.supabase
+		.from('participant_scratch_credentials')
+		.select('username, password')
+		.eq('participant_id', participantId)
+		.maybeSingle();
+	if (scratchError) {
+		throw error(500, "Could not load this participant's Scratch access details.");
 	}
 
 	const { data: school } = await locals.supabase
@@ -99,9 +109,12 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 		// Guard with Array.isArray: if checkpoints is ever stored as a non-array
 		// (e.g. a double-encoded JSON string), fall back to level mode rather than
 		// spreading a string into characters.
-		const rawCheckpoints = c.checkpoints as
-			| Array<{ id?: string; sort_order?: number; points: number; label: string }>
-			| null;
+		const rawCheckpoints = c.checkpoints as Array<{
+			id?: string;
+			sort_order?: number;
+			points: number;
+			label: string;
+		}> | null;
 		const checkpoints: RubricCheckpoint[] | undefined = Array.isArray(rawCheckpoints)
 			? [...rawCheckpoints]
 					.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
@@ -141,8 +154,11 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 		.select('phase_a, phase_b, phase_c')
 		.eq('id', 1)
 		.maybeSingle();
-	
-	const phaseKey = `phase_${participant.category.toLowerCase()}` as 'phase_a' | 'phase_b' | 'phase_c';
+
+	const phaseKey = `phase_${participant.category.toLowerCase()}` as
+		| 'phase_a'
+		| 'phase_b'
+		| 'phase_c';
 	const participantPhase = ev0?.[phaseKey] ?? 'setup';
 	const currentSection: 'A' | 'B' = participantPhase === 'section_b' ? 'B' : 'A';
 
@@ -158,7 +174,7 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 
 	let scores: ScoreRow[] = [];
 	let dq: DqInfo | null = null;
-	
+
 	// Fetch all scores for this participant across all their scoresheets (both sections).
 	// This ensures Section A scores are visible to the Section B judge, and that the
 	// UI knows Section A is fully scored so the final Submit button can unlock.
@@ -168,22 +184,20 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 		.from('scoresheets')
 		.select('id')
 		.eq('participant_id', participantId);
-		
-	const sheetIds = (allSheets ?? []).map(s => s.id as string);
+
+	const sheetIds = (allSheets ?? []).map((s) => s.id as string);
 	if (sheetIds.length > 0) {
 		const { data: scoreRows } = await supabaseAdmin
 			.from('scores')
 			.select('criterion_id, level, points, comment, checkpoint_state')
 			.in('scoresheet_id', sheetIds);
-			
+
 		scores = (scoreRows ?? []).map((s) => ({
 			criterionId: s.criterion_id as string,
 			level: s.level as PerfLevel,
 			points: s.points as number,
 			comment: (s.comment as string | null) ?? null,
-			checkpointIds: Array.isArray(s.checkpoint_state)
-				? (s.checkpoint_state as string[])
-				: []
+			checkpointIds: Array.isArray(s.checkpoint_state) ? (s.checkpoint_state as string[]) : []
 		}));
 	}
 
@@ -210,20 +224,20 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 	//    currently-open section. Setup and finalised phases lock everything.
 	const { data: ev } = await locals.supabase
 		.from('event_state')
-		.select('locked, phase_a, phase_b, phase_c, sprint_start_a, sprint_start_b, sprint_start_c')
+		.select('locked, phase_a, phase_b, phase_c')
 		.eq('id', 1)
 		.maybeSingle();
 	const eventLocked = Boolean(ev?.locked);
-	
-	const participantPhaseKey = `phase_${participant.category.toLowerCase()}` as 'phase_a' | 'phase_b' | 'phase_c';
+
+	const participantPhaseKey = `phase_${participant.category.toLowerCase()}` as
+		| 'phase_a'
+		| 'phase_b'
+		| 'phase_c';
 	const phase = ((ev?.[participantPhaseKey] as string | null) ?? 'setup') as
 		| 'setup'
 		| 'section_a'
 		| 'section_b'
 		| 'finalised';
-
-	const sprintStartKey = `sprint_start_${participant.category.toLowerCase()}` as 'sprint_start_a' | 'sprint_start_b' | 'sprint_start_c';
-	const sprintStart = (ev?.[sprintStartKey] as string | null) ?? null;
 
 	const readOnly =
 		eventLocked ||
@@ -242,6 +256,12 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 			schoolShortCode: (school?.short_code as string | null) ?? null,
 			qualified: Boolean(participant.qualified)
 		},
+		scratchCredentials: scratchCredentials
+			? {
+					username: scratchCredentials.username as string,
+					password: scratchCredentials.password as string
+				}
+			: null,
 		criteria,
 		scoresheet: sheet
 			? {
@@ -256,7 +276,6 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 		dq,
 		eventLocked,
 		phase,
-		sprintStart,
 		readOnly,
 		pendingEditRequest: sheet
 			? await (async () => {
@@ -425,13 +444,16 @@ function parsePayload(form: FormData): {
 
 // Returns the current event phase, normalised. Anywhere we use it we treat
 // 'setup' and 'finalised' as "no scoring allowed".
-async function getPhase(locals: App.Locals, category: string): Promise<'setup' | 'section_a' | 'section_b' | 'finalised'> {
+async function getPhase(
+	locals: App.Locals,
+	category: string
+): Promise<'setup' | 'section_a' | 'section_b' | 'finalised'> {
 	const { data } = await locals.supabase
 		.from('event_state')
 		.select('phase_a, phase_b, phase_c')
 		.eq('id', 1)
 		.maybeSingle();
-	
+
 	const phaseKey = `phase_${category.toLowerCase()}` as 'phase_a' | 'phase_b' | 'phase_c';
 	const p = (data?.[phaseKey] as string | null) ?? 'setup';
 	if (p === 'section_a' || p === 'section_b' || p === 'finalised') return p;
@@ -474,7 +496,10 @@ async function nextParticipantForJudge(
 		.eq('section', phaseSection)
 		.in('participant_id', participantIds);
 
-	const sheetByParticipant = new Map<string, { status: string; sectionASubmittedAt: string | null }>();
+	const sheetByParticipant = new Map<
+		string,
+		{ status: string; sectionASubmittedAt: string | null }
+	>();
 	for (const s of sheets ?? []) {
 		sheetByParticipant.set(s.participant_id as string, {
 			status: s.status as string,
@@ -547,9 +572,12 @@ async function checkpointsByCriterion(
 		.eq('category', p.category as string);
 	const out = new Map<string, RubricCheckpoint[]>();
 	for (const c of data ?? []) {
-		const raw = c.checkpoints as
-			| Array<{ id?: string; sort_order?: number; points: number; label: string }>
-			| null;
+		const raw = c.checkpoints as Array<{
+			id?: string;
+			sort_order?: number;
+			points: number;
+			label: string;
+		}> | null;
 		if (!Array.isArray(raw)) {
 			out.set(c.id as string, []);
 			continue;
@@ -651,11 +679,7 @@ export const actions: Actions = {
 		// `currentSection` is already in scope from the getOrCreateScoresheet
 		// call above. Use it to reject scores belonging to a section other than
 		// the current phase's.
-		const allowedIds = await criterionIdsForSection(
-			locals,
-			params.participantId,
-			currentSection
-		);
+		const allowedIds = await criterionIdsForSection(locals, params.participantId, currentSection);
 		const inPhaseScores = scores.filter((s) => allowedIds.has(s.criterionId));
 
 		if (inPhaseScores.length > 0) {
@@ -665,7 +689,10 @@ export const actions: Actions = {
 			const { data: critRows } = await locals.supabase
 				.from('criteria')
 				.select('id, max_points')
-				.in('id', inPhaseScores.map((s) => s.criterionId));
+				.in(
+					'id',
+					inPhaseScores.map((s) => s.criterionId)
+				);
 			const maxByCrit = new Map<string, number>(
 				(critRows ?? []).map((r) => [r.id as string, r.max_points as number])
 			);
@@ -751,11 +778,7 @@ export const actions: Actions = {
 
 		// Which section is this submission for? Determined by the current phase.
 		const currentSection: 'A' | 'B' = phase === 'section_a' ? 'A' : 'B';
-		const sectionIds = await criterionIdsForSection(
-			locals,
-			params.participantId,
-			currentSection
-		);
+		const sectionIds = await criterionIdsForSection(locals, params.participantId, currentSection);
 		const scoresToUpsert = scores.filter((s) => sectionIds.has(s.criterionId));
 
 		// SECTION A submit path: re-save section A scores, validate complete,
@@ -770,7 +793,8 @@ export const actions: Actions = {
 				.maybeSingle();
 			if (sheetState?.section_a_submitted_at) {
 				return fail(409, {
-					submitError: 'Section A is already submitted. Ask the admin to unlock if you need to change something.'
+					submitError:
+						'Section A is already submitted. Ask the admin to unlock if you need to change something.'
 				});
 			}
 
@@ -779,7 +803,10 @@ export const actions: Actions = {
 				const { data: critRows } = await locals.supabase
 					.from('criteria')
 					.select('id, max_points')
-					.in('id', scoresToUpsert.map((s) => s.criterionId));
+					.in(
+						'id',
+						scoresToUpsert.map((s) => s.criterionId)
+					);
 				const maxByCrit = new Map<string, number>(
 					(critRows ?? []).map((r) => [r.id as string, r.max_points as number])
 				);
@@ -821,9 +848,9 @@ export const actions: Actions = {
 
 			const { error: stampErr } = await locals.supabase
 				.from('scoresheets')
-				.update({ 
+				.update({
 					section_a_submitted_at: new Date().toISOString(),
-					status: 'submitted' 
+					status: 'submitted'
 				})
 				.eq('id', sheet.id);
 			if (stampErr) return fail(400, { submitError: stampErr.message });
@@ -847,30 +874,31 @@ export const actions: Actions = {
 			const { data: critRows } = await locals.supabase
 				.from('criteria')
 				.select('id, max_points')
-				.in('id', scoresToUpsert.map((s) => s.criterionId));
+				.in(
+					'id',
+					scoresToUpsert.map((s) => s.criterionId)
+				);
 			const maxByCrit = new Map<string, number>(
 				(critRows ?? []).map((r) => [r.id as string, r.max_points as number])
 			);
-			const { error: upErr } = await locals.supabase
-				.from('scores')
-				.upsert(
-					scoresToUpsert.map((s) => {
-						const reconciled = reconcileWithCheckpoints(
-							s,
-							cpByCriterion.get(s.criterionId),
-							maxByCrit.get(s.criterionId) ?? s.points
-						);
-						return {
-							scoresheet_id: sheet.id,
-							criterion_id: s.criterionId,
-							level: reconciled.level,
-							points: reconciled.points,
-							comment: s.comment,
-							checkpoint_state: s.checkpointIds.length > 0 ? s.checkpointIds : null
-						};
-					}),
-					{ onConflict: 'scoresheet_id,criterion_id' }
-				);
+			const { error: upErr } = await locals.supabase.from('scores').upsert(
+				scoresToUpsert.map((s) => {
+					const reconciled = reconcileWithCheckpoints(
+						s,
+						cpByCriterion.get(s.criterionId),
+						maxByCrit.get(s.criterionId) ?? s.points
+					);
+					return {
+						scoresheet_id: sheet.id,
+						criterion_id: s.criterionId,
+						level: reconciled.level,
+						points: reconciled.points,
+						comment: s.comment,
+						checkpoint_state: s.checkpointIds.length > 0 ? s.checkpointIds : null
+					};
+				}),
+				{ onConflict: 'scoresheet_id,criterion_id' }
+			);
 			if (upErr) return fail(400, { submitError: upErr.message });
 		}
 
@@ -975,7 +1003,9 @@ export const actions: Actions = {
 		}
 
 		const form = await request.formData();
-		const reason = String(form.get('reason') ?? '').trim().slice(0, 1000);
+		const reason = String(form.get('reason') ?? '')
+			.trim()
+			.slice(0, 1000);
 		if (reason.length < 10) {
 			return fail(400, {
 				requestError: 'Tell the admin in at least 10 characters what you need to change.'
@@ -1021,18 +1051,15 @@ export const actions: Actions = {
 		// judge — i.e. the current phase's section.
 		const phase = await getPhase(locals, participant.category);
 		const dqSection: 'A' | 'B' = phase === 'section_b' ? 'B' : 'A';
-		const sheet = await getOrCreateScoresheet(
-			locals,
-			params.participantId,
-			profile.id,
-			dqSection
-		);
+		const sheet = await getOrCreateScoresheet(locals, params.participantId, profile.id, dqSection);
 		if (!sheet) return fail(500, { dqError: 'Could not load scoresheet.' });
 
 		const form = await request.formData();
 		const reason = String(form.get('reason') ?? '').trim();
 		// SECURITY: cap before trim to bound work on pathological input.
-		const notes = String(form.get('notes') ?? '').slice(0, MAX_COMMENT_LENGTH).trim();
+		const notes = String(form.get('notes') ?? '')
+			.slice(0, MAX_COMMENT_LENGTH)
+			.trim();
 
 		const allowed = [
 			'complete_on_arrival',
@@ -1048,8 +1075,7 @@ export const actions: Actions = {
 		// — the note must read like a sentence the admin can act on.
 		if (notes.length < 10) {
 			return fail(400, {
-				dqError:
-					'Disqualification note must be at least 10 characters explaining what happened.'
+				dqError: 'Disqualification note must be at least 10 characters explaining what happened.'
 			});
 		}
 
@@ -1069,15 +1095,13 @@ export const actions: Actions = {
 				.eq('id', existing.id);
 			if (upErr) return fail(400, { dqError: upErr.message });
 		} else {
-			const { error: insErr } = await locals.supabase
-				.from('disqualifications')
-				.insert({
-					scoresheet_id: sheet.id,
-					reason,
-					notes,
-					raised_by: profile.id,
-					status: 'pending'
-				});
+			const { error: insErr } = await locals.supabase.from('disqualifications').insert({
+				scoresheet_id: sheet.id,
+				reason,
+				notes,
+				raised_by: profile.id,
+				status: 'pending'
+			});
 			if (insErr) return fail(400, { dqError: insErr.message });
 		}
 

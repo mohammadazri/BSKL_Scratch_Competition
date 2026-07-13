@@ -5,6 +5,7 @@
 import { redirect, isRedirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { supabaseAdmin } from '$lib/server/supabase';
+import { mapEventStateRow, type EventStateDbRow } from '$lib/event-status';
 
 // Paths exempted from the must-change-password gate so users can actually
 // reach the change-password page (and sign out / log back in).
@@ -40,8 +41,25 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		}
 	}
 
+	let event = null;
+	if (locals.user) {
+		const { data: eventRow, error: eventError } = await supabaseAdmin
+			.from('event_state')
+			.select(
+				'event_name, event_date, sprint_minutes, phase_a, phase_b, phase_c, sprint_start_a, sprint_start_b, sprint_start_c, locked'
+			)
+			.eq('id', 1)
+			.maybeSingle();
+		if (eventError) {
+			console.error('[layout] event status lookup failed:', eventError.message);
+		} else if (eventRow) {
+			event = mapEventStateRow(eventRow as EventStateDbRow);
+		}
+	}
+
 	return {
 		session: locals.session,
-		user: locals.user
+		user: locals.user,
+		event
 	};
 };
