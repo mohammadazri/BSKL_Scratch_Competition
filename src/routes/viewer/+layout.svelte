@@ -11,12 +11,13 @@
 <script lang="ts">
 	import AppShell from '$lib/components/AppShell.svelte';
 	import { page } from '$app/state';
-	import { Trophy, ScrollText } from '@lucide/svelte';
+	import { LayoutDashboard, Trophy, ScrollText } from '@lucide/svelte';
 
 	let { data, children } = $props();
 
 	const nav = [
-		{ href: '/viewer', label: 'Live results', icon: Trophy },
+		{ href: '/viewer', label: 'Dashboard', icon: LayoutDashboard },
+		{ href: '/viewer/results', label: 'Leaderboard', icon: Trophy },
 		{ href: '/viewer/audit', label: 'Audit history', icon: ScrollText }
 	];
 </script>

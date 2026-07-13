@@ -20,7 +20,6 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
-	import BrandHeader from '$lib/components/BrandHeader.svelte';
 	import LeaderboardTable from './LeaderboardTable.svelte';
 	import ResultsFilterBar from './ResultsFilterBar.svelte';
 	import { createSupabaseBrowser } from '$lib/supabase';
@@ -65,25 +64,20 @@
 
 		scoresheetChannel = supabase
 			.channel('results_scoresheets_tail')
-			.on(
-				'postgres_changes',
-				{ event: '*', schema: 'public', table: 'scoresheets' },
-				() => scheduleRefetch()
+			.on('postgres_changes', { event: '*', schema: 'public', table: 'scoresheets' }, () =>
+				scheduleRefetch()
 			)
 			.subscribe((status) => {
 				if (status === 'SUBSCRIBED') liveStatus = 'subscribed';
-				else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT')
-					liveStatus = 'disconnected';
+				else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') liveStatus = 'disconnected';
 				else if (status === 'CLOSED') liveStatus = 'disabled';
 				else liveStatus = 'connecting';
 			});
 
 		scoreChannel = supabase
 			.channel('results_scores_tail')
-			.on(
-				'postgres_changes',
-				{ event: '*', schema: 'public', table: 'scores' },
-				() => scheduleRefetch()
+			.on('postgres_changes', { event: '*', schema: 'public', table: 'scores' }, () =>
+				scheduleRefetch()
 			)
 			.subscribe();
 	});
@@ -109,17 +103,9 @@
 	const printLeaderboardUrl = $derived(
 		`/${data.role === 'super_admin' ? 'admin' : 'viewer'}/results/print${page.url.search}`
 	);
-
-	// `BrandHeader` only renders for viewer routes — admin routes get it from
-	// the AppShell wrapper in /admin/+layout.svelte, so rendering it here would
-	// double up.
 </script>
 
-{#if data.role !== 'super_admin'}
-	<BrandHeader />
-{/if}
-
-<main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+<div>
 	<div class="mb-4 flex flex-col gap-1">
 		<p
 			class="text-[11px] font-medium tracking-[0.18em] uppercase"
@@ -233,7 +219,10 @@
 				pending
 			</span>
 			{#if data.totals.tiesBrokenByTime > 0}
-				<span class="inline-flex items-center gap-1.5" title="Pairs of participants ordered by sprint time after a tie on points">
+				<span
+					class="inline-flex items-center gap-1.5"
+					title="Pairs of participants ordered by sprint time after a tie on points"
+				>
 					<strong style="color: var(--color-text-1);">{data.totals.tiesBrokenByTime}</strong>
 					ties broken by sprint time
 				</span>
@@ -241,4 +230,4 @@
 		</div>
 		<span>Ties auto-broken by sprint time (faster wins).</span>
 	</footer>
-</main>
+</div>
