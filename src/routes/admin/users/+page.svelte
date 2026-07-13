@@ -153,6 +153,10 @@
 			toasts.error(result.error?.message ?? 'Server error.');
 			return;
 		}
+		if (result.type !== 'success') {
+			toasts.error('Unexpected redirect while completing the action.');
+			return;
+		}
 
 		// Success. If this was a password reset, surface the new temp password
 		// in a modal so the admin can copy / print it. Otherwise just toast.
@@ -359,11 +363,8 @@
 							<button
 								type="button"
 								class="grid h-9 w-9 place-items-center rounded-[var(--radius-sm)] transition hover:bg-white/5"
-								style="color: {row.isActive
-									? 'var(--color-danger)'
-									: 'var(--color-success)'};"
-								onclick={() =>
-									row.isActive ? confirmDeactivate(row) : confirmReactivate(row)}
+								style="color: {row.isActive ? 'var(--color-danger)' : 'var(--color-success)'};"
+								onclick={() => (row.isActive ? confirmDeactivate(row) : confirmReactivate(row))}
 								aria-label={row.isActive ? 'Deactivate' : 'Reactivate'}
 								title={row.isActive ? 'Deactivate' : 'Reactivate'}
 							>
@@ -486,9 +487,7 @@
 				// If the server returned a temp password (success path), surface
 				// it in the credentials modal so the admin can copy / print it.
 				if (result.type === 'success') {
-					const successData = result.data as
-						| { created?: { password?: string } }
-						| undefined;
+					const successData = result.data as { created?: { password?: string } } | undefined;
 					const pw = successData?.created?.password;
 					if (pw) {
 						credsModal = {
@@ -604,8 +603,8 @@
 		<div class="flex flex-col gap-4">
 			<p class="text-sm" style="color: var(--color-text-2);">
 				{#if credsModal.mode === 'created'}
-					Hand <strong style="color: var(--color-text-1);">{credsModal.fullName}</strong> the
-					credentials below. They'll be required to choose a new password on first sign-in.
+					Hand <strong style="color: var(--color-text-1);">{credsModal.fullName}</strong> the credentials
+					below. They'll be required to choose a new password on first sign-in.
 				{:else}
 					New temporary password for
 					<strong style="color: var(--color-text-1);">{credsModal.fullName}</strong>. Their old
@@ -621,11 +620,17 @@
 					<span class="text-[11px] tracking-wider uppercase" style="color: var(--color-text-2);">
 						Email
 					</span>
-					<span class="truncate text-sm" style="font-family: var(--font-mono); color: var(--color-text-1);">
+					<span
+						class="truncate text-sm"
+						style="font-family: var(--font-mono); color: var(--color-text-1);"
+					>
 						{credsModal.email}
 					</span>
 				</div>
-				<div class="flex items-center justify-between gap-2 border-t pt-2" style="border-color: var(--border);">
+				<div
+					class="flex items-center justify-between gap-2 border-t pt-2"
+					style="border-color: var(--border);"
+				>
 					<span class="text-[11px] tracking-wider uppercase" style="color: var(--color-text-2);">
 						Temp password
 					</span>
@@ -642,8 +647,8 @@
 				class="rounded-md border-l-2 p-2 text-xs"
 				style="border-color: var(--color-warning); background: rgba(217, 119, 6, 0.08); color: var(--color-text-1);"
 			>
-				This password is only shown <strong>once</strong>. Copy it now or print the login slip —
-				you can't get it back later.
+				This password is only shown <strong>once</strong>. Copy it now or print the login slip — you
+				can't get it back later.
 			</div>
 
 			<div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
