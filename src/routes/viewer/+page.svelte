@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import Card from '$lib/components/Card.svelte';
 	import Button from '$lib/components/Button.svelte';
@@ -109,7 +110,7 @@
 			Read-only by design
 		</p>
 		<a
-			href="/viewer/audit"
+			href={resolve('/viewer/audit')}
 			class="mt-1 inline-block text-xs underline"
 			style="color: var(--color-accent-2);"
 		>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, untrack } from 'svelte';
+	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { Clock3, LockKeyhole } from '@lucide/svelte';
 	import { subscribeTable } from '$lib/realtime';
@@ -17,12 +17,8 @@
 	}
 
 	let { event }: Props = $props();
-	let liveEvent = $state(untrack(() => event));
+	let liveEvent = $derived(event);
 	let now = $state<number>(Number.NaN);
-
-	$effect(() => {
-		liveEvent = event;
-	});
 
 	const statuses = $derived({
 		A: deriveCategoryEventStatus(liveEvent, 'A', now),
